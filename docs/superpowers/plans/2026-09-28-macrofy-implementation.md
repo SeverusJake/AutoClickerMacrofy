@@ -6,7 +6,7 @@
 
 **Architecture:** Avalonia presents a vertical Profiles/Settings/About UI. A platform-neutral core owns macros, editing, persistence, and scheduling; a separate Windows backend owns hooks, hotkeys, window discovery, and targeted message delivery. Actual Google Play Games compatibility is checked before building the full UI; future Mac support reuses contracts but is not part of this release.
 
-**Tech Stack:** C#, .NET 10, Avalonia 12.1.3, CommunityToolkit.Mvvm 8.4.2, Windows user32 interop, versioned JSON, xUnit 2.9.3, xunit.runner.visualstudio 3.1.5, Microsoft.NET.Test.Sdk 18.10.1. Pin SDK 10.0.302, already installed locally, with `rollForward=latestPatch`. Pin Avalonia/Desktop/Fluent/Headless.Xunit packages together at 12.1.3. Exact package references and transitive dependencies are recorded in lock files in Task 1; no floating versions.
+**Tech Stack:** C#, .NET 10, Avalonia 12.1.3, CommunityToolkit.Mvvm 8.4.2, Windows user32 interop, versioned JSON, xUnit 2.9.3 for Core/Windows tests, xunit.v3 3.2.2 for App headless tests (required by Avalonia 12.1.3), xunit.runner.visualstudio 3.1.5, Microsoft.NET.Test.Sdk 18.10.1. Pin SDK 10.0.302, already installed locally, with `rollForward=latestPatch`. Pin Avalonia/Desktop/Fluent/Headless.Xunit packages together at 12.1.3. Exact package references and transitive dependencies are recorded in lock files in Task 1; no floating versions.
 
 **Spec:** `docs/superpowers/specs/2026-09-28-macrofy-design.md`
 
