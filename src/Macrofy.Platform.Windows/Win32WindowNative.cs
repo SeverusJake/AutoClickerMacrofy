@@ -46,6 +46,18 @@ internal sealed class Win32WindowNative : IWindowNative
         return best;
     }
 
+    public IReadOnlyList<NativeWindow> ReadSurfaces(NativeWindow window)
+    {
+        var surfaces = new List<NativeWindow>();
+        if (ReadWindow(window.TopHandle, window.TopHandle) is { } parent) surfaces.Add(parent);
+        WindowNative.EnumChildWindows(window.TopHandle, (child, _) =>
+        {
+            if (WindowNative.IsWindowVisible(child) && ReadWindow(window.TopHandle, child) is { } candidate) surfaces.Add(candidate);
+            return true;
+        }, 0);
+        return surfaces;
+    }
+
     public NativeWindow? ReadWindow(nint top, nint surface)
     {
         if (!WindowNative.IsWindow(top) || !WindowNative.IsWindow(surface)) return null;
@@ -76,6 +88,17 @@ internal sealed class Win32WindowNative : IWindowNative
             return new(top, surface, (int)pid, process.StartTime.ToUniversalTime().Ticks, path, title.ToString(), cls.ToString(), geometry, minimized, WindowNative.GetForegroundWindow() == top, identity);
         }
         catch (Exception e) when (e is Win32Exception or InvalidOperationException or ArgumentException or IOException or UnauthorizedAccessException) { return null; }
+    }
+    public bool TryReadPointer(nint surface, out PointerPoint point)
+    {
+        point = default;
+        var previous = WindowNative.SetThreadDpiAwarenessContext(-4);
+        try
+        {
+            if (!WindowNative.GetCursorPos(out var p) || !WindowNative.ScreenToClient(surface, ref p)) return false;
+            point = new(p.X, p.Y); return true;
+        }
+        finally { if (previous != 0) WindowNative.SetThreadDpiAwarenessContext(previous); }
     }
     public void Dispose() { monitor.Destroyed -= Forward; monitor.Dispose(); }
 }

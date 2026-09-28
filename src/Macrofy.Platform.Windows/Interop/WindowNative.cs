@@ -21,14 +21,16 @@ internal static class WindowNative
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern int GetClassName(nint hwnd, StringBuilder text, int count);
     [DllImport("user32.dll")] internal static extern bool GetClientRect(nint hwnd, out Rect rect);
     [DllImport("user32.dll")] internal static extern bool ClientToScreen(nint hwnd, ref Point point);
+    [DllImport("user32.dll")] internal static extern bool ScreenToClient(nint hwnd, ref Point point);
+    [DllImport("user32.dll")] internal static extern bool GetCursorPos(out Point point);
     [DllImport("user32.dll")] internal static extern uint GetDpiForWindow(nint hwnd);
     [DllImport("user32.dll")] internal static extern nint SetThreadDpiAwarenessContext(nint context);
     [DllImport("user32.dll", SetLastError = true)] internal static extern nint SetWinEventHook(uint min, uint max, nint module, WinEventProc callback, uint process, uint thread, uint flags);
     [DllImport("user32.dll")] internal static extern bool UnhookWinEvent(nint hook);
-    [DllImport("user32.dll")] internal static extern int GetMessage(out Message message, nint hwnd, uint min, uint max);
-    [DllImport("user32.dll")] internal static extern bool PeekMessage(out Message message, nint hwnd, uint min, uint max, uint remove);
+    [DllImport("user32.dll", EntryPoint="GetMessageW")] internal static extern int GetMessage(out Message message, nint hwnd, uint min, uint max);
+    [DllImport("user32.dll", EntryPoint="PeekMessageW")] internal static extern bool PeekMessage(out Message message, nint hwnd, uint min, uint max, uint remove);
     [DllImport("user32.dll")] internal static extern bool TranslateMessage(ref Message message);
-    [DllImport("user32.dll")] internal static extern nint DispatchMessage(ref Message message);
-    [DllImport("user32.dll", SetLastError = true)] internal static extern bool PostThreadMessage(uint thread, uint message, nuint wParam, nint lParam);
+    [DllImport("user32.dll", EntryPoint="DispatchMessageW")] internal static extern nint DispatchMessage(ref Message message);
+    [DllImport("user32.dll", EntryPoint="PostThreadMessageW", SetLastError = true)] internal static extern bool PostThreadMessage(uint thread, uint message, nuint wParam, nint lParam);
     [DllImport("kernel32.dll")] internal static extern uint GetCurrentThreadId();
 }

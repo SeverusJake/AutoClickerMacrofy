@@ -13,6 +13,7 @@ internal static class Program
     private static readonly Native.WndProc callback = WindowProcedure;
     private static string pipeName = "";
     private static nint first, second;
+    private static volatile bool stalled;
     private static readonly CancellationTokenSource shutdown = new();
     private sealed record Receipt(uint Message, ulong WParam, long LParam);
 
@@ -24,7 +25,7 @@ internal static class Program
         if (Native.RegisterClassEx(ref cls) == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
         first = Create(" A"); second = Create(" B");
         var server = Task.Run(ServeAsync);
-        while (Native.GetMessage(out var message, 0, 0, 0) > 0) { Native.TranslateMessage(ref message); Native.DispatchMessage(ref message); }
+        while (Native.GetMessage(out var message, 0, 0, 0) > 0) { Native.DispatchMessage(ref message); }
         shutdown.Cancel();
         Native.DestroyWindow(first); Native.DestroyWindow(second);
         try { server.GetAwaiter().GetResult(); } catch (OperationCanceledException) { }
@@ -61,7 +62,7 @@ internal static class Program
                         case "restore": Native.ShowWindow(first, 4); break;
                         case "recreate": Native.DestroyWindow(first); first = Create(" A"); break;
                         case "clear": while (receipts.TryDequeue(out _)) { } break;
-                        case "stall": Thread.Sleep(500); break;
+                        case "stall": stalled = true; Thread.Sleep(500); stalled = false; break;
                         case "quit": Native.PostQuitMessage(0); break;
                         default: throw new ArgumentException("Unknown fixture command.");
                     }
@@ -86,11 +87,11 @@ internal static class Program
             if (command != "snapshot")
             {
                 var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                commands.Enqueue((command ?? "", completion));
+                commands.Enqueue((command == "stall-async" ? "stall" : command ?? "", completion));
                 Native.PostMessage(first, 0x8001, 0, 0);
-                await completion.Task.WaitAsync(shutdown.Token);
+                if (command != "stall-async") await completion.Task.WaitAsync(shutdown.Token);
             }
-            await writer.WriteLineAsync(JsonSerializer.Serialize(new { Events = receipts.ToArray() }));
+            await writer.WriteLineAsync(JsonSerializer.Serialize(new { Events = receipts.ToArray(), Stalled = stalled }));
         }
     }
 }
@@ -113,10 +114,10 @@ internal static class Native
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern nint DefWindowProc(nint hwnd, uint message, nuint wParam, nint lParam);
     [DllImport("user32.dll")] internal static extern bool ShowWindow(nint hwnd, int command);
     [DllImport("user32.dll")] internal static extern bool DestroyWindow(nint hwnd);
-    [DllImport("user32.dll")] internal static extern int GetMessage(out Message message, nint hwnd, uint min, uint max);
+    [DllImport("user32.dll", EntryPoint="GetMessageW")] internal static extern int GetMessage(out Message message, nint hwnd, uint min, uint max);
     [DllImport("user32.dll")] internal static extern bool TranslateMessage(ref Message message);
-    [DllImport("user32.dll")] internal static extern nint DispatchMessage(ref Message message);
+    [DllImport("user32.dll", EntryPoint="DispatchMessageW")] internal static extern nint DispatchMessage(ref Message message);
     [DllImport("user32.dll")] internal static extern void PostQuitMessage(int code);
-    [DllImport("user32.dll")] internal static extern bool PostMessage(nint hwnd, uint message, nuint wParam, nint lParam);
+    [DllImport("user32.dll", EntryPoint="PostMessageW")] internal static extern bool PostMessage(nint hwnd, uint message, nuint wParam, nint lParam);
     [DllImport("user32.dll")] internal static extern nint SetThreadDpiAwarenessContext(nint context);
 }

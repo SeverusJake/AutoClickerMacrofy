@@ -103,18 +103,18 @@ All Windows-targeted tests are serialized. A test may skip only when its explici
 - `ITargetContext.GetAsync(TargetToken, CancellationToken) -> ValueTask<TargetContextResult>` exposes live geometry, foreground/minimized state, and executable/input-surface fingerprint without native handles.
 - `ISystemEvents.Suspended` event signals machine sleep; native services implement disposal.
 
-- [ ] Create SDK/project/package configuration, keeping core and contracts on `net10.0`, Windows backend/tests on `net10.0-windows`, App referencing Windows backend only in Windows builds. Use SDK-style XML and preserve existing `.gitignore`.
-- [ ] Add failing `NeutralModelsExposeNoNativeHandles`: assert `TargetToken` contains GUID identity and `TargetWindow` exposes no `IntPtr`, `HWND`, or Win32 virtual-key public property.
+- [x] Create SDK/project/package configuration, keeping core and contracts on `net10.0`, Windows backend/tests on `net10.0-windows`, App referencing Windows backend only in Windows builds. Use SDK-style XML and preserve existing `.gitignore`.
+- [x] Add failing `NeutralModelsExposeNoNativeHandles`: assert `TargetToken` contains GUID identity and `TargetWindow` exposes no `IntPtr`, `HWND`, or Win32 virtual-key public property.
 
 ```csharp
 Assert.Equal(typeof(Guid), typeof(TargetToken).GetProperty("Id")!.PropertyType);
 Assert.DoesNotContain(typeof(TargetWindow).GetProperties(), p => p.PropertyType == typeof(IntPtr));
 ```
 
-- [ ] Run `dotnet test tests/Macrofy.Core.Tests --filter ContractsTests`; expect missing contract types until implemented.
-- [ ] Define the contracts/value types above; create App composition entry point with unsupported-platform status until a backend is registered. No Mac stub claims functional recording.
-- [ ] Restore with lock files and run `dotnet build Macrofy.sln` plus contract tests; expect build/test success. Check pinned package target-framework and xUnit adapter compatibility before continuing; report any required version change.
-- [ ] Commit foundation and tests as `build: establish Macrofy solution and platform contracts`.
+- [x] Run `dotnet test tests/Macrofy.Core.Tests --filter ContractsTests`; expect missing contract types until implemented.
+- [x] Define the contracts/value types above; create App composition entry point with unsupported-platform status until a backend is registered. No Mac stub claims functional recording.
+- [x] Restore with lock files and run `dotnet build Macrofy.sln` plus contract tests; expect build/test success. Check pinned package target-framework and xUnit adapter compatibility before continuing; report any required version change.
+- [x] Commit foundation and tests as `build: establish Macrofy solution and platform contracts`.
 
 ## Task 2: Windows window discovery, identity, and geometry
 
@@ -123,7 +123,7 @@ Assert.DoesNotContain(typeof(TargetWindow).GetProperties(), p => p.PropertyType 
 **Consumes:** Task 1 window and permission contracts.
 **Produces:** `WindowsWindowCatalog`, `WindowsPermissionService`; `WindowIdentityRegistry.TryResolve(TargetToken, out NativeTarget) -> bool`, internal only; `WindowGeometryProvider.Get(TargetToken) -> GeometryResult`.
 
-- [ ] Add failing assertions: two matching titles yield Ambiguous; no match yields Missing; explicit token selects exactly one candidate; reused HWND with changed process start identity invalidates token; same-process window destruction/recreation also permanently invalidates the original token, including its child surface. `PermissionDeniedIsReported` asserts access-denied result without elevation.
+- [x] Add failing assertions: two matching titles yield Ambiguous; no match yields Missing; explicit token selects exactly one candidate; reused HWND with changed process start identity invalidates token; same-process window destruction/recreation also permanently invalidates the original token, including its child surface. `PermissionDeniedIsReported` asserts access-denied result without elevation.
 
 ```csharp
 // Separate catalog fixtures with two matching windows, then zero windows.
@@ -132,11 +132,11 @@ Assert.IsType<ResolutionResult.Missing>(missingResult);
 Assert.False(registry.TryResolve(oldToken, out _)); // Reused HWND, new process identity.
 ```
 
-- [ ] Run `dotnet test tests/Macrofy.Platform.Windows.Tests --filter WindowCatalogTests`; expect failures from missing implementation, not unrelated tooling errors.
-- [ ] Enumerate titled user windows including minimized windows, excluding Macrofy itself. Match application identity plus case-insensitive glob (`*`/`?`), cache only geometry belonging to live token, and check identity before each lookup. Resolve child input surface without changing focus; choose a surface deterministically and expose it in the probe. Monitor top-level and child destruction with out-of-context WinEvent hooks on a message thread; never silently substitute a recreated child.
-- [ ] Add geometry assertions for non-100% DPI, resize, and minimized cached geometry; unknown geometry returns error, zero size never scales coordinates. Verify list refresh leaves foreground window unchanged.
-- [ ] Run window tests on Windows and a controlled two-window process. Record which checks are real integration versus fakes.
-- [ ] Commit as `feat: discover and resolve Windows targets`.
+- [x] Run `dotnet test tests/Macrofy.Platform.Windows.Tests --filter WindowCatalogTests`; expect failures from missing implementation, not unrelated tooling errors.
+- [x] Enumerate titled user windows including minimized windows, excluding Macrofy itself. Match application identity plus case-insensitive glob (`*`/`?`), cache only geometry belonging to live token, and check identity before each lookup. Resolve child input surface without changing focus; choose a surface deterministically and expose it in the probe. Monitor top-level and child destruction with out-of-context WinEvent hooks on a message thread; never silently substitute a recreated child.
+- [x] Add geometry assertions for non-100% DPI, resize, and minimized cached geometry; unknown geometry returns error, zero size never scales coordinates. Verify list refresh leaves foreground window unchanged.
+- [x] Run window tests on Windows and a controlled two-window process. Record which checks are real integration versus fakes.
+- [x] Commit as `feat: discover and resolve Windows targets`.
 
 ## Task 3: Targeted playback and early game compatibility gate
 
@@ -145,7 +145,7 @@ Assert.False(registry.TryResolve(oldToken, out _)); // Reused HWND, new process 
 **Consumes:** Task 1 player contract; Task 2 token/geometry registry.
 **Produces:** `WindowsInputPlayer`; internal `MessageEncoder.Encode(InputCommand, NativeTarget, HeldState) -> IReadOnlyList<NativeMessage>`. Test target exposes received-event acknowledgements over a local named pipe; live game probe displays Queued/Failed and solicits observed result separately.
 
-- [ ] Add failing encoder/delivery assertions: ordered down/up, signed client coordinates, correct wheel screen-coordinate conversion, modifier/held-button masks, key repeat/transition bits, surrogate-pair text, access denial, cancellation, and token invalidation. `CancelledSendDoesNotDeliver` calls the actual player with a pre-cancelled token and asserts zero native sends through the test interop seam. Assert queued=true does not set user-confirmed compatibility.
+- [x] Add failing encoder/delivery assertions: ordered down/up, signed client coordinates, correct wheel screen-coordinate conversion, modifier/held-button masks, key repeat/transition bits, surrogate-pair text, access denial, cancellation, and token invalidation. `CancelledSendDoesNotDeliver` calls the actual player with a pre-cancelled token and asserts zero native sends through the test interop seam. Assert queued=true does not set user-confirmed compatibility.
 
 ```csharp
 Assert.True(successfulDelivery.Queued);
@@ -154,9 +154,9 @@ Assert.Equal(cursorBefore, cursorAfter);
 Assert.Equal(foregroundBefore, foregroundAfter);
 ```
 
-- [ ] Run `dotnet test tests/Macrofy.Platform.Windows.Tests --filter InputPlayerTests`; expect specific unimplemented-player failures.
-- [ ] Implement targeted PostMessage delivery with the serial sender/rate/cleanup bounds in Accepted review fixes, key-state tracking, scan/extended bits, validated pointer coordinates, WM_CHAR text, and target-only cleanup. Stop at first failed send; do not call global input/focus APIs.
-- [ ] Launch controlled TestTarget and use named-pipe acknowledgement to verify actual received clicks/keys/text/wheel/drag, background and minimized where the test target supports them. Compare foreground-window handle and physical cursor before/after.
+- [x] Run `dotnet test tests/Macrofy.Platform.Windows.Tests --filter InputPlayerTests`; expect specific unimplemented-player failures.
+- [x] Implement targeted PostMessage delivery with the serial sender/rate/cleanup bounds in Accepted review fixes, key-state tracking, scan/extended bits, validated pointer coordinates, WM_CHAR text, and target-only cleanup. Stop at first failed send; do not call global input/focus APIs.
+- [x] Launch controlled TestTarget and use named-pipe acknowledgement to verify actual received clicks/keys/text/wheel/drag, background and minimized where the test target supports them. Compare foreground-window handle and physical cursor before/after.
 - [ ] Run `dotnet run --project tools/Macrofy.CompatibilityProbe -- --interactive`. List targets, select the user-identified CookieRun: Crumble - Idle RPG window through the picker, and ask for a harmless test action/position. Test Minimized first and non-minimized background visible/partly covered/fully covered separately. CookieRun needs only confirmed click capability; other gestures stay future-target capabilities. Record mouse/key capabilities and user observations in verification document. Do not send to an unspecified window or arbitrary position. The window title was observed read-only during planning; input compatibility remains unknown.
 - [ ] **Milestone gate:** minimized clicks are preferred; confirmed background clicks are the accepted fallback. If both fail, pause and review options with the user. Proceed to full app only after the intended game accepts required click input. If game is unavailable, retain probe and report awaiting actual test; controlled-window success cannot substitute for game success.
 - [ ] Commit verified backend/probe as `feat: add targeted Windows input and compatibility probe`.
@@ -200,7 +200,7 @@ Assert.Equal(new PointerPoint(400, 300), CoordinateMapper.Map(
 // Compare bytes through the file-I/O fixture before/after injected replacement failure.
 Assert.Equal(lastGoodBytes, stateBytesAfterFailedSave);
 Assert.Equal(corruptOriginalBytes, preservedOriginalBytesAfterRecovery);
-Assert.Equal("CookieRun 零", reloadedProfile.Name);
+Assert.Equal("CookieRun é›¶", reloadedProfile.Name);
 ```
 
 - [ ] Run `dotnet test tests/Macrofy.Core.Tests --filter StorageTests`; expect missing-store failures.

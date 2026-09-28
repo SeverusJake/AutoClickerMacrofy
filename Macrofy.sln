@@ -25,6 +25,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Macrofy.TestTarget", "tools\Macrofy.TestTarget\Macrofy.TestTarget.csproj", "{8BECD29F-ACE6-420B-8127-F492610C6397}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Macrofy.CompatibilityProbe", "tools\Macrofy.CompatibilityProbe\Macrofy.CompatibilityProbe.csproj", "{5A4B2F2D-CDF7-4421-8D88-050DA747B375}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -131,6 +133,18 @@ Global
 		{8BECD29F-ACE6-420B-8127-F492610C6397}.Release|x64.Build.0 = Release|Any CPU
 		{8BECD29F-ACE6-420B-8127-F492610C6397}.Release|x86.ActiveCfg = Release|Any CPU
 		{8BECD29F-ACE6-420B-8127-F492610C6397}.Release|x86.Build.0 = Release|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Debug|x64.Build.0 = Debug|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Debug|x86.Build.0 = Debug|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Release|x64.ActiveCfg = Release|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Release|x64.Build.0 = Release|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Release|x86.ActiveCfg = Release|Any CPU
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -144,5 +158,6 @@ Global
 		{6713AEBC-25C3-477E-A009-68C8524466DF} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{4B343A8C-4AC3-47A3-820C-4C030F37D299} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{8BECD29F-ACE6-420B-8127-F492610C6397} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{5A4B2F2D-CDF7-4421-8D88-050DA747B375} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 EndGlobal

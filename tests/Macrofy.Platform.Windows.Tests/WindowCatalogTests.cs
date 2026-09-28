@@ -85,6 +85,15 @@ public class WindowCatalogTests
         Assert.NotEqual(before.SurfaceFingerprint, (await catalog.GetAsync(token)).Context!.SurfaceFingerprint);
     }
     [Fact]
+    public async Task PointerPickerUsesSelectedClientPointAndRejectsOutsideOrMinimizedTarget()
+    {
+        using var native=new FakeWindows();native.Windows.Add(FakeWindows.Window(11));using var catalog=new WindowsWindowCatalog(native);
+        var token=Assert.Single(await catalog.ListAsync()).Token;
+        Assert.Equal(new PointerPoint(20,30),catalog.ReadPointerPosition(token).Point);
+        native.Pointer=new(900,30);Assert.Null(catalog.ReadPointerPosition(token).Point);
+        native.Pointer=new(20,30);native.Windows[0]=native.Windows[0] with {IsMinimized=true};Assert.Null(catalog.ReadPointerPosition(token).Point);
+    }
+    [Fact]
     public async Task PermissionDeniedIsReportedWithoutElevation()
     {
         using var native = new FakeWindows(); native.Windows.Add(FakeWindows.Window(11));
@@ -100,6 +109,8 @@ internal sealed class FakeWindows : IWindowNative
 {
     public List<NativeWindow> Windows { get; } = [];
     public int CurrentProcessId => 999;
+    public PointerPoint Pointer {get;set;}=new(20,30);
+    public bool TryReadPointer(nint surface,out PointerPoint point){point=Pointer;return true;}
     public event Action<nint>? Destroyed;
     public IReadOnlyList<NativeWindow> EnumerateWindows() => Windows.ToArray();
     public NativeWindow? ReadWindow(nint top, nint surface) => Windows.FirstOrDefault(w => w.TopHandle == top && w.SurfaceHandle == surface);

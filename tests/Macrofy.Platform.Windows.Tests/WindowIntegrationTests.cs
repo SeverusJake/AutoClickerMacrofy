@@ -30,6 +30,17 @@ public class WindowIntegrationTests
         Assert.Equal(first.Token, await lost.Task.WaitAsync(TimeSpan.FromSeconds(5)));
         Assert.Null((await catalog.GetAsync(first.Token)).Context);
     }
+    [Fact]
+    public async Task InputSurfacePickerExposesParentAndChildWithoutRetargetingOldToken()
+    {
+        using var target=await TargetFixture.StartAsync();using var catalog=new WindowsWindowCatalog();
+        var parent=(await catalog.ListAsync()).Single(w=>w.Title==target.PipeName+" A");
+        var surfaces=await catalog.ListInputSurfacesAsync(parent.Token);
+        Assert.Equal(2,surfaces.Count);
+        Assert.Contains(surfaces,s=>s.Window.Token==parent.Token);
+        Assert.Equal(2,surfaces.Select(s=>s.Window.Token).Distinct().Count());
+        Assert.All(surfaces,s=>Assert.NotNull(s.Window.Geometry));
+    }
     internal static async Task WaitUntilAsync(Func<Task<bool>> condition)
     {
         var timer = Stopwatch.StartNew();

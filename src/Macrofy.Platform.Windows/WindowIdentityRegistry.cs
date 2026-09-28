@@ -11,6 +11,8 @@ internal interface IWindowNative : IDisposable
     int CurrentProcessId { get; }
     IReadOnlyList<NativeWindow> EnumerateWindows();
     NativeWindow? ReadWindow(nint top, nint surface);
+    IReadOnlyList<NativeWindow> ReadSurfaces(NativeWindow window) => [window];
+    bool TryReadPointer(nint surface, out PointerPoint point) { point = default; return false; }
     event Action<nint>? Destroyed;
 }
 

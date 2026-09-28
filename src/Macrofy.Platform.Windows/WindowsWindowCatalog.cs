@@ -4,6 +4,9 @@ using Macrofy.Platform.Models;
 
 namespace Macrofy.Platform.Windows;
 
+public sealed record InputSurfaceOption(TargetWindow Window, string ClassName, bool IsTopLevel);
+public sealed record PointerPositionResult(PointerPoint? Point, PlatformError? Error = null);
+
 public sealed class WindowsWindowCatalog : IWindowCatalog, ITargetContext, IDisposable
 {
     private readonly IWindowNative native;
@@ -49,8 +52,27 @@ public sealed class WindowsWindowCatalog : IWindowCatalog, ITargetContext, IDisp
         return ValueTask.FromResult(new TargetContextResult(new(ToWindow(target, window), window.IsForeground, fingerprint)));
     }
 
+    public Task<IReadOnlyList<InputSurfaceOption>> ListInputSurfacesAsync(TargetToken target, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!Registry.TryResolve(target, out var original)) return Task.FromResult<IReadOnlyList<InputSurfaceOption>>([]);
+        IReadOnlyList<InputSurfaceOption> options = native.ReadSurfaces(original).Select(w =>
+            new InputSurfaceOption(ToWindow(Registry.Register(w), w), w.SurfaceClass, w.TopHandle == w.SurfaceHandle)).ToArray();
+        return Task.FromResult(options);
+    }
+
     private TargetWindow ToWindow(TargetToken token, NativeWindow window) => new(token,
         new(Path.GetFileNameWithoutExtension(window.ExecutablePath), window.ExecutablePath), window.Title, window.IsMinimized, geometry.Get(token, window));
+
+    public PointerPositionResult ReadPointerPosition(TargetToken target)
+    {
+        if (!Registry.TryResolve(target, out var window)) return new(null, new("TargetLost", "Original target disappeared."));
+        if (window.IsMinimized) return new(null, new("Minimized", "Restore game to choose a visible point, then minimize it for the test."));
+        var g = geometry.Get(target, window);
+        if (g is null || !native.TryReadPointer(window.SurfaceHandle, out var point) || point.X < 0 || point.Y < 0 || point.X >= g.Width || point.Y >= g.Height)
+            return new(null, new("OutsideClient", "Hover inside the selected game input surface before capture finishes."));
+        return new(point);
+    }
 
     private static bool Matches(TargetRule rule, TargetWindow window)
     {
