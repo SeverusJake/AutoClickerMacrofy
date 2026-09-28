@@ -6,9 +6,11 @@ Macrofy is a simple desktop app for recording, editing, and repeatedly replaying
 
 The first release targets Windows 10 and Windows 11, x64. Google Play Games on PC is the primary real-world compatibility target. A window list also allows selecting other running applications and games. Compatibility depends on the target accepting background input; universal game support is not a promise.
 
+The user's first selected test game is CookieRun: Crumble - Idle RPG, observed as a running Google Play Games window during planning. No background/minimized compatibility is claimed until the actual input test.
+
 The selected stack is C# with Avalonia. UI, macro data, editing, scheduling, and storage are shared components. macOS support for native Mac apps and games will be implemented later, when Mac hardware is available for building and testing. The Windows release does not include an untested Mac input engine. Google Play Games on PC is a Windows target, not a Mac target.
 
-Current design workspace: `C:\Users\Zero\Documents\AutoClickerMacrofy`. The user intends to choose a different project folder after finishing design. Confirm the final source location before creating application code; project paths must not be embedded into macro files.
+Final source workspace selected by the user: `H:\MyProjects\Apps\AutoClickerMacrofy`. Design began in `C:\Users\Zero\Documents\AutoClickerMacrofy`; its committed history was copied into the new, empty repository. Project paths must not be embedded into macro files.
 
 ## 2. Delivery
 
@@ -89,6 +91,8 @@ DPI and screen-to-client conversions are handled in the platform backend. Minimi
 ## 6. Recording
 
 The target must be active when recording begins. Recording observes input while the user's actions continue to reach the target normally. UI buttons and configurable global hotkeys can start and stop recording.
+
+A UI start may arm recording while Macrofy has focus. Capture and its timing begin only after the user activates the chosen target; no foreground activation is performed by Macrofy. Stop also cancels the armed state.
 
 - Capture mouse clicks, holds, drags, scrolling, keyboard down/up events, and timing.
 - Ignore Macrofy control hotkeys and distinguish injected events from physical events to avoid self-recording.
@@ -217,4 +221,4 @@ Mac verification is a separate future milestone on real Mac hardware. The Window
 
 User approved architecture, recording/replay model, vertical tabs/dropdown/list layout with collapsed editor, and reliability/testing direction. This written document consolidates those decisions for review.
 
-After written-spec review and choosing the final source folder, create the implementation plan. Application implementation follows plan review and execution-method selection.
+The user approved the written spec and selected the final source folder. Create the implementation plan there. Application implementation follows plan review and execution-method selection.
