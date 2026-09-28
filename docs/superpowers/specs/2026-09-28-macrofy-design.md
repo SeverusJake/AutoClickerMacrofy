@@ -12,6 +12,10 @@ The selected stack is C# with Avalonia. UI, macro data, editing, scheduling, and
 
 Final source workspace selected by the user: `H:\MyProjects\Apps\AutoClickerMacrofy`. Design began in `C:\Users\Zero\Documents\AutoClickerMacrofy`; its committed history was copied into the new, empty repository. Project paths must not be embedded into macro files.
 
+### Approved clarification (2026-09-28)
+
+Full macro features remain in the application scope for future games. The current CookieRun workflow needs clicks only. Minimized playback is preferred if compatible; non-minimized background playback is the acceptable fallback. Distinguish visible, partly covered and fully covered background observations. If both minimized and background clicks fail, pause after the compatibility probe and review options before full application implementation. Hidden/tray and locked-screen operation are outside the initial scope.
+
 ## 2. Delivery
 
 - Windows delivery is a self-contained portable executable, with no installer or separate .NET installation required. Packaging must include required native dependencies; any runtime extraction is tested on a clean machine.
@@ -71,7 +75,7 @@ The canonical ordered event sequence supports:
 - Key down and up, retaining logical key and platform-specific physical information where available.
 - Type Text, an explicit editable string action.
 
-Click, hold, drag, key press, and shortcut are editable groups over these events. Groups expand into their constituent events, allowing independent down/up timing and overlapping key/button holds. Recording initially produces raw key events; it does not automatically replace gameplay key presses with text.
+Click, hold, drag, key press, and shortcut are editable metadata groups referencing stable IDs in the canonical flat event sequence. Groups expose their referenced events without changing raw order, allowing independent down/up timing and overlapping key/button holds. Recording initially produces raw key events; it does not automatically replace gameplay key presses with text.
 
 The editor shows action order, action type, applicable coordinates/button/key/text, and timing. Users can add, remove, duplicate, reorder, and change actions. Recorded gaps become Delay actions; timings shown elsewhere are derived from the same sequence, avoiding two competing sources of timing truth. Drag movements are grouped into a collapsed row and can be expanded and edited.
 
@@ -121,7 +125,7 @@ Playback requires a successful user-confirmed test for the requested target stat
 - Messages accepted but ignored: Macrofy cannot claim successful gameplay. The user can stop and mark compatibility unsupported.
 - No automatic foreground or physical-input fallback is offered.
 
-The emergency-stop handler cancels queued future actions, then makes a bounded best-effort release of macro-held keys/buttons to the same target. It never sends cleanup to another window if the original disappeared. Failed cleanup is reported; the physical keyboard/mouse state is not modified.
+The emergency-stop handler cancels future application actions; already-posted Windows messages cannot be withdrawn. A serial sender uses no send-ahead queue and limits posts to 100 native messages/second with a burst of one. Stop then makes a bounded 500ms best-effort release of macro-held keys/buttons to the same target. It never sends cleanup to another window if the original disappeared. Failed cleanup is reported; the physical keyboard/mouse state is not modified.
 
 ## 8. Scheduling
 

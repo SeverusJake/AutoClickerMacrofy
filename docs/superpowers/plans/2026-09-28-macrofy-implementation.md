@@ -10,6 +10,21 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-28-macrofy-design.md`
 
+## Approved execution scope (2026-09-28)
+
+- Full macro features remain planned for future games. CookieRun requires clicks only at the early gate.
+- Minimized playback is preferred when supported. Non-minimized background playback (visible, partly covered, fully covered) is the acceptable fallback; confirm each observed state separately.
+- Implement Tasks 1-3 in this phase. If CookieRun rejects both minimized and background clicks, pause and review options with the user. Do not proceed to the full UI without actual-game evidence.
+- Execute inline in a managed worktree. A deliberate game test still requires a user-selected harmless client position and observed confirmation; do not invent game coordinates.
+
+## Accepted review fixes
+
+1. Window lifetime: bind tokens to top-level and input-surface generations; observe destruction and invalidate permanently even if the same process recreates a window with the same HWND. Check before every send, document the unavoidable external check/send race, and test same-process recreation as well as restart.
+2. Compatibility gestures: a test is a validated ordered sequence of commands and delays, not one command. Acquire an exclusive activity lease, reject concurrent recording/playback/testing, and release target-held input after cancellation or partial delivery. Cover click, key, text, wheel, drag and hold independently; ordinary key tests do not prove shortcuts or sustained holds.
+3. Live target context: add ITargetContext.GetAsync(TargetToken, CancellationToken) returning current state, geometry, and surface fingerprint or an error. Refresh before every pointer action and at run boundaries; recheck state/fingerprint compatibility before every command. Stop on changed/unconfirmed context; never retarget.
+4. Overlapping groups: canonical actions are a flat ordered timeline. ActionGroup is editor metadata referencing stable action IDs, not nested executable children. Crossing mouse/key holds preserve exact raw order through group edits and serialization.
+5. Posted-input limits: use a serial sender with no application send-ahead queue, maximum 100 native messages/second and burst of one. Cancellation stops new posts; already-posted Win32 messages cannot be withdrawn. Cleanup gets a separate 500ms budget. Report best-effort release, never guaranteed target processing. Test a stalled receiver and partial sends; native quota exhaustion is a delivery error.
+
 ## Global Constraints
 
 - Source folder: `H:\MyProjects\Apps\AutoClickerMacrofy`; all paths below are relative to that repository.
@@ -71,13 +86,13 @@ Neutral value types in `Macrofy.Platform/Models` are defined once:
 - `InputCommand` is an immutable hierarchy: `PointerCommand(PointerKind Kind, PointerPoint Point, MouseButton? Button, int WheelDelta = 0)`, `KeyCommand(KeyKind Kind, KeyIdentity Key)`, `TextCommand(string Text)`. PointerKind includes Move, Down, Up, VerticalWheel, HorizontalWheel; KeyKind includes Down and Up; MouseButton includes Left, Right, Middle, X1, X2.
 - `KeyIdentity(string LogicalKey, int? NativeScanCode, bool IsExtended)` retains physical information without exposing Windows constants to core logic.
 - `DeliveryResult(bool Queued, PlatformError? Error)` reports queuing, not gameplay acknowledgement.
-- `TargetState` is Background or Minimized; `InputCapability` separates Click, Key, Text, Wheel, Drag, Hold. Pointer points inside commands are client pixels at the platform boundary; normalized positions are mapped by core before delivery.
+- `TargetState` is BackgroundVisible, BackgroundPartlyCovered, BackgroundCovered, or Minimized (coverage is user-observed during compatibility tests); `InputCapability` separates Click, Key, Text, Wheel, Drag, Hold. Pointer points inside commands are client pixels at the platform boundary; normalized positions are mapped by core before delivery.
 
 All Windows-targeted tests are serialized. A test may skip only when its explicit OS/hardware prerequisite is unavailable, and must state the reason in the verification report.
 
 ## Task 1: Solution foundation and neutral contracts
 
-**Files:** Create `Macrofy.sln`, `global.json`, `Directory.Build.props`, `Directory.Packages.props`; project files `src/Macrofy.Platform/Macrofy.Platform.csproj`, `src/Macrofy.Platform.Windows/Macrofy.Platform.Windows.csproj`, `src/Macrofy.Core/Macrofy.Core.csproj`, `src/Macrofy.App/Macrofy.App.csproj`, `tests/Macrofy.Core.Tests/Macrofy.Core.Tests.csproj`, `tests/Macrofy.Platform.Windows.Tests/Macrofy.Platform.Windows.Tests.csproj`, `tests/Macrofy.App.Tests/Macrofy.App.Tests.csproj`. Create one file per neutral model above under `src/Macrofy.Platform/Models/`, the six interface files below under `src/Macrofy.Platform/`, and `tests/Macrofy.Core.Tests/ContractsTests.cs`. Commit generated `packages.lock.json` beside each project file.
+**Files:** Create `Macrofy.sln`, `global.json`, `Directory.Build.props`, `Directory.Packages.props`; project files `src/Macrofy.Platform/Macrofy.Platform.csproj`, `src/Macrofy.Platform.Windows/Macrofy.Platform.Windows.csproj`, `src/Macrofy.Core/Macrofy.Core.csproj`, `src/Macrofy.App/Macrofy.App.csproj`, `tests/Macrofy.Core.Tests/Macrofy.Core.Tests.csproj`, `tests/Macrofy.Platform.Windows.Tests/Macrofy.Platform.Windows.Tests.csproj`, `tests/Macrofy.App.Tests/Macrofy.App.Tests.csproj`. Create one file per neutral model above under `src/Macrofy.Platform/Models/`, the interface files below under `src/Macrofy.Platform/`, and `tests/Macrofy.Core.Tests/ContractsTests.cs`. Commit generated `packages.lock.json` beside each project file.
 
 **Interfaces:**
 - `IWindowCatalog.ListAsync(CancellationToken) -> Task<IReadOnlyList<TargetWindow>>`; `ResolveAsync(TargetRule, TargetToken?, CancellationToken) -> Task<ResolutionResult>`; event `Action<TargetToken> TargetLost`.
@@ -85,6 +100,7 @@ All Windows-targeted tests are serialized. A test may skip only when its explici
 - `IInputRecorder.StartAsync(TargetToken, CancellationToken) -> Task`; `StopAsync(CancellationToken) -> Task`; event `Action<CaptureMessage> Captured`, where messages are Input, FocusLost, FocusGained, TargetLost with monotonic timestamp and injected flag.
 - `IGlobalHotkeys.Configure(HotkeySet) -> HotkeyRegistrationResult`; event `Action<HotkeyCommand> Triggered`, with RecordToggle, PlayToggle, Stop.
 - `IPermissionService.CheckAsync(TargetToken, CancellationToken) -> Task<PermissionResult>`.
+- `ITargetContext.GetAsync(TargetToken, CancellationToken) -> ValueTask<TargetContextResult>` exposes live geometry, foreground/minimized state, and executable/input-surface fingerprint without native handles.
 - `ISystemEvents.Suspended` event signals machine sleep; native services implement disposal.
 
 - [ ] Create SDK/project/package configuration, keeping core and contracts on `net10.0`, Windows backend/tests on `net10.0-windows`, App referencing Windows backend only in Windows builds. Use SDK-style XML and preserve existing `.gitignore`.
@@ -107,7 +123,7 @@ Assert.DoesNotContain(typeof(TargetWindow).GetProperties(), p => p.PropertyType 
 **Consumes:** Task 1 window and permission contracts.
 **Produces:** `WindowsWindowCatalog`, `WindowsPermissionService`; `WindowIdentityRegistry.TryResolve(TargetToken, out NativeTarget) -> bool`, internal only; `WindowGeometryProvider.Get(TargetToken) -> GeometryResult`.
 
-- [ ] Add failing assertions: two matching titles yield Ambiguous; no match yields Missing; explicit token selects exactly one candidate; reused HWND with changed process start identity invalidates token. `PermissionDeniedIsReported` asserts access-denied result without elevation.
+- [ ] Add failing assertions: two matching titles yield Ambiguous; no match yields Missing; explicit token selects exactly one candidate; reused HWND with changed process start identity invalidates token; same-process window destruction/recreation also permanently invalidates the original token, including its child surface. `PermissionDeniedIsReported` asserts access-denied result without elevation.
 
 ```csharp
 // Separate catalog fixtures with two matching windows, then zero windows.
@@ -117,7 +133,7 @@ Assert.False(registry.TryResolve(oldToken, out _)); // Reused HWND, new process 
 ```
 
 - [ ] Run `dotnet test tests/Macrofy.Platform.Windows.Tests --filter WindowCatalogTests`; expect failures from missing implementation, not unrelated tooling errors.
-- [ ] Enumerate titled user windows including minimized windows, excluding Macrofy itself. Match application identity plus case-insensitive glob (`*`/`?`), cache only geometry belonging to live token, and check identity before each lookup. Resolve child input surface without changing focus.
+- [ ] Enumerate titled user windows including minimized windows, excluding Macrofy itself. Match application identity plus case-insensitive glob (`*`/`?`), cache only geometry belonging to live token, and check identity before each lookup. Resolve child input surface without changing focus; choose a surface deterministically and expose it in the probe. Monitor top-level and child destruction with out-of-context WinEvent hooks on a message thread; never silently substitute a recreated child.
 - [ ] Add geometry assertions for non-100% DPI, resize, and minimized cached geometry; unknown geometry returns error, zero size never scales coordinates. Verify list refresh leaves foreground window unchanged.
 - [ ] Run window tests on Windows and a controlled two-window process. Record which checks are real integration versus fakes.
 - [ ] Commit as `feat: discover and resolve Windows targets`.
@@ -139,10 +155,10 @@ Assert.Equal(foregroundBefore, foregroundAfter);
 ```
 
 - [ ] Run `dotnet test tests/Macrofy.Platform.Windows.Tests --filter InputPlayerTests`; expect specific unimplemented-player failures.
-- [ ] Implement targeted PostMessage delivery with queue/rate bounds, key-state tracking, scan/extended bits, validated pointer coordinates, WM_CHAR text, and target-only cleanup. Stop at first failed send; do not call global input/focus APIs.
+- [ ] Implement targeted PostMessage delivery with the serial sender/rate/cleanup bounds in Accepted review fixes, key-state tracking, scan/extended bits, validated pointer coordinates, WM_CHAR text, and target-only cleanup. Stop at first failed send; do not call global input/focus APIs.
 - [ ] Launch controlled TestTarget and use named-pipe acknowledgement to verify actual received clicks/keys/text/wheel/drag, background and minimized where the test target supports them. Compare foreground-window handle and physical cursor before/after.
-- [ ] Run `dotnet run --project tools/Macrofy.CompatibilityProbe -- --interactive`. List targets, select the user-identified CookieRun: Crumble - Idle RPG window through the picker, and ask for a harmless test action/position. Test Background and Minimized separately, and record mouse/key capabilities and user observations in verification document. Do not send to an unspecified window or arbitrary position. The window title was observed read-only during planning; input compatibility remains unknown.
-- [ ] **Milestone gate:** proceed to full app only when intended game accepts required permitted input, or user explicitly accepts a reduced compatible scope. If game is unavailable, retain probe and report awaiting actual test; controlled-window success cannot substitute for game success.
+- [ ] Run `dotnet run --project tools/Macrofy.CompatibilityProbe -- --interactive`. List targets, select the user-identified CookieRun: Crumble - Idle RPG window through the picker, and ask for a harmless test action/position. Test Minimized first and non-minimized background visible/partly covered/fully covered separately. CookieRun needs only confirmed click capability; other gestures stay future-target capabilities. Record mouse/key capabilities and user observations in verification document. Do not send to an unspecified window or arbitrary position. The window title was observed read-only during planning; input compatibility remains unknown.
+- [ ] **Milestone gate:** minimized clicks are preferred; confirmed background clicks are the accepted fallback. If both fail, pause and review options with the user. Proceed to full app only after the intended game accepts required click input. If game is unavailable, retain probe and report awaiting actual test; controlled-window success cannot substitute for game success.
 - [ ] Commit verified backend/probe as `feat: add targeted Windows input and compatibility probe`.
 
 ## Task 4: Macro model, validation, coordinates, and grouped editing
@@ -151,7 +167,7 @@ Assert.Equal(foregroundBefore, foregroundAfter);
 
 **Consumes:** Neutral commands and geometry from Task 1.
 **Produces:** immutable `ProfileDefinition(Guid Id, string Name, TargetRule Target, ImmutableArray<MacroDefinition> Macros)` and `MacroDefinition(Guid Id, string Name, CoordinateMode Mode, ClientGeometry RecordedGeometry, TimeSpan Interval, bool LoopEnabled, ImmutableArray<MacroAction> Actions)`.
-- `MacroAction` hierarchy: `DelayAction(Guid Id, TimeSpan Duration)`, `InputAction(Guid Id, InputCommand Command)`, `ActionGroup(Guid Id, GroupKind Kind, ImmutableArray<MacroAction> Children)`.
+- `MacroAction` hierarchy: `DelayAction(Guid Id, TimeSpan Duration)`, `InputAction(Guid Id, InputCommand Command)`, `ActionGroup(Guid Id, GroupKind Kind, ImmutableArray<Guid> ActionIds)` is separate editor metadata over the flat sequence.
 - `CoordinateMode` is FixedPixels or Percentage. Percentage coordinates are stored as normalized fractions (0..1), displayed as 0..100%; both modes require mapped points within `[0, Width)` and `[0, Height)`.
 - `MacroSnapshot(Guid MacroId, CoordinateMode Mode, ClientGeometry RecordedGeometry, TimeSpan Interval, bool LoopEnabled, ImmutableArray<MacroAction> Actions)` copies immutable state for a running session.
 - `MacroValidator.Validate(MacroDefinition, ClientGeometry?) -> ValidationResult`; `CoordinateMapper.Map(PointerPoint, CoordinateMode, ClientGeometry) -> PointerPoint`; `MacroEditor.Apply(MacroDefinition, EditOperation) -> EditResult`; `MacroDefinition.Snapshot() -> MacroSnapshot`.
@@ -166,7 +182,7 @@ Assert.Equal(new PointerPoint(400, 300), CoordinateMapper.Map(
 ```
 
 - [ ] Run `dotnet test tests/Macrofy.Core.Tests --filter 'FullyQualifiedName~MacroEditorTests|FullyQualifiedName~CoordinateMapperTests'`; expect unimplemented model/editor failures.
-- [ ] Implement immutable actions/groups, flattening without duplicate delays, group expansion, add/remove/duplicate/reorder/change operations, and mode conversion. Millisecond delay values are the sole timing source. Maintain paired events and multiple held keys for shortcuts.
+- [ ] Implement immutable flat actions and group-reference metadata, preserving order without duplicate delays, group expansion, add/remove/duplicate/reorder/change operations, and mode conversion. Millisecond delay values are the sole timing source. Maintain paired events and multiple held keys for shortcuts.
 - [ ] Run tests; expect deterministic valid groups and exact action order/timing. Editing invalid draft returns errors plus draft rather than replacing last valid persisted definition.
 - [ ] Commit as `feat: model and edit recorded macros`.
 
@@ -196,7 +212,7 @@ Assert.Equal("CookieRun 零", reloadedProfile.Name);
 
 **Files:** Create `src/Macrofy.Core/Playback/MacroRunner.cs`, `IntervalScheduler.cs`, `ActivityCoordinator.cs`, `PlaybackStatus.cs`, `IMonotonicClock.cs`, `tests/Macrofy.Core.Tests/SchedulerTests.cs`, `PlaybackCancellationTests.cs`.
 
-**Consumes:** Task 4 snapshot, Task 1 player/system events, Task 2 target events.
+**Consumes:** Task 4 snapshot, Task 1 player/system events, Task 2 target events/live context and Task 9 compatibility checks (inject a contract during Task 6, compose implementation after Task 9).
 **Produces:** `ActivityCoordinator.TryBegin(ActivityKind) -> ActivityLease?`; `MacroRunner.RunAsync(MacroSnapshot, TargetWindow, CancellationToken) -> Task<RunResult>`; `IntervalScheduler.StartAsync(MacroSnapshot, TargetWindow, CancellationToken) -> Task<SessionResult>`; `StopAsync() -> Task`; event `Action<PlaybackStatus> StatusChanged`.
 - `IMonotonicClock.Elapsed -> TimeSpan`, `DelayUntilAsync(TimeSpan deadline, CancellationToken) -> Task`. Real clock uses Stopwatch; fake clock advances explicitly.
 
@@ -264,8 +280,8 @@ Assert.Empty(nativeSendsWhenEmergencyStopUnavailable);
 
 **Files:** Create `src/Macrofy.Core/Profiles/CompatibilityService.cs`, `tests/Macrofy.Core.Tests/CompatibilityTests.cs`; consume `src/Macrofy.Core/Profiles/CompatibilityRecord.cs` from Task 5.
 
-**Consumes:** Task 1 delivery/target contracts, Task 3 observed-probe results, Task 5 storage.
-**Produces:** `CompatibilityService.TestAsync(TargetWindow, InputCommand, TargetState, CancellationToken) -> Task<CompatibilityAttempt>`; `Confirm(CompatibilityAttempt, bool observedSuccess) -> CompatibilityRecord`; `Check(MacroSnapshot, TargetWindow) -> CompatibilityCheck`.
+**Consumes:** Task 1 delivery/target/live-context contracts, Task 3 observed-probe results, Task 5 storage, Task 6 exclusive activity lease.
+**Produces:** `CompatibilityService.TestAsync(TargetWindow, CompatibilityTestSequence, TargetState, CancellationToken) -> Task<CompatibilityAttempt>`; `Confirm(CompatibilityAttempt, bool observedSuccess) -> CompatibilityRecord`; `Check(MacroSnapshot, TargetWindow) -> CompatibilityCheck`.
 
 - [ ] Add failing `QueuedMessageNeedsUserConfirmation`, `BackgroundResultDoesNotEnableMinimized`, `ClickTestDoesNotProveKeyboard`, `ChangedTargetInvalidatesConfirmation`, and `RejectedDeliveryCannotBeConfirmed` assertions. Status wording distinguishes Sent from Observed working.
 
@@ -277,7 +293,7 @@ Assert.DoesNotContain(recordsAfterBackgroundClickTest, r => r.Capability == Inpu
 ```
 
 - [ ] Run `dotnet test tests/Macrofy.Core.Tests --filter CompatibilityTests`; expect unimplemented workflow failures.
-- [ ] Implement user-selected test command, per-state/per-capability records, target identity/surface fingerprint, explicit observed confirmation, and invalidation on change. Do not activate/restore/minimize target automatically during test; user puts it in desired state.
+- [ ] Implement user-selected validated test sequence with exclusive lease, bounded target-only cleanup, per-state/per-capability records, target identity/surface fingerprint, explicit observed confirmation, and invalidation on change. Do not activate/restore/minimize target automatically during test; user puts it in desired state.
 - [ ] Run tests and reuse actual-game observations from Task 3. Explain ignored-but-queued commands as unsupported or unconfirmed, not proof of success. Persist only confirmed results plus bounded last attempt/error metadata.
 - [ ] Commit as `feat: confirm per-target background compatibility`.
 
@@ -337,6 +353,6 @@ Assert.True(stopControlVisibleDuringError);
 | Vertical UI, collapsed editor, status, tabs | 10, 11 |
 | Portable executable and release verification | 11 |
 
-Design approved; implementation has not started. User must review this plan and choose execution approach before app code is created, as required by the writing-plans workflow. The user named CookieRun and the running window was observed as CookieRun: Crumble - Idle RPG. Task 3 still requires a user-selected harmless input test; unknown compatibility does not prevent writing this plan but does prevent claiming a verified game-compatible release.
+Review fixes and phased inline execution approved. Tasks 1-3 are authorized now; full app follows the actual-game compatibility gate. The user named CookieRun and the running window was observed as CookieRun: Crumble - Idle RPG. Task 3 still requires a user-selected harmless input test; unknown compatibility does not prevent writing this plan but does prevent claiming a verified game-compatible release.
 
 References: [Avalonia native interop](https://docs.avaloniaui.net/docs/app-development/native-interop), [Windows PostMessage](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postmessagew), [.NET lifecycle](https://learn.microsoft.com/en-us/dotnet/core/releases-and-support). Direct dependency versions were checked against NuGet package indexes on 2026-09-28.
