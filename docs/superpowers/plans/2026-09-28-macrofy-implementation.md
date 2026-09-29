@@ -329,7 +329,7 @@ Assert.Equal(lastValidSavedActions, persistedMacro.Actions);
 **Consumes:** Task 5 settings/storage; Task 8 hotkey results; Task 10 UI composition.
 **Produces:** reproducible self-contained `artifacts/win-x64/Macrofy.exe`; settings/theme persistence and About data-folder/version information.
 
-- [ ] Add meaningful Settings tests: hotkey-registration failure retains previous saved config; theme and defaults survive restart; permission/error state does not hide emergency Stop. Run to verify expected failures, then implement settings logic.
+- [ ] Add meaningful Settings tests: hotkey-registration failure retains previous saved config; appearance mode and palette survive restart as separate settings; switching Light/Dark preserves the palette and profile/macro selection; theme and defaults survive restart; permission/error state does not hide emergency Stop. Run to verify expected failures, then implement settings logic.
 
 ```csharp
 Assert.Equal(previousSettingsBytes, settingsBytesAfterRejectedHotkeys);
@@ -337,7 +337,7 @@ Assert.Equal("Dark", reloadedThemeDisplayName);
 Assert.True(stopControlVisibleDuringError);
 ```
 
-- [ ] Implement editable hotkeys, System/Light/Dark themes, About version/license/data-folder display and Open folder control. Disable unsupported-platform features and identify Mac support as planned.
+- [ ] Implement editable hotkeys and appearance mode independently of the selected color palette. Provide Light/Dark switching as requested; retain System support where planned. Each approved palette supports both modes with legible foregrounds and synchronized controls. Keep interface copy concise, using labels and short status/error feedback rather than explanatory paragraphs. Implement About version/license/data-folder display and Open folder control. Disable unsupported-platform features and identify Mac support as planned in About.
 - [ ] Add publish profile with `RuntimeIdentifier=win-x64`, `SelfContained=true`, `PublishSingleFile=true`, `IncludeNativeLibrariesForSelfExtract=true`, `PublishTrimmed=false`; ship native dependencies in the executable and keep profile data beside executable. Add supported-OS/DPI manifest using documented Windows settings.
 - [ ] `verify.ps1` runs restore locked mode, Release build, core/App tests, and serial Windows integration checks; exits nonzero on real failures and reports explicit prerequisites/manual checks. `publish-windows.ps1` runs publish and validates produced file/version; no installer, startup task, or download helper.
 - [ ] Run `dotnet test Macrofy.sln -c Release` and `powershell -File scripts/publish-windows.ps1`. Verify clean-machine Windows 10/11 launch without .NET, DPI/multimonitor/resize, read-only folder error, save/restart recovery, target close, emergency stop, and intended-game background/minimized input. Record results and unavailable hardware honestly.

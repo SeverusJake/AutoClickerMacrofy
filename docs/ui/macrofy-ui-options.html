@@ -28,10 +28,13 @@
 <style>
 .theme-palette{display:flex;gap:3px;margin-top:8px}.theme-palette span{height:9px;flex:1;min-width:0}.native-shell[data-color-theme][data-theme-family=cyberpunk] .native-tabs button{background:var(--section-fill);color:var(--section-color);border-top:2px solid var(--section-color)}.native-shell[data-color-theme][data-theme-family=cyberpunk] .native-tabs button[aria-selected=true]{background:var(--section-fill-selected);color:var(--section-color);border-bottom-color:var(--section-fill-selected)}.native-shell[data-color-theme][data-theme-family=cyberpunk] .native-tabs button:hover{background:var(--section-fill-selected)}.native-shell[data-theme-family=cyberpunk] .native-context{background:var(--target-panel)}.native-shell[data-theme-family=cyberpunk] .native-context select{border-color:var(--secondary)}.native-shell[data-theme-family=cyberpunk] .profile-macros .native-table td:first-child{color:var(--secondary)}.native-shell[data-theme-family=cyberpunk] .profile-macros .native-table td:nth-child(2){color:var(--tertiary)}.native-shell[data-theme-family=cyberpunk] .profile-macros .native-table td:nth-child(3){color:var(--accent)}.native-shell[data-theme-family=cyberpunk] .macro-state{font-weight:500}.native-shell[data-theme-family=cyberpunk] .macro-state[data-state=Running]{color:var(--success)}.native-shell[data-theme-family=cyberpunk] .macro-state[data-state=Paused]{color:var(--warning)}.native-shell[data-theme-family=cyberpunk] .macro-state[data-state=Stopped]{color:var(--danger)}.native-shell[data-theme-family=cyberpunk] .macro-state[data-state=Idle]{color:var(--info)}.native-shell[data-theme-family=cyberpunk] .macro-controls [data-run-macro],.native-shell[data-theme-family=cyberpunk] [data-run]{color:var(--success);background:var(--success-fill);border-color:var(--success)}.native-shell[data-theme-family=cyberpunk] .macro-controls [data-pause-macro],.native-shell[data-theme-family=cyberpunk] #workspace-pause,.native-shell[data-theme-family=cyberpunk] #native-pause-all{color:var(--warning);background:var(--warning-fill);border-color:var(--warning)}.native-shell[data-theme-family=cyberpunk] .macro-controls [data-stop-macro],.native-shell[data-theme-family=cyberpunk] [data-stop],.native-shell[data-theme-family=cyberpunk] #native-stop{color:var(--danger);background:var(--danger-fill);border-color:var(--danger)}.native-shell[data-theme-family=cyberpunk] .macro-controls [data-edit-macro],.native-shell[data-theme-family=cyberpunk] #apply-action{color:var(--tertiary);background:var(--tertiary-fill);border-color:var(--tertiary)}.native-shell[data-theme-family=cyberpunk] .workspace-target{background:var(--target-panel);border-bottom-color:var(--secondary)}.native-shell[data-theme-family=cyberpunk] .action-list{background:var(--editor-panel)}.native-shell[data-theme-family=cyberpunk] .action-detail{background:var(--inspector-panel);border-color:var(--tertiary)}.native-shell[data-theme-family=cyberpunk] .workspace-footer{background:var(--footer-panel)}.native-shell[data-theme-family=cyberpunk] .macro-workspace-heading h3{color:var(--secondary)}.native-shell[data-theme-family=cyberpunk] .action-list h3{color:var(--info)}.native-shell[data-theme-family=cyberpunk] .action-detail h3{color:var(--tertiary)}.native-shell[data-theme-family=cyberpunk] .native-statusbar{border-top-color:var(--info);background:var(--editor-panel)}
 </style>
+<style>
+.appearance-switch{display:flex;gap:0}.appearance-switch button{border-radius:0;min-height:32px;padding:5px 14px}.appearance-switch button:first-child{border-radius:3px 0 0 3px}.appearance-switch button:last-child{border-radius:0 3px 3px 0;border-left:0}.appearance-switch button[aria-pressed=true]{background:var(--active);border-color:var(--accent)}.theme-option-name{padding-bottom:10px}.review-head h1{font-size:20px}.review-head .hint{font-size:12px;font-weight:400;margin-left:8px}
+</style>
 </head>
 <body>
 <header class="review">
-  <div class="review-head"><div><h1>Macrofy — Desktop tabs</h1><p>Horizontal desktop tabs, following your reference. Each profile contains multiple saved apps and macros. Screen is the default when no app is assigned.</p></div><span class="hint">Interactive preview · Sample data · No desktop input</span></div>
+  <div class="review-head"><h1>Macrofy <span class="hint">Preview</span></h1></div>
   <nav class="choices" role="tablist" aria-label="UI design options">
     <button id="tab-1" role="tab" aria-selected="false" aria-controls="concept-1" data-option="1">1. Compact clicker</button>
     <button id="tab-2" role="tab" aria-selected="true" aria-controls="concept-2" data-option="2">2. Desktop tabs</button>
@@ -41,10 +44,10 @@
   <p id="choice-status" class="selection-result" aria-live="polite"></p>
 </header>
 <section class="theme-review" aria-label="Color theme options">
-  <div class="row spread"><h2>Choose a cyberpunk theme</h2><span class="hint">Seven accent colors per theme · Earlier themes remain in Settings</span></div>
+  <div class="row spread"><h2>Themes</h2><div class="appearance-switch" role="group" aria-label="Appearance"><button type="button" data-appearance-mode="light" aria-pressed="false">Light</button><button type="button" data-appearance-mode="dark" aria-pressed="true">Dark</button></div></div>
   <div class="theme-options" id="theme-options"></div>
-  <div class="row spread theme-decision"><span id="theme-preview-name" aria-live="polite">Previewing Windows Blue</span><button id="confirm-theme">Use this theme</button></div>
-  <p class="hint" id="theme-choice-status" aria-live="polite">No color theme chosen yet.</p>
+  <div class="row spread theme-decision"><span id="theme-preview-name" aria-live="polite"></span><button id="confirm-theme">Use this theme</button></div>
+  <p class="hint" id="theme-choice-status" aria-live="polite" hidden></p>
 </section>
 <main class="preview">
   <section class="concept compact" id="concept-1" role="tabpanel" aria-labelledby="tab-1" hidden>
@@ -85,11 +88,11 @@
         <button type="button" id="native-tab-log" role="tab" aria-selected="false" aria-controls="native-pane-log" data-native-tab="log">Log</button>
         <button type="button" id="native-tab-about" role="tab" aria-selected="false" aria-controls="native-pane-about" data-native-tab="about">About</button>
       </nav>
-      <div class="native-context"><label><span>Profile</span><select id="native-profile" aria-label="Active profile"></select></label><span class="hint">Saved apps and macro assignments belong to this profile.</span></div>
+      <div class="native-context"><label><span>Profile</span><select id="native-profile" aria-label="Active profile"></select></label></div>
       <div class="workspace">
         <aside class="profiles"><h3>Profiles</h3><button class="profile" data-profile="click" aria-pressed="true">Daily games<small>Many saved apps · 2 macros</small></button><button class="profile" data-profile="combo" aria-pressed="false">Desktop tasks<small>Saved apps · 2 macros</small></button><button class="profile" data-new>+ New profile</button></aside>
         <div class="workspace-body">
-          <div class="saved-app-strip"><div class="row spread"><span>Saved apps in this profile: <span data-app-count>2</span></span><button data-manage-apps>Manage apps</button></div><p class="hint" data-saved-app-names>CookieRun · Example game</p><p class="hint" data-save-state aria-live="polite">Sample settings remembered after reload.</p></div>
+          <div class="saved-app-strip"><div class="row spread"><span>Saved apps: <span data-app-count>2</span></span><button data-manage-apps>Manage apps</button></div><p data-save-state aria-live="polite" hidden></p></div>
           <div class="macro-picker"><label><span>Macro</span><select id="workspace-macro" data-macro-picker><option value="0">Auto click</option><option value="1">Collect rewards</option></select></label><p class="hint">Each macro remembers one saved app. No app assigned means Screen.</p></div>
           <div class="workspace-target"><div class="fields"><label><span>Playback target</span><select data-target><option value="screen">Screen (default)</option><option value="window">CookieRun: Crumble — game window</option></select></label><label><span>Window state</span><select data-window-state disabled><option>Minimized</option><option>Background</option></select></label></div><p class="hint mode-note" data-mode-note>Uses your real pointer. Keep the intended app visible.</p></div>
           <div class="tabs" role="tablist" aria-label="Workspace section"><button aria-selected="true" data-workspace-tab="actions">Actions</button><button aria-selected="false" data-workspace-tab="compatibility">Compatibility</button></div>
@@ -129,10 +132,8 @@
     </div>
   </section>
 </main>
-<footer class="explainer"><span>Sample app lists and each macro’s app assignment persist in this browser; native app storage is still planned.</span><span id="selection-footer">Tabbed layout follows your DS4Windows reference.</span></footer>
 <dialog id="apps-dialog" aria-labelledby="apps-dialog-title">
   <div class="row spread"><h2 id="apps-dialog-title">Saved apps — Daily games</h2><button id="close-apps">Close</button></div>
-  <p class="hint">Add several apps to one profile. Save their identity and window-title rule, even when the app is closed. These are editable sample configurations.</p>
   <ul id="saved-app-list" class="saved-app-list"></ul>
   <form id="add-app-form">
     <h3>Add an app to this profile</h3><div class="dialog-fields"><label><span>App name</span><input id="saved-app-name" required placeholder="Example: My other game"></label><label><span>Executable path</span><input id="saved-app-path" required placeholder="C:\Games\MyGame\game.exe"></label><label><span>Window-title pattern</span><input id="saved-app-pattern" required value="*" placeholder="Example: *My game*"></label></div>
@@ -195,8 +196,9 @@
     return profile().apps.find(a=>a.id===id)?.name || (id==='screen'?'Screen':'Saved app');
   }
   function saveProfiles(){
-    try {localStorage.setItem('macrofy-preview-profiles',JSON.stringify({profiles,activeProfile:profileKey}));document.querySelector('[data-save-state]').textContent='Sample app settings saved. Reopening this page restores them.';return true;}
-    catch {document.querySelector('[data-save-state]').textContent='Browser storage unavailable. These edits are not saved.';return false;}
+    const status=document.querySelector('[data-save-state]');
+    try {localStorage.setItem('macrofy-preview-profiles',JSON.stringify({profiles,activeProfile:profileKey}));status.textContent='';status.hidden=true;return true;}
+    catch {status.textContent='Changes not saved.';status.hidden=false;return false;}
   }
   // Runtime sessions are preview-only and never restored from browser storage.
   const playbackSessions=new Map();let playbackTick=null;
@@ -221,7 +223,7 @@
     const globalStatus=document.getElementById('native-status');if(!globalStatus)return;
     const active=Array.from(playbackSessions.values()).filter(s=>['Running','Paused'].includes(s.state));
     const running=active.filter(s=>s.state==='Running').length,paused=active.filter(s=>s.state==='Paused').length;
-    globalStatus.textContent=active.length?running+' running · '+paused+' paused · Preview only':'Idle · Preview only';
+    globalStatus.textContent=active.length?running+' running · '+paused+' paused':'Idle';
     document.getElementById('native-stop').disabled=!active.length;document.getElementById('native-pause-all').disabled=!active.length;
     document.getElementById('native-pause-all').textContent=active.length&&!running?'Resume all':'Pause all';
     if(!active.length&&playbackTick){clearInterval(playbackTick);playbackTick=null;}
@@ -242,7 +244,7 @@
   }
   function applyMode(app, mode) {
     modes.set(app, mode);
-    app.querySelectorAll('[data-mode-note]').forEach(n => n.textContent = mode === 'screen' ? 'Uses your real pointer. Keep the intended app visible.' : 'Clicks only the chosen window. Background / minimized support is unconfirmed.');
+    app.querySelectorAll('[data-mode-note]').forEach(n => n.textContent = mode === 'screen' ? 'Visible desktop' : 'Background / minimized · Unconfirmed');
     app.querySelectorAll('[data-coordinate-label]').forEach(n => n.textContent = mode === 'screen' ? 'Screen coordinates' : 'Window client coordinates');
     app.querySelectorAll('[data-window-settings]').forEach(n => n.hidden = mode !== 'window');
     app.querySelectorAll('[data-window-state]').forEach(n => n.disabled = mode !== 'window');
@@ -348,7 +350,7 @@
     const list=document.getElementById('saved-app-list');list.replaceChildren();
     profile().apps.forEach(app=>{
       const item=document.createElement('li'),name=document.createElement('div'),path=document.createElement('code'),pattern=document.createElement('div');
-      name.textContent=app.name;path.textContent=app.path;pattern.className='hint';pattern.textContent='Window title: '+app.pattern+' · Configuration remembered';
+      name.textContent=app.name;path.textContent=app.path;pattern.className='hint';pattern.textContent=app.pattern;
       item.append(name,path,pattern);list.append(item);
     });
   }
@@ -419,17 +421,17 @@
   });
   const profileOverview=document.createElement('div');profileOverview.className='profile-overview';
   profileSection.innerHTML='<h3>Profiles</h3><div id="profile-list"></div><button data-new>+ New profile</button>';
-  const profileMacros=document.createElement('section');profileMacros.className='profile-macros';profileMacros.innerHTML='<h3 id="profile-macros-title">Profile macros</h3><div class="profile-table-scroll"><table class="native-table"><thead><tr><th>Macro</th><th>Target app</th><th title="Number of steps in one run of this macro">Steps</th><th>Status</th><th>Controls</th></tr></thead><tbody id="profile-macro-rows"></tbody></table></div><p class="hint profile-run-note">Steps shows sequence length, regardless of repeats. Run macros individually or together. Pause and Stop affect only that row. Macros sharing an app can interleave actions.</p>';
+  const profileMacros=document.createElement('section');profileMacros.className='profile-macros';profileMacros.innerHTML='<h3 id="profile-macros-title">Profile macros</h3><div class="profile-table-scroll"><table class="native-table"><thead><tr><th>Macro</th><th>Target app</th><th title="Steps per run">Steps</th><th>Status</th><th>Controls</th></tr></thead><tbody id="profile-macro-rows"></tbody></table></div>';
   profileOverview.append(profileSection,profileMacros);panes.profiles.append(profileOverview);
   panes.apps.append(appStrip);
-  const appsBody=document.createElement('div');appsBody.className='body';appsBody.innerHTML='<div class="row spread"><h3 style="margin:0">Remembered target apps</h3><button id="native-add-app">Add app</button></div><table class="native-table"><thead><tr><th>App</th><th>Executable</th><th>Title rule</th></tr></thead><tbody id="native-app-rows"></tbody></table><p class="hint">App rules stay saved when an app is closed. Each macro chooses one app from this list.</p>';panes.apps.append(appsBody);
+  const appsBody=document.createElement('div');appsBody.className='body';appsBody.innerHTML='<div class="row spread"><h3 style="margin:0">Saved apps</h3><button id="native-add-app">Add app</button></div><table class="native-table"><thead><tr><th>App</th><th>Executable</th><th>Title rule</th></tr></thead><tbody id="native-app-rows"></tbody></table>';panes.apps.append(appsBody);
   const macroWorkspace=document.createElement('div');macroWorkspace.className='macro-workspace';
   const macroLibrary=document.createElement('aside');macroLibrary.className='macro-library';macroLibrary.innerHTML='<h3>Macros</h3><div id="workspace-macro-list" class="macro-library-list"></div>';
   const macroMain=document.createElement('div');macroMain.className='macro-workspace-main';const macroHeading=document.createElement('div');macroHeading.className='macro-workspace-heading';macroHeading.innerHTML='<h3 id="workspace-macro-title">Macro workspace</h3>';
   macroPicker.hidden=true;macroMain.append(macroHeading,macroPicker,targetSection,actionSection);macroWorkspace.append(macroLibrary,macroMain);panes.macros.append(macroWorkspace);compatSection.hidden=false;panes.compatibility.append(compatSection);
-  panes.settings.innerHTML='<div class="body"><h3>Settings</h3><div class="native-settings"><label><span>Color theme</span><select id="native-theme"></select></label><p class="hint">Preview a palette here or using the five options above. Use this theme saves your chosen palette.</p><div class="fields three"><label><span>Record shortcut</span><input value="F8" readonly></label><label><span>Play shortcut</span><input value="F9" readonly></label><label><span>Emergency stop</span><input value="F10" readonly></label></div><p class="hint">Example shortcut bindings. This preview does not register desktop hotkeys.</p><p>Profile app assignments save automatically in this preview.</p></div></div>';
+  panes.settings.innerHTML='<div class="body"><h3>Settings</h3><div class="native-settings"><div class="fields"><label><span>Color theme</span><select id="native-theme"></select></label><label><span>Appearance</span><select id="native-appearance"><option value="light">Light</option><option value="dark">Dark</option></select></label></div><div class="fields three"><label><span>Record shortcut</span><input value="F8" readonly></label><label><span>Play shortcut</span><input value="F9" readonly></label><label><span>Emergency stop</span><input value="F10" readonly></label></div></div></div>';
   panes.log.innerHTML='<div class="body"><div class="row spread"><h3 style="margin:0">Log</h3><button id="native-clear-log">Clear preview log</button></div><table class="native-table"><thead><tr><th style="width:110px">Time</th><th>Event</th></tr></thead><tbody id="native-log-rows"></tbody></table></div>';
-  panes.about.innerHTML='<div class="body"><h3>Macrofy</h3><p>Windows macro recorder and clicker.</p><p>Profiles hold many saved apps and macros. Each macro remembers one target app; no assigned app means Screen.</p><p class="hint">Interactive design preview. Recorder, scheduler and native profile storage are planned; no desktop input is sent here.</p></div>';
+  panes.about.innerHTML='<div class="body"><h3>Macrofy</h3><p>Windows macro recorder and clicker.</p></div>';
   workspace.replaceChildren(...Object.values(panes));
   const statusbar=document.createElement('div');statusbar.className='native-statusbar';statusbar.innerHTML='<span id="native-status" class="hint" aria-live="polite">Idle · Preview only</span><div class="row"><button id="native-pause-all" disabled>Pause all</button><button id="native-stop" disabled>Stop all (F10)</button></div>';nativeRoot.append(statusbar);
   document.querySelectorAll('[data-native-tab]').forEach(b=>{
@@ -468,32 +470,63 @@
     theme.colors['target-panel']=mixColor(theme.colors.secondary,theme.colors.surface,.07);theme.colors['editor-panel']=mixColor(theme.colors.info,theme.colors.surface,.06);theme.colors['inspector-panel']=mixColor(theme.colors.tertiary,theme.colors.surface,.09);theme.colors['footer-panel']=mixColor(theme.colors.warning,theme.colors.surface,.06);
   });
   Object.entries({'neon-district':'Yellow / cyan / pink / lime',synthwave:'Pink / violet / aqua / gold',matrix:'Green / lime / blue / violet',tron:'Cyan / orange / violet / lime',redline:'Red / amber / pink / blue'}).forEach(([id,description])=>colorThemes[id].description=description);
-  let previewTheme='neon-district',chosenTheme=null;
+  function luminance(hex){const c=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(v=>v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4));return c[0]*.2126+c[1]*.7152+c[2]*.0722;}
+  function contrast(a,b){const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
+  function lightAccent(color,surface){for(let i=0;i<=25;i++){const candidate=mixColor('#000000',color,i*.04);if(contrast(candidate,mixColor(candidate,surface,.23))>=4.5)return candidate;}return '#000000';}
+  function themeColors(theme,mode){
+    const colors={...theme.colors};
+    if(mode==='light'&&theme.mode==='dark'){
+      Object.assign(colors,{page:mixColor(colors.accent,'#ffffff',.035),surface:mixColor(colors.accent,'#ffffff',.008),subtle:mixColor(colors.accent,'#ffffff',.06),ink:'#202330',muted:'#555968',line:'#9b9fa8'});
+      ['accent','secondary','tertiary','success','warning','danger','info'].forEach(role=>{if(colors[role])colors[role]=lightAccent(colors[role],colors.surface);});
+      colors['tab-bg']=colors.subtle;colors.active=mixColor(colors.accent,colors.surface,.14);colors['primary-ink']=contrast(colors.accent,'#ffffff')>=contrast(colors.accent,'#111111')?'#ffffff':'#111111';
+    }else if(mode==='dark'&&theme.mode==='light'){
+      Object.assign(colors,{page:'#101316',surface:'#1d2229',subtle:'#151a21',ink:'#f3f3fa',muted:'#c2c5cc',line:'#626978','tab-bg':'#232c38',accent:theme.name==='Warm Amber'?'#ffb95f':'#72bcff','primary-ink':'#101316'});colors.active=mixColor(colors.accent,colors.surface,.18);
+    }
+    if(theme.family==='cyberpunk'){
+      ['success','warning','danger','tertiary'].forEach(role=>colors[role+'-fill']=mixColor(colors[role],colors.surface,.16));
+      colors['target-panel']=mixColor(colors.secondary,colors.surface,.07);colors['editor-panel']=mixColor(colors.info,colors.surface,.06);colors['inspector-panel']=mixColor(colors.tertiary,colors.surface,.09);colors['footer-panel']=mixColor(colors.warning,colors.surface,.06);
+    }
+    return colors;
+  }
+  let previewTheme='neon-district',chosenTheme=null,appearanceMode='dark';
+  try{const savedMode=localStorage.getItem('macrofy-color-mode');if(['light','dark'].includes(savedMode))appearanceMode=savedMode;}catch{}
+  function updateThemeSamples(){
+    document.querySelectorAll('[data-preview-theme]').forEach(button=>{
+      const colors=themeColors(colorThemes[button.dataset.previewTheme],appearanceMode);
+      Object.entries({surface:colors.surface,ink:colors.ink,title:colors['title-bg'],active:colors.active,line:colors.line,secondary:colors.secondary||colors.accent}).forEach(([name,value])=>button.style.setProperty('--sample-'+name,value));
+      button.querySelectorAll('.theme-palette span').forEach((chip,i)=>chip.style.background=colors[['accent','secondary','tertiary','success','warning','danger','info'][i]]);
+    });
+  }
   function applyColorTheme(id){
-    const theme=colorThemes[id];if(!theme)return;previewTheme=id;nativeRoot.dataset.colorTheme=id;nativeRoot.dataset.theme=theme.mode;nativeRoot.dataset.themeFamily=theme.family||'classic';nativeRoot.style.colorScheme=theme.mode;document.body.style.colorScheme=theme.mode;
-    Object.entries(theme.colors).forEach(([name,value])=>{nativeRoot.style.setProperty('--'+name,value);document.body.style.setProperty('--'+name,value);});
+    const theme=colorThemes[id];if(!theme)return;const colors=themeColors(theme,appearanceMode);previewTheme=id;nativeRoot.dataset.colorTheme=id;nativeRoot.dataset.theme=appearanceMode;nativeRoot.dataset.themeFamily=theme.family||'classic';nativeRoot.style.colorScheme=appearanceMode;document.body.style.colorScheme=appearanceMode;
+    Object.entries(colors).forEach(([name,value])=>{nativeRoot.style.setProperty('--'+name,value);document.body.style.setProperty('--'+name,value);});
     if(theme.family==='cyberpunk'){
       const roles=['accent','info','tertiary','secondary','warning','success','danger'];
-      nativeRoot.querySelectorAll('[data-native-tab]').forEach((tab,i)=>{const color=theme.colors[roles[i]];tab.style.setProperty('--section-color',color);tab.style.setProperty('--section-fill',mixColor(color,theme.colors.surface,.12));tab.style.setProperty('--section-fill-selected',mixColor(color,theme.colors.surface,.23));});
+      nativeRoot.querySelectorAll('[data-native-tab]').forEach((tab,i)=>{const color=colors[roles[i]];tab.style.setProperty('--section-color',color);tab.style.setProperty('--section-fill',mixColor(color,colors.surface,.12));tab.style.setProperty('--section-fill-selected',mixColor(color,colors.surface,.23));});
     }
-    document.querySelectorAll('[data-preview-theme]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.previewTheme===id)));document.getElementById('native-theme').value=id;document.getElementById('theme-preview-name').textContent='Previewing: '+theme.name+' · '+theme.description;
+    document.querySelectorAll('[data-preview-theme]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.previewTheme===id)));document.getElementById('native-theme').value=id;document.getElementById('theme-preview-name').textContent=theme.name;
+    document.querySelectorAll('[data-appearance-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.appearanceMode===appearanceMode)));document.getElementById('native-appearance').value=appearanceMode;updateThemeSamples();
   }
   const colorOptions=document.getElementById('theme-options'),colorPicker=document.getElementById('native-theme');
   cyberThemeIds.map(id=>[id,colorThemes[id]]).forEach(([id,theme],i)=>{
     const button=document.createElement('button');button.className='theme-option';button.dataset.previewTheme=id;button.type='button';button.setAttribute('aria-label','Preview theme '+(i+1)+': '+theme.name);button.setAttribute('aria-pressed','false');
     button.style.setProperty('--sample-surface',theme.colors.surface);button.style.setProperty('--sample-ink',theme.colors.ink);button.style.setProperty('--sample-title',theme.colors['title-bg']);button.style.setProperty('--sample-active',theme.colors.active);button.style.setProperty('--sample-line',theme.colors.line);
     button.style.setProperty('--sample-secondary',theme.colors.secondary||theme.colors.accent);
-    button.innerHTML='<span class="theme-sample" aria-hidden="true"><span class="theme-sample-bar"></span><span class="theme-sample-row"><span class="theme-sample-select"></span><span class="theme-sample-line"></span></span><span class="theme-palette"></span></span><span class="theme-option-name"></span><span class="theme-option-description"></span>';
+    button.innerHTML='<span class="theme-sample" aria-hidden="true"><span class="theme-sample-bar"></span><span class="theme-sample-row"><span class="theme-sample-select"></span><span class="theme-sample-line"></span></span><span class="theme-palette"></span></span><span class="theme-option-name"></span>';
     ['accent','secondary','tertiary','success','warning','danger','info'].forEach(role=>{const chip=document.createElement('span');chip.style.background=theme.colors[role];button.querySelector('.theme-palette').append(chip);});
-    button.querySelector('.theme-option-name').textContent=(i+1)+'. '+theme.name;button.querySelector('.theme-option-description').textContent=theme.description;button.addEventListener('click',()=>applyColorTheme(id));colorOptions.append(button);
+    button.querySelector('.theme-option-name').textContent=(i+1)+'. '+theme.name;button.addEventListener('click',()=>applyColorTheme(id));colorOptions.append(button);
   });
   [['Cyberpunk themes',cyberThemeIds],['Earlier themes',Object.keys(colorThemes).filter(id=>!cyberThemeIds.includes(id))]].forEach(([label,ids])=>{const group=document.createElement('optgroup');group.label=label;ids.forEach(id=>group.append(new Option(colorThemes[id].name,id)));colorPicker.append(group);});
   colorPicker.addEventListener('change',event=>applyColorTheme(event.target.value));
+  function setAppearanceMode(mode){if(!['light','dark'].includes(mode))return;appearanceMode=mode;try{localStorage.setItem('macrofy-color-mode',mode);}catch{}applyColorTheme(previewTheme);}
+  document.querySelectorAll('[data-appearance-mode]').forEach(b=>b.addEventListener('click',()=>setAppearanceMode(b.dataset.appearanceMode)));
+  document.getElementById('native-appearance').addEventListener('change',event=>setAppearanceMode(event.target.value));
   document.getElementById('confirm-theme').addEventListener('click',()=>{
-    try{localStorage.setItem('macrofy-color-theme-choice',previewTheme);chosenTheme=previewTheme;document.getElementById('theme-choice-status').textContent='Chosen: '+colorThemes[chosenTheme].name+'. Saved in this browser. Tell Codex to use this theme for the native app.';}
-    catch{document.getElementById('theme-choice-status').textContent='Chosen: '+colorThemes[previewTheme].name+'. Browser storage unavailable; tell Codex your choice.';}
+    const status=document.getElementById('theme-choice-status');status.hidden=false;
+    try{localStorage.setItem('macrofy-color-theme-choice',previewTheme);chosenTheme=previewTheme;status.textContent='Saved: '+colorThemes[chosenTheme].name;}
+    catch{status.textContent='Theme not saved.';}
   });
-  try{const saved=localStorage.getItem('macrofy-color-theme-choice');if(Object.hasOwn(colorThemes,saved)){chosenTheme=saved;document.getElementById('theme-choice-status').textContent='Chosen: '+colorThemes[saved].name+' · Restored from this browser.';}}catch{}
+  try{const saved=localStorage.getItem('macrofy-color-theme-choice');if(Object.hasOwn(colorThemes,saved))chosenTheme=saved;}catch{}
   applyColorTheme(cyberThemeIds.includes(chosenTheme)?chosenTheme:'neon-district');
   document.getElementById('native-clear-log').addEventListener('click',()=>document.getElementById('native-log-rows').replaceChildren());
   const macroStop=nativeRoot.querySelector('[data-stop]');const macroPause=document.createElement('button');macroPause.id='workspace-pause';macroPause.textContent='Pause';macroPause.disabled=true;macroStop.before(macroPause);

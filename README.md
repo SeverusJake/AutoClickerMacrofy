@@ -35,6 +35,8 @@ The Profiles count column is **Steps**: sequence length for one run, independent
 
 Each cyberpunk theme now uses seven accent colors across tabs, macro/app labels, Run/Pause/Stop/Edit controls and status text, with related tints in the workspace panels. The palette strips show all seven colors; status labels remain readable without relying on color alone.
 
+Light/Dark mode is separate from the palette and works with all ten candidate themes. The top switch and Settings selector stay synchronized, and mode persists in browser storage. The preview uses concise labels and feedback instead of explanatory paragraphs.
+
 ## Deliberate CookieRun click test
 
 1. Choose a harmless button with an obvious visible response.

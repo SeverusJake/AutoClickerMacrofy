@@ -184,6 +184,8 @@ The user then requested five new cyberpunk-style candidates: Neon District (elec
 
 The user requested richer palettes rather than only two or three colors. Each cyberpunk candidate now includes seven accent roles plus dark surface tints: title/selection accent, secondary cyan/green/orange, tertiary pink/purple, Run green, Pause amber, Stop red and informational blue. Tabs use distinct accents, and target/action/detail/settings regions use related tinted surfaces. Status retains readable text alongside color, and palette samples show every accent. These expanded palettes remain review candidates.
 
+Latest UI request: Light and Dark are independent of the color palette. Every candidate supports both modes, with foreground colors adjusted for legibility on light surfaces. A Light/Dark switch and the Settings appearance selector stay synchronized, retain the selected palette and remember mode locally. Keep UI copy concise: remove explanatory intro paragraphs, palette descriptions, repeated profile/app guidance and implementation commentary. Retain control labels, short activity/save/error feedback, coordinate mode and relevant unconfirmed-compatibility state. A single Preview label identifies the browser artifact.
+
 ### About tab
 
 Show app name/version, Windows-first release scope, data-folder location/open control, and dependency/license acknowledgements. Mac support is described as planned until delivered and tested.
