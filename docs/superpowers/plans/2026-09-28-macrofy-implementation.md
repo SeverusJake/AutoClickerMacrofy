@@ -8,6 +8,8 @@
 
 **2026-09-29 UI approval:** User approved the current preview after the icon update. Use desktop tabs, profile macro playback controls, Design 2 macro workspace, multicolor Light/Dark modes, concise copy and icon controls with tooltips/accessibility labels. The next implementation prerequisite remains Task 3's actual CookieRun click compatibility test.
 
+**2026-09-29 execution steering:** User requested the approved preview UI in the EXE first. The UI/publishing subset of Tasks 10–11 is authorized before the actual-game gate as a clearly labeled native UI preview. This does not authorize claiming verified game input or completing Tasks 4–9. Use programmatic Avalonia views, consistent with the existing probe, with a separate local UI-workspace model/store and input-free preview sessions.
+
 **Architecture:** Avalonia presents a desktop horizontal tab bar (Profiles/Apps/Macros/Compatibility/Settings/Log/About), as requested in the user's DS4Windows reference on 2026-09-29. Common profile context and Stop/status persist across tabs. A platform-neutral core owns macros, editing, persistence, and scheduling; a separate Windows backend owns hooks, hotkeys, window discovery, and targeted message delivery. Actual Google Play Games compatibility is checked before building the full UI; future Mac support reuses contracts but is not part of this release.
 
 **Tech Stack:** C#, .NET 10, Avalonia 12.1.3, CommunityToolkit.Mvvm 8.4.2, Windows user32 interop, versioned JSON, xUnit 2.9.3 for Core/Windows tests, xunit.v3 3.2.2 for App headless tests (required by Avalonia 12.1.3), xunit.runner.visualstudio 3.1.5, Microsoft.NET.Test.Sdk 18.10.1. Pin SDK 10.0.302, already installed locally, with `rollForward=latestPatch`. Pin Avalonia/Desktop/Fluent/Headless.Xunit packages together at 12.1.3. Exact package references and transitive dependencies are recorded in lock files in Task 1; no floating versions.
@@ -304,6 +306,14 @@ Assert.DoesNotContain(recordsAfterBackgroundClickTest, r => r.Capability == Inpu
 - [ ] Commit as `feat: confirm per-target background compatibility`.
 
 ## Task 10: Desktop tabs, profile macro overview and macro workspace
+
+### Delivered UI-first subset (2026-09-29)
+
+- [x] Replace the foundation placeholder with native Profiles, Apps, Macros, Compatibility, Settings, Log and About tabs; use icon controls with tooltips/accessibility names and shared profile/Stop/status context.
+- [x] Implement profile/macro creation, rename/duplicate/delete confirmation; per-profile saved app add/edit/delete protection; remembered per-macro app bindings or explicit Screen default; action editing/validation/reordering and independent repeat/interval settings.
+- [x] Persist valid UI workspace and independent appearance/palette choices atomically, keep backups, preserve unsupported/corrupt files and reject overwrites by stale app instances. Keep unapplied/invalid drafts through navigation/theme changes in the current window.
+- [x] Demonstrate concurrent independent preview sessions, cross-profile Pause/Resume/Stop all, active editor locks and session snapshots. These sessions send no input. Real recording/playback/global hotkeys remain pending.
+- [x] Publish self-contained `artifacts/win-x64/Macrofy.exe` with ten palettes, Light/Dark and the separate compatibility probe bundled. Full Task 10/11 backend integration and release checks below remain open.
 
 **Files:** Create `src/Macrofy.App/App.axaml`, `App.axaml.cs`, `Program.cs`, `Views/MainWindow.axaml`, `ProfilesView.axaml`, `TargetPickerView.axaml`, `MacroEditorView.axaml`, matching view models, `Services/AppComposition.cs`, `DialogService.cs`, `tests/Macrofy.App.Tests/ProfilesUiTests.cs`, `EditorViewModelTests.cs`.
 

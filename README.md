@@ -1,6 +1,14 @@
 # Macrofy
 
-Windows-first macro recorder/editor project. Current authorized phase is foundation, window discovery and the CookieRun compatibility probe. The full recorder, scheduler and Profiles UI are not implemented yet.
+Windows-first macro recorder/editor project. Foundation, window discovery and the CookieRun compatibility probe are implemented. The approved design is now also available as a native UI preview executable. Real recording, macro scheduling and game-compatible playback remain pending.
+
+## Open the native UI
+
+Double-click `artifacts/win-x64/Macrofy.exe`. It uses the approved desktop tabs, profile macro overview, macro workspace, icons and multicolor Light/Dark themes. Profiles, saved app rules, macro assignments, valid action edits and appearance choices are remembered beside the executable in `MacrofyData/ui-workspace.json`.
+
+**This build is a UI preview.** Run/Pause/Resume/Stop simulate independent macro sequences without desktop input. Recording is disabled. The Compatibility tab opens the separate click probe for deliberate real input tests. Closing Macrofy stops preview sessions; active/paused sessions are not restored after restart. F10 stops previews while this window has focus; global hotkeys remain pending.
+
+Rebuild the self-contained Windows executable with `powershell -NoProfile -File scripts/publish-ui.ps1`. No .NET installation is required to run the published EXE. Clean-machine verification remains pending.
 
 ## Scope
 
@@ -27,9 +35,9 @@ Selecting a window switches to client coordinates and targeted messages; choose 
 
 ## UI concepts
 
-Open `docs/ui/macrofy-ui-options.html` in a browser to try the desktop tab layout requested in the user's DS4Windows reference: Profiles, Apps, Macros, Compatibility, Settings, Log and About. Profiles shows its macros with individual Run, Pause/Resume, Stop and Edit controls. Multiple preview macros can run together, including on the same app. Shared Pause all/Resume all, Stop all and aggregate status remain visible across tabs and include other profiles. Macros uses Design 2's workspace. Earlier compact/guided concepts remain in the source. This is an interactive design preview with sample data; native concurrent macro playback is still planned.
+Open `docs/ui/macrofy-ui-options.html` in a browser to try the desktop tab layout requested in the user's DS4Windows reference: Profiles, Apps, Macros, Compatibility, Settings, Log and About. Profiles shows its macros with individual Run, Pause/Resume, Stop and Edit controls. Multiple preview macros can run together, including on the same app. Shared Pause all/Resume all, Stop all and aggregate status remain visible across tabs and include other profiles. Macros uses Design 2's workspace. Earlier compact/guided concepts remain in the source. The native EXE now follows this design; real concurrent macro playback is still planned.
 
-Updated profile design: each profile has many saved app rules and many macros. Each macro remembers one assigned app from that profile; no assignment means Screen. The preview's **Manage apps** control persists sample app identities/title rules and per-macro assignments in browser storage. Native profile persistence is part of the later app implementation; live window handles/process IDs are never saved.
+Updated profile design: each profile has many saved app rules and many macros. Each macro remembers one assigned app from that profile; no assignment means Screen. The browser preview's **Manage apps** control persists sample app identities/title rules and per-macro assignments in browser storage. The native UI uses its own versioned workspace file; it does not import browser storage. Live window handles/process IDs are never saved.
 
 The Profiles count column is **Steps**: sequence length for one run, independent of repeats. Five new cyberpunk theme candidates appear above the preview: Neon District (yellow/cyan), Synthwave (pink/purple), Matrix (green/black), Tron (cyan/orange) and Redline (red/amber). Click one to preview it throughout the app; **Use this theme** remembers the confirmed choice in this browser. The earlier Windows Blue, Graphite, Emerald, Violet and Warm Amber themes remain available through Settings. The native palette is pending selection.
 

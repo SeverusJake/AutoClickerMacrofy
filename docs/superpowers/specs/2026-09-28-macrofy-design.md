@@ -190,6 +190,8 @@ Icon preference: use icons for navigation tabs and common controls, including pl
 
 UI approval (2026-09-29): the user approved the current preview after the icon update. Adopt its desktop tabs, Profiles macro controls, Design 2 macro workspace, multicolor themes, independent Light/Dark mode, concise copy and icon controls as the implementation direction. Approval confirms the UI design; actual-game compatibility remains unverified.
 
+Native UI-first request (2026-09-29): the user explicitly requested the approved preview UI in the EXE before further game tests. Deliver this as an identified native UI preview: seven tabs, editable/saved profiles and apps, macro bindings/editor, ten palettes, Light/Dark, and simulated independent playback. Recording and real macro playback remain pending the game gate. UI workspace persistence is separate from later production macro storage; no browser-storage import or compatibility confirmation is implied. Drafts survive appearance/navigation changes in the running window, cannot overwrite valid saved actions, and must be applied or discarded before preview playback. Atomic replacement and stale-instance detection preserve external edits and corrupt/newer files.
+
 ### About tab
 
 Show app name/version, Windows-first release scope, data-folder location/open control, and dependency/license acknowledgements. Mac support is described as planned until delivered and tested.

@@ -338,7 +338,7 @@
           "xunit.v3.runner.common": "[3.2.2]"
         }
       },
-      "macrofy.app": {
+      "Macrofy": {
         "type": "Project",
         "dependencies": {
           "Avalonia": "[12.1.3, )",

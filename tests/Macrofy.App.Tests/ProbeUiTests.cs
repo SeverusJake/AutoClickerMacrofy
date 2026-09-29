@@ -13,7 +13,11 @@ using Xunit;
 namespace Macrofy.App.Tests;
 public static class TestAppBuilder
 {
-    public static AppBuilder BuildAvaloniaApp()=>AppBuilder.Configure<Application>().UseHeadless(new AvaloniaHeadlessPlatformOptions());
+    public static AppBuilder BuildAvaloniaApp()=>AppBuilder.Configure<UiTestApplication>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
+}
+public sealed class UiTestApplication : Application
+{
+    public override void Initialize() => Styles.Add(new Avalonia.Themes.Fluent.FluentTheme());
 }
 public class ProbeUiTests
 {
