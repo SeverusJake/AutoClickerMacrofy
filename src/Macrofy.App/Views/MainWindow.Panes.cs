@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.VisualTree;
 using Macrofy.App.Models;
 using Macrofy.App.Services;
 
@@ -57,6 +58,14 @@ public sealed partial class MainWindow
             row.Name = "MacroRow_" + macro.Id.ToString("N"); row.Background = Avalonia.Media.Brushes.Transparent;
             row.PointerEntered += (_, _) => row.Background = palette.Tint("accent", .08);
             row.PointerExited += (_, _) => row.Background = Avalonia.Media.Brushes.Transparent;
+            AutomationProperties.SetHelpText(row, "Double-click to edit macro");
+            row.DoubleTapped += (_, e) =>
+            {
+                if (e.Source is Visual source && source.GetVisualAncestors().Prepend(source)
+                    .TakeWhile(v => v != row).Any(v => v is Button or ToggleSwitch)) return;
+                e.Handled = true;
+                Edit(macro);
+            };
             main.Children.Add(row);
             refreshPlayback.Add(() =>
             {
