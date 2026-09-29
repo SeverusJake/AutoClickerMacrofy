@@ -156,7 +156,7 @@ User UI update (2026-09-29): the main window uses a horizontal desktop tab bar l
 
 ### Profiles tab
 
-Create, select, rename, duplicate and manage profiles. Each profile owns a collection of saved apps and named macros. Choosing a profile immediately shows all of its macros, including their assigned app, action count and independent playback status. Each row provides Run, Pause/Resume, Stop and Edit macro. Multiple rows may run together, even on the same app; no profile-wide run is required. Opening a macro from this list selects it and opens the Macros tab. A common profile picker preserves this context across tabs.
+Create, select, rename, duplicate and manage profiles. Each profile owns a collection of saved apps and named macros. Choosing a profile immediately shows all of its macros, including their assigned app, step count and independent playback status. Label the count column Steps, as approved by the user; it counts the macro sequence once, regardless of repeat count, and does not count native message posts. Each row provides Run, Pause/Resume, Stop and Edit macro. Multiple rows may run together, even on the same app; no profile-wide run is required. Opening a macro from this list selects it and opens the Macros tab. A common profile picker preserves this context across tabs.
 
 ### Apps tab
 
@@ -177,6 +177,8 @@ Per-session status shows Idle, Recording, Recording paused, Running, Pausing, Pa
 ### Settings tab
 
 Configure global hotkeys and select light, dark, or system theme. Proposed defaults: F8 recording, F9 playback, F10 emergency stop. A conflicting/unregistered emergency-stop binding disables playback until corrected. Hotkeys are customizable and persist locally.
+
+Color palette review (2026-09-29): the user requested five options. The browser preview offers Windows Blue (light), Graphite (dark neutral gray), Emerald (dark teal green), Violet (dark purple) and Warm Amber (light cream). Previewing a palette recolors title bar, tabs, selected rows, controls and the workspace without changing navigation or profile data. Use this theme confirms and remembers a browser preview choice. These are candidates; the final native palette is pending the user's selection.
 
 ### About tab
 

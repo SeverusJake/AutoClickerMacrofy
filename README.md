@@ -31,6 +31,8 @@ Open `docs/ui/macrofy-ui-options.html` in a browser to try the desktop tab layou
 
 Updated profile design: each profile has many saved app rules and many macros. Each macro remembers one assigned app from that profile; no assignment means Screen. The preview's **Manage apps** control persists sample app identities/title rules and per-macro assignments in browser storage. Native profile persistence is part of the later app implementation; live window handles/process IDs are never saved.
 
+The Profiles count column is **Steps**: sequence length for one run, independent of repeats. Five color theme candidates appear above the preview: Windows Blue, Graphite, Emerald, Violet and Warm Amber. Click one to preview it throughout the app; **Use this theme** remembers the confirmed choice in this browser. Color themes are also available through the preview's Settings tab. The native palette is pending selection.
+
 ## Deliberate CookieRun click test
 
 1. Choose a harmless button with an obvious visible response.
