@@ -153,7 +153,7 @@ User UI update (2026-09-29): the main window uses a horizontal desktop tab bar l
 
 ### Profiles tab
 
-Create, select, rename, duplicate and manage profiles. Each profile owns a collection of saved apps and named macros. A common profile picker preserves this context across tabs.
+Create, select, rename, duplicate and manage profiles. Each profile owns a collection of saved apps and named macros. Choosing a profile immediately shows all of its macros, including their assigned app and action count. Opening a macro from this list selects it and opens the Macros tab. A common profile picker preserves this context across tabs.
 
 ### Apps tab
 
@@ -161,7 +161,7 @@ Show the selected profile's remembered app identities, executable paths, title p
 
 ### Macros tab
 
-Show the profile's macro list and the selected macro's assigned saved app, with Screen as the default for no assignment. Provide Record, Run selected, Stop, loop settings, coordinate mode, action list and action-detail editing. The selected editor can be collapsed by default; choosing another macro resets its editor state and restores its target assignment.
+Use the previously presented Design 2 macro workspace within this tab: the selected profile's macro list on the left, selected macro name and target above the action sequence, action details on the right, and repeat/interval/playback controls below. Screen is the default for no assigned app. Provide Record, Run selected, Stop, loop settings, coordinate mode, action list and action-detail editing. Show the selected editor directly; choosing another macro restores that macro's sequence and target assignment and resets action selection. At narrow widths, place the macro list above the editor and action details below the sequence.
 
 ### Compatibility tab
 

@@ -299,14 +299,14 @@ Assert.DoesNotContain(recordsAfterBackgroundClickTest, r => r.Capability == Inpu
 - [ ] Run tests and reuse actual-game observations from Task 3. Explain ignored-but-queued commands as unsupported or unconfirmed, not proof of success. Persist only confirmed results plus bounded last attempt/error metadata.
 - [ ] Commit as `feat: confirm per-target background compatibility`.
 
-## Task 10: Vertical Profiles UI and collapsible macro editor
+## Task 10: Desktop tabs, profile macro overview and macro workspace
 
 **Files:** Create `src/Macrofy.App/App.axaml`, `App.axaml.cs`, `Program.cs`, `Views/MainWindow.axaml`, `ProfilesView.axaml`, `TargetPickerView.axaml`, `MacroEditorView.axaml`, matching view models, `Services/AppComposition.cs`, `DialogService.cs`, `tests/Macrofy.App.Tests/ProfilesUiTests.cs`, `EditorViewModelTests.cs`.
 
 **Consumes:** Tasks 2/4/5/6/7/8/9 services and command results.
-**Produces:** `MainWindowViewModel` with Profiles/Apps/Macros/Compatibility/Settings/Log/About tabs and selected-tab state; `ProfilesViewModel.SelectedProfile`, `.SelectedMacro`, `.IsEditorExpanded` (false), `.ActivityStatus`; `MacroEditorViewModel.Draft`, `.Errors`, `.ApplyEdit(EditOperation)`; common Command service from Task 8. Shared profile selection and Stop/status survive tab changes.
+**Produces:** `MainWindowViewModel` with Profiles/Apps/Macros/Compatibility/Settings/Log/About tabs and selected-tab state; `ProfilesViewModel.SelectedProfile`, `.SelectedMacro`, `.ActivityStatus`; `MacroEditorViewModel.Draft`, `.Errors`, `.ApplyEdit(EditOperation)`; common Command service from Task 8. Profiles shows every macro in the selected profile. Macros uses Design 2's workspace with a macro list, action sequence, action inspector and playback settings. Shared profile selection and Stop/status survive tab changes.
 
-- [ ] Add failing headless assertions: initial editor collapsed; switching selected macro restores its saved app binding and resets collapse; profile selection updates visible macros and saved app list; reopening restores multiple app rules and per-macro assignments; activity prevents target/macro edits; invalid draft cannot run or overwrite saved version; save failure keeps dirty indicator. View model recorder-start waits for target focus if initiated through UI.
+- [ ] Add failing headless assertions: Profiles shows all selected-profile macros with app assignments and action counts; opening a macro from Profiles selects it and opens Macros; workspace displays the selected macro's editor; switching selected macro restores its actions and saved app binding and resets action selection; profile selection updates visible macros and saved app list; reopening restores multiple app rules and per-macro assignments; activity prevents target/macro edits; invalid draft cannot run or overwrite saved version; save failure keeps dirty indicator. View model recorder-start waits for target focus if initiated through UI.
 
 ```csharp
 Assert.False(vm.IsEditorExpanded); // New view model and after selected-macro change.
@@ -315,10 +315,10 @@ Assert.Equal(lastValidSavedActions, persistedMacro.Actions);
 ```
 
 - [ ] Run `dotnet test tests/Macrofy.App.Tests --filter 'FullyQualifiedName~ProfilesUiTests|FullyQualifiedName~EditorViewModelTests'`; expect missing view-model failures.
-- [ ] Implement the user-requested desktop tab bar resembling the DS4Windows reference, with separate Profiles, Apps, Macros, Compatibility, Settings, Log and About content. Provide common profile selection, profile management, per-profile saved app list and Add/Edit app rules, persistent macro list, per-macro saved app assignment with Screen default, Record/Run/Stop controls, and selected macro editor. Restore saved targets after reopening; show unavailable/ambiguous app status without retargeting. Verify tab switches preserve selected profile/macro/app and shared Stop/status visibility during recording/playback.
+- [ ] Implement the user-requested desktop tab bar resembling the DS4Windows reference, with separate Profiles, Apps, Macros, Compatibility, Settings, Log and About content. Profiles shows all macros in the selected profile and opens them in Macros. Use Design 2's workspace inside Macros: macro list left, selected macro/target above the sequence, action inspector right and playback settings below. Provide common profile selection, profile management, per-profile saved app list and Add/Edit app rules, persistent macro list, per-macro saved app assignment with Screen default and Record/Run/Stop controls. Restore saved targets after reopening; show unavailable/ambiguous app status without retargeting. Verify tab switches preserve selected profile/macro/app and shared Stop/status visibility during recording/playback.
 - [ ] Add editor fields by action type, group expansion, move up/down or reorder controls, add/delete/duplicate actions, fixed/percentage selector, loop toggle/interval, text and raw key/shortcut input, and background-test confirmation dialog. Wire valid autosave, explicit replacement/deletion confirmations, and profile/macro rename/duplicate/new operations.
 - [ ] Verify UI with headless tests and manual Windows session: target dropdown/list works, expanding/collapsing works, recorded actions appear, edited values replay, status shows current action/next loop/skipped count, and disabled control reasons are readable.
-- [ ] Commit as `feat: build vertical profiles and macro editor UI`.
+- [ ] Commit as `feat: build desktop tabs and macro workspace UI`.
 
 ## Task 11: Settings, About, and portable delivery
 
@@ -352,7 +352,7 @@ Assert.True(stopControlVisibleDuringError);
 | Persistence, recovery, save errors | 5, 10 |
 | 0/60/120 scheduling, skip, sleep, cancellation | 6, 8 |
 | Recording, focus loss, hotkey exclusion | 7, 8 |
-| Vertical UI, collapsed editor, status, tabs | 10, 11 |
+| Desktop tabs, profile macro overview, macro workspace and status | 10, 11 |
 | Portable executable and release verification | 11 |
 
 Review fixes and phased inline execution approved. Tasks 1-3 are authorized now; full app follows the actual-game compatibility gate. The user named CookieRun and the running window was observed as CookieRun: Crumble - Idle RPG. Task 3 still requires a user-selected harmless input test; unknown compatibility does not prevent writing this plan but does prevent claiming a verified game-compatible release.

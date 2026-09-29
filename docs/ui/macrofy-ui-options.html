@@ -14,7 +14,8 @@
 </style>
 <style>
 .native-shell{--surface:#fafafa;--subtle:#f0f0f0;--ink:#202020;--muted:#555;--line:#b7b7b7;--accent:#0078d4;--active:#e8f2fc;border-radius:0;background:var(--subtle)}.native-shell .titlebar{background:#0078d4;color:#fff;padding:7px 10px;border:0}.native-shell .titlebar .hint,.native-shell .window-actions{color:#fff}.native-shell button,.native-shell input,.native-shell select{border-radius:2px;min-height:30px}.native-shell .primary{background:var(--accent)}.native-tabs{display:flex;flex-wrap:wrap;gap:0;align-items:end;padding:4px 5px 0;border-bottom:1px solid var(--line);background:#e6e6e6}.native-tabs button{background:#ededed;border:1px solid var(--line);border-right:0;padding:4px 10px;min-height:29px;margin-bottom:-1px;border-radius:2px 2px 0 0}.native-tabs button:last-child{border-right:1px solid var(--line)}.native-tabs button[aria-selected=true]{background:var(--surface);border-bottom-color:var(--surface);padding-top:6px}.native-context{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface)}.native-context label{display:flex;align-items:center;gap:8px}.native-context label>span{margin:0}.native-context select{min-width:150px;max-width:230px;width:auto}.native-shell .workspace{display:block}.native-pane{background:var(--surface);min-height:370px}.native-pane .profiles{border:0;padding:20px;display:block;background:var(--surface)}.native-pane .profile{width:100%;text-align:left;border:1px solid var(--line);margin:8px 0;max-width:380px;padding:12px}.native-pane .profile small{display:block}.native-pane .saved-app-strip{background:var(--surface)}.native-pane .native-table{border-collapse:collapse;width:100%;margin-top:16px;table-layout:fixed}.native-pane .native-table th,.native-pane .native-table td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);overflow-wrap:anywhere;font-size:13px}.native-pane .native-table th{font-weight:500}.native-settings{max-width:560px;display:grid;gap:20px}.native-statusbar{padding:8px 12px;border-top:1px solid var(--line);background:var(--subtle);display:flex;align-items:center;gap:12px;justify-content:space-between}.native-statusbar span{min-width:0;overflow-wrap:anywhere}.native-statusbar button{white-space:nowrap}.native-shell[data-theme=dark]{--surface:#262626;--subtle:#202020;--ink:#eee;--muted:#c3c3c3;--line:#626262;--active:#25435c}.native-shell[data-theme=dark] .native-tabs{background:#292929}.native-shell[data-theme=dark] .native-tabs button{background:#353535}.native-shell[data-theme=dark] .native-tabs button[aria-selected=true]{background:var(--surface)}.native-shell[data-theme=dark] .native-tabs button:hover{background:var(--active)}
-@media(max-width:650px){.native-tabs button{font-size:13px;padding:4px 7px}.native-context{padding:12px;gap:8px}.native-context label{flex:1}.native-pane .native-table th,.native-pane .native-table td{padding:8px 4px}.native-pane .profiles{padding:16px}.native-pane{min-height:320px}}
+.profile-overview{display:grid;grid-template-columns:220px minmax(0,1fr)}.profile-overview .profiles{border-right:1px solid var(--line)}.profile-macros{padding:20px;min-width:0}.macro-workspace{display:grid;grid-template-columns:200px minmax(0,1fr)}.macro-library{padding:20px 12px;background:var(--subtle);border-right:1px solid var(--line)}.macro-library h3{padding:0 8px}.macro-entry{display:block;width:100%;text-align:left;padding:10px;margin:4px 0;border:0;background:transparent}.macro-entry small{display:block;margin-top:3px}.macro-entry[aria-pressed=true]{background:var(--active);color:var(--accent)}.macro-workspace-main{min-width:0}.macro-workspace-heading{padding:16px 20px;border-bottom:1px solid var(--line)}.macro-workspace-heading h3{margin:0}.profile-macros .native-table{table-layout:auto}.profile-macros .native-table td:last-child{white-space:nowrap}.profile-macros h3{margin-bottom:4px}
+@media(max-width:650px){.native-tabs button{font-size:13px;padding:4px 7px}.native-context{padding:12px;gap:8px}.native-context label{flex:1}.native-pane .native-table th,.native-pane .native-table td{padding:8px 4px}.native-pane .profiles{padding:16px}.native-pane{min-height:320px}.profile-overview,.macro-workspace{grid-template-columns:1fr}.profile-overview .profiles,.macro-library{border-right:0;border-bottom:1px solid var(--line)}.macro-library{padding:16px}.macro-library-list{display:flex;flex-wrap:wrap;gap:8px}.macro-entry{width:auto;flex:1;min-width:140px}.profile-macros{padding:16px}.profile-macros .native-table{table-layout:fixed}.profile-macros .native-table td:last-child{white-space:normal}}
 </style>
 </head>
 <body>
@@ -162,6 +163,14 @@
     }
   } catch {}
   function profile(){return profiles[profileKey];}
+  function macroNames(){return profileKey==='click'?['Auto click','Collect rewards']:profileKey==='combo'?['Open search','Type note']:['New macro'];}
+  function savedMacroActions(index){
+    if(profile().macroActions?.[index])return profile().macroActions[index].map(a=>({...a}));
+    if(profileKey==='combo')return index==='1'?[{kind:'Text',value:'Hello',delay:100},{kind:'Key',value:'Enter',delay:300}]:[{kind:'Key',value:'Ctrl + K',delay:150}];
+    if(profileKey==='click')return index==='1'?[{kind:'Click',value:'600, 420',delay:500}]:[{kind:'Click',value:'480, 640',delay:250}];
+    return [];
+  }
+  function selectedAppName(index){const id=profile().macroTargets?.[index]||'screen';return id==='screen'?'Screen':profile().apps.find(a=>a.id===id)?.name||'Unavailable saved app';}
   function macroTarget(){return profile().macroTargets?.[profile().selectedMacro||'0'] || 'screen';}
   function setMacroTarget(id){profile().macroTargets??={};profile().macroTargets[profile().selectedMacro||'0']=id;saveProfiles();renderSavedApps();}
   function targetName(app){
@@ -204,7 +213,7 @@
   });
   document.querySelector('[data-advanced]').addEventListener('click', () => { const panel = document.querySelector('[data-advanced-panel]'); panel.hidden = !panel.hidden; });
 
-  let actions = [{kind:'Click',value:'480, 640',delay:250}];
+  let actions = savedMacroActions(profile().selectedMacro||'0');
   let selected = 0;
   const actionRows = document.getElementById('action-rows');
   function editSelection() {
@@ -226,17 +235,12 @@
       const delay = document.createElement('td'); delay.className = 'timing'; delay.textContent = action.delay + ' ms';
       row.append(order, type, value, delay); actionRows.append(row);
     }); editSelection();
+    profile().macroActions??={};profile().macroActions[profile().selectedMacro||'0']=actions.map(a=>({...a}));saveProfiles();renderProfileOverview();
     document.querySelector('[data-app="workspace"] [data-status]').textContent = 'Ready · ' + actions.length + ' action' + (actions.length === 1 ? '' : 's') + ' · ' + (modes.get(document.querySelector('[data-app="workspace"]')) === 'screen' ? 'Screen' : targetName(document.querySelector('[data-app="workspace"]')));
   }
   document.getElementById('add-action').addEventListener('click', () => { const kind = document.getElementById('add-type').value; actions.push({kind,value:kind === 'Click' ? '480, 640' : kind === 'Key' ? 'Ctrl + K' : kind === 'Text' ? 'Hello' : kind === 'Wheel' ? '120' : '1000 ms',delay:100}); selected = actions.length - 1; renderActions(); });
   document.getElementById('remove-action').addEventListener('click', () => { if (selected < 0) return; actions.splice(selected, 1); selected = actions.length ? Math.min(selected, actions.length - 1) : -1; renderActions(); });
   document.getElementById('apply-action').addEventListener('click', () => { if (!actions[selected]) return; actions[selected] = {kind:document.getElementById('edit-kind').value,value:document.getElementById('edit-value').value,delay:Math.max(0, +document.getElementById('edit-delay').value || 0)}; renderActions(); });
-  document.querySelectorAll('[data-profile]').forEach(b => b.addEventListener('click', () => {
-    document.querySelectorAll('[data-profile]').forEach(p => p.setAttribute('aria-pressed', String(p === b)));
-    actions = b.dataset.profile === 'click' ? [{kind:'Click',value:'480, 640',delay:250}] : [{kind:'Key',value:'Ctrl + K',delay:150},{kind:'Text',value:'Hello',delay:100},{kind:'Key',value:'Enter',delay:300},{kind:'Click',value:'480, 640',delay:250}];
-    profileKey=b.dataset.profile;saveProfiles();renderSavedApps();renderMacroPicker();selected = 0; renderActions();
-  }));
-  document.querySelector('[data-new]').addEventListener('click', () => {const id='profile-'+Date.now();profiles[id]={name:'New profile',apps:[],selectedMacro:'0',macroTargets:{'0':'screen'}};profileKey=id;saveProfiles();renderSavedApps();renderMacroPicker();actions=[];selected=-1;document.querySelectorAll('[data-profile]').forEach(p=>p.setAttribute('aria-pressed','false'));renderActions();});
   document.querySelector('[data-record]').addEventListener('click', () => { actions.push({kind:'Click',value:'480, 640',delay:250},{kind:'Key',value:'Space',delay:100}); selected = actions.length - 1; renderActions(); document.querySelector('[data-app="workspace"] [data-status]').textContent = 'Added 2 sample recorded actions. No keys or mouse were captured.'; });
   document.querySelectorAll('[data-workspace-tab]').forEach(b => b.addEventListener('click', () => { const isActions = b.dataset.workspaceTab === 'actions'; document.querySelector('[data-workspace-actions]').hidden = !isActions; document.querySelector('[data-workspace-compatibility]').hidden = isActions; document.querySelectorAll('[data-workspace-tab]').forEach(t => t.setAttribute('aria-selected',String(t === b))); }));
   document.getElementById('compat-test').addEventListener('click', () => document.getElementById('compat-result').textContent = 'Sample test queued. Choose what you observed; no real input was sent.');
@@ -244,13 +248,13 @@
   document.getElementById('compat-no').addEventListener('click', () => document.getElementById('compat-result').textContent = 'Sample observation: ignored — ' + document.getElementById('compat-state').value);
   renderActions();
   function renderMacroPicker(){
-    const names=profileKey==='click'?['Auto click','Collect rewards']:profileKey==='combo'?['Open search','Type note']:['New macro'];
+    const names=macroNames();
     document.querySelectorAll('[data-macro-picker]').forEach(picker=>{picker.replaceChildren();names.forEach((name,i)=>picker.add(new Option(name,String(i))));picker.value=profile().selectedMacro||'0';});
+    renderProfileOverview();renderMacroLibrary();
   }
-  document.querySelectorAll('[data-macro-picker]').forEach(picker=>picker.addEventListener('change',event=>{
-    profile().selectedMacro=event.target.value;saveProfiles();renderMacroPicker();renderSavedApps();
-    actions=event.target.value==='1'?[{kind:'Click',value:'600, 420',delay:500}]:profileKey==='combo'?[{kind:'Key',value:'Ctrl + K',delay:150},{kind:'Text',value:'Hello',delay:100}]:[{kind:'Click',value:'480, 640',delay:250}];selected=0;renderActions();
-  }));
+  function selectMacro(index){profile().selectedMacro=index;actions=savedMacroActions(index);selected=actions.length?0:-1;saveProfiles();renderSavedApps();renderMacroPicker();renderActions();}
+  function selectProfile(id){profileKey=id;selectMacro(profile().selectedMacro||'0');nativeLog('Profile selected: '+profile().name);}
+  document.querySelectorAll('[data-macro-picker]').forEach(picker=>picker.addEventListener('change',event=>selectMacro(event.target.value)));
   function renderSavedApps(){
     const p=profile();const selectedId=macroTarget();
     document.querySelectorAll('[data-app-count]').forEach(n=>n.textContent=p.apps.length);
@@ -276,6 +280,7 @@
     document.querySelectorAll('#compat-test,#compat-yes,#compat-no').forEach(b=>b.disabled=isScreen);
     renderAppManager();
     renderNativeAppList();
+    renderProfileOverview();renderMacroLibrary();
   }
   function renderAppManager(){
     document.getElementById('apps-dialog-title').textContent='Saved apps — '+profile().name;
@@ -318,6 +323,21 @@
     const table=document.getElementById('native-app-rows');if(!table)return;table.replaceChildren();
     profile().apps.forEach(app=>{const row=document.createElement('tr');[app.name,app.path,app.pattern].forEach(value=>{const cell=document.createElement('td');cell.textContent=value;row.append(cell);});table.append(row);});
   }
+  function renderProfileOverview(){
+    const rows=document.getElementById('profile-macro-rows');if(!rows)return;rows.replaceChildren();
+    document.getElementById('profile-macros-title').textContent=profile().name+' — macros';
+    macroNames().forEach((name,i)=>{
+      const row=document.createElement('tr');const macro=document.createElement('td'),app=document.createElement('td'),count=document.createElement('td'),edit=document.createElement('td'),button=document.createElement('button');
+      macro.textContent=name;app.textContent=selectedAppName(String(i));count.textContent=savedMacroActions(String(i)).length;button.textContent='Edit macro';button.className='small-action';button.setAttribute('aria-label','Edit macro: '+name);button.addEventListener('click',()=>{selectMacro(String(i));selectNativeTab('macros');document.getElementById('native-tab-macros').focus();});edit.append(button);row.append(macro,app,count,edit);rows.append(row);
+    });
+    const list=document.getElementById('profile-list');list.replaceChildren();
+    Object.entries(profiles).forEach(([id,p])=>{const button=document.createElement('button'),detail=document.createElement('small');button.className='profile';button.dataset.profile=id;button.setAttribute('aria-pressed',String(id===profileKey));button.textContent=p.name;detail.textContent=p.apps.length+' saved app'+(p.apps.length===1?'':'s');button.append(detail);button.addEventListener('click',()=>selectProfile(id));list.append(button);});
+  }
+  function renderMacroLibrary(){
+    const list=document.getElementById('workspace-macro-list');if(!list)return;list.replaceChildren();
+    const index=profile().selectedMacro||'0';document.getElementById('workspace-macro-title').textContent=macroNames()[+index]||'New macro';
+    macroNames().forEach((name,i)=>{const button=document.createElement('button'),target=document.createElement('small');button.className='macro-entry';button.dataset.macroEntry=String(i);button.setAttribute('aria-pressed',String(String(i)===index));button.textContent=name;target.textContent=selectedAppName(String(i));button.append(target);button.addEventListener('click',()=>selectMacro(String(i)));list.append(button);});
+  }
   function nativeLog(message){
     const list=document.getElementById('native-log-rows');if(!list)return;
     const row=document.createElement('tr'),time=document.createElement('td'),text=document.createElement('td');time.textContent=new Date().toLocaleTimeString();text.textContent=message;row.append(time,text);list.append(row);
@@ -333,11 +353,16 @@
   ['profiles','apps','macros','compatibility','settings','log','about'].forEach(name=>{
     const pane=document.createElement('section');pane.id='native-pane-'+name;pane.className='native-pane';pane.dataset.nativePane=name;pane.setAttribute('role','tabpanel');pane.setAttribute('aria-labelledby','native-tab-'+name);pane.hidden=name!=='profiles';panes[name]=pane;
   });
-  panes.profiles.append(profileSection);
-  const profileHelp=document.createElement('p');profileHelp.className='hint';profileHelp.textContent='Choose a profile, then use Apps to configure its targets and Macros to edit its sequences.';profileSection.prepend(profileHelp);
+  const profileOverview=document.createElement('div');profileOverview.className='profile-overview';
+  profileSection.innerHTML='<h3>Profiles</h3><div id="profile-list"></div><button data-new>+ New profile</button>';
+  const profileMacros=document.createElement('section');profileMacros.className='profile-macros';profileMacros.innerHTML='<h3 id="profile-macros-title">Profile macros</h3><table class="native-table"><thead><tr><th>Macro</th><th>Target app</th><th>Actions</th><th>Open</th></tr></thead><tbody id="profile-macro-rows"></tbody></table>';
+  profileOverview.append(profileSection,profileMacros);panes.profiles.append(profileOverview);
   panes.apps.append(appStrip);
   const appsBody=document.createElement('div');appsBody.className='body';appsBody.innerHTML='<div class="row spread"><h3 style="margin:0">Remembered target apps</h3><button id="native-add-app">Add app</button></div><table class="native-table"><thead><tr><th>App</th><th>Executable</th><th>Title rule</th></tr></thead><tbody id="native-app-rows"></tbody></table><p class="hint">App rules stay saved when an app is closed. Each macro chooses one app from this list.</p>';panes.apps.append(appsBody);
-  panes.macros.append(macroPicker,targetSection,actionSection);compatSection.hidden=false;panes.compatibility.append(compatSection);
+  const macroWorkspace=document.createElement('div');macroWorkspace.className='macro-workspace';
+  const macroLibrary=document.createElement('aside');macroLibrary.className='macro-library';macroLibrary.innerHTML='<h3>Macros</h3><div id="workspace-macro-list" class="macro-library-list"></div>';
+  const macroMain=document.createElement('div');macroMain.className='macro-workspace-main';const macroHeading=document.createElement('div');macroHeading.className='macro-workspace-heading';macroHeading.innerHTML='<h3 id="workspace-macro-title">Macro workspace</h3>';
+  macroPicker.hidden=true;macroMain.append(macroHeading,macroPicker,targetSection,actionSection);macroWorkspace.append(macroLibrary,macroMain);panes.macros.append(macroWorkspace);compatSection.hidden=false;panes.compatibility.append(compatSection);
   panes.settings.innerHTML='<div class="body"><h3>Settings</h3><div class="native-settings"><label><span>Appearance</span><select id="native-theme"><option value="light">Light</option><option value="dark">Dark</option></select></label><div class="fields three"><label><span>Record shortcut</span><input value="F8" readonly></label><label><span>Play shortcut</span><input value="F9" readonly></label><label><span>Emergency stop</span><input value="F10" readonly></label></div><p class="hint">Example shortcut bindings. This preview does not register desktop hotkeys.</p><p>Profile app assignments save automatically in this preview.</p></div></div>';
   panes.log.innerHTML='<div class="body"><div class="row spread"><h3 style="margin:0">Log</h3><button id="native-clear-log">Clear preview log</button></div><table class="native-table"><thead><tr><th style="width:110px">Time</th><th>Event</th></tr></thead><tbody id="native-log-rows"></tbody></table></div>';
   panes.about.innerHTML='<div class="body"><h3>Macrofy</h3><p>Windows macro recorder and clicker.</p><p>Profiles hold many saved apps and macros. Each macro remembers one target app; no assigned app means Screen.</p><p class="hint">Interactive design preview. Recorder, scheduler and native profile storage are planned; no desktop input is sent here.</p></div>';
@@ -348,8 +373,9 @@
     b.addEventListener('keydown',event=>{if(event.ctrlKey||event.altKey||event.metaKey||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const tabs=Array.from(document.querySelectorAll('[data-native-tab]'));const i=tabs.indexOf(b);const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(i+(event.key==='ArrowRight'?1:tabs.length-1))%tabs.length;tabs[next].focus();selectNativeTab(tabs[next].dataset.nativeTab);});
   });
   document.getElementById('native-profile').addEventListener('change',event=>{
-    profileKey=event.target.value;saveProfiles();renderSavedApps();renderMacroPicker();actions=profileKey==='combo'?[{kind:'Key',value:'Ctrl + K',delay:150},{kind:'Text',value:'Hello',delay:100}]:[{kind:'Click',value:'480, 640',delay:250}];selected=0;renderActions();nativeLog('Profile selected: '+profile().name);
+    selectProfile(event.target.value);
   });
+  document.querySelector('[data-new]').addEventListener('click',()=>{const id='profile-'+Date.now();profiles[id]={name:'New profile',apps:[],selectedMacro:'0',macroTargets:{'0':'screen'},macroActions:{'0':[]}};selectProfile(id);});
   document.getElementById('native-add-app').addEventListener('click',()=>{renderAppManager();document.getElementById('apps-dialog').showModal();});
   document.getElementById('native-theme').addEventListener('change',event=>{nativeRoot.dataset.theme=event.target.value;nativeLog('Preview appearance changed: '+event.target.value);});
   document.getElementById('native-clear-log').addEventListener('click',()=>document.getElementById('native-log-rows').replaceChildren());
@@ -357,7 +383,7 @@
   const statusObserver=new MutationObserver(()=>{document.getElementById('native-status').textContent=macroStatus.textContent;document.getElementById('native-stop').disabled=macroStop.disabled;});statusObserver.observe(macroStatus,{childList:true,subtree:true,characterData:true});
   document.getElementById('native-stop').addEventListener('click',()=>macroStop.click());
   nativeRoot.querySelectorAll('[data-run],[data-test],[data-record]').forEach(b=>b.addEventListener('click',()=>nativeLog(b.textContent+' · '+profile().name+' · '+targetName(nativeRoot)+' · No desktop input')));
-  renderNativeAppList();nativeLog('Tabbed preview opened. Saved apps restored for '+profile().name+'.');
+  renderNativeAppList();renderProfileOverview();renderMacroLibrary();nativeLog('Tabbed preview opened. Saved apps restored for '+profile().name+'.');
 })();
 </script>
 </body>
