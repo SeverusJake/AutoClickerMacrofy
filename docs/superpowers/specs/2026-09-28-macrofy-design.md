@@ -188,6 +188,8 @@ Latest UI request: Light and Dark are independent of the color palette. Every ca
 
 Icon preference: use icons for navigation tabs and common controls, including playback, recording, editing, adding, deleting and Light/Dark switching. Every icon control has a tooltip and accessible name; Pause switches to Resume with the matching icon and name. Keep profile/macro names, form labels, data and status readable as text. Native implementation should follow the approved preview direction.
 
+UI approval (2026-09-29): the user approved the current preview after the icon update. Adopt its desktop tabs, Profiles macro controls, Design 2 macro workspace, multicolor themes, independent Light/Dark mode, concise copy and icon controls as the implementation direction. Approval confirms the UI design; actual-game compatibility remains unverified.
+
 ### About tab
 
 Show app name/version, Windows-first release scope, data-folder location/open control, and dependency/license acknowledgements. Mac support is described as planned until delivered and tested.

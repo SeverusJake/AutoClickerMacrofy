@@ -39,6 +39,8 @@ Light/Dark mode is separate from the palette and works with all ten candidate th
 
 Navigation tabs and common controls now use icons with tooltips and accessible names. Pause changes to Resume while a macro is paused. Profile/macro names, form labels and status remain text.
 
+User approved the current UI design on 2026-09-29: desktop tabs, profile macro controls, Design 2 workspace, multicolor Light/Dark modes and icon controls. Native implementation still follows the actual-game compatibility gate.
+
 ## Deliberate CookieRun click test
 
 1. Choose a harmless button with an obvious visible response.
