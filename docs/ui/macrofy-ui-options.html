@@ -22,6 +22,9 @@
 .theme-review{max-width:1120px;margin:auto;padding:0 24px 20px}.theme-review h2{font-size:17px}.theme-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:12px 0}.theme-option{padding:0;text-align:left;overflow:hidden;background:var(--surface)}.theme-option[aria-pressed=true]{outline:2px solid var(--accent);outline-offset:2px}.theme-sample{display:block;background:var(--sample-surface);color:var(--sample-ink);padding:0 8px 8px;border-bottom:1px solid var(--line)}.theme-sample-bar{display:block;background:var(--sample-title);height:12px;margin:0 -8px 8px}.theme-sample-row{display:flex;gap:5px;align-items:center}.theme-sample-select{display:block;background:var(--sample-active);width:35%;height:18px}.theme-sample-line{display:block;background:var(--sample-line);width:50%;height:5px}.theme-option-name{display:block;padding:8px 10px 0;font-size:13px;font-weight:500}.theme-option-description{display:block;padding:2px 10px 10px;font-size:12px;color:var(--muted)}.theme-review .theme-decision{font-size:13px;gap:10px}.theme-review .theme-decision button{min-height:32px}.native-shell[data-color-theme] .titlebar{background:var(--title-bg);color:var(--title-ink)}.native-shell[data-color-theme] .titlebar .hint,.native-shell[data-color-theme] .window-actions{color:var(--title-ink)}.native-shell[data-color-theme] .native-tabs{background:var(--subtle)}.native-shell[data-color-theme] .native-tabs button{background:var(--tab-bg)}.native-shell[data-color-theme] .native-tabs button[aria-selected=true]{background:var(--surface)}.native-shell[data-color-theme] .native-tabs button:hover{background:var(--active)}.native-shell[data-color-theme] .primary{background:var(--accent);color:var(--primary-ink)}.native-shell[data-color-theme] .primary:hover{background:var(--accent)}.native-shell[data-color-theme] button{color:var(--ink)}.native-shell[data-color-theme] .profile[aria-pressed=true],.native-shell[data-color-theme] .macro-entry[aria-pressed=true]{color:var(--accent)}.native-shell[data-color-theme] .primary{color:var(--primary-ink)}.native-shell{color:var(--ink);border-color:var(--line)}:focus-visible{outline-color:var(--accent)}
 @media(max-width:700px){.theme-options{grid-template-columns:repeat(3,minmax(0,1fr))}.theme-review{padding:0 12px 20px}}@media(max-width:420px){.theme-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
+<style>
+.native-shell[data-theme-family=cyberpunk] .titlebar{border-bottom:2px solid var(--secondary);font-family:Consolas,monospace}.native-shell[data-theme-family=cyberpunk] .native-tabs button[aria-selected=true]{color:var(--secondary);border-top:2px solid var(--secondary)}.native-shell[data-theme-family=cyberpunk] .profile[aria-pressed=true]{border-left:3px solid var(--accent)}.native-shell[data-theme-family=cyberpunk] .macro-entry[aria-pressed=true]{border-left:3px solid var(--accent)}.native-shell[data-theme-family=cyberpunk] .primary{font-weight:600}.theme-sample-bar{border-bottom:2px solid var(--sample-secondary,var(--sample-title))}
+</style>
 </head>
 <body>
 <header class="review">
@@ -35,7 +38,7 @@
   <p id="choice-status" class="selection-result" aria-live="polite"></p>
 </header>
 <section class="theme-review" aria-label="Color theme options">
-  <div class="row spread"><h2>Choose a color theme</h2><span class="hint">Click an option to preview the whole app</span></div>
+  <div class="row spread"><h2>Choose a cyberpunk theme</h2><span class="hint">Five new palettes · Earlier themes remain in Settings</span></div>
   <div class="theme-options" id="theme-options"></div>
   <div class="row spread theme-decision"><span id="theme-preview-name" aria-live="polite">Previewing Windows Blue</span><button id="confirm-theme">Use this theme</button></div>
   <p class="hint" id="theme-choice-status" aria-live="polite">No color theme chosen yet.</p>
@@ -440,28 +443,36 @@
     graphite:{name:'Graphite',description:'Dark · neutral gray',mode:'dark',colors:{page:'#18181b',surface:'#27272a',subtle:'#202023',ink:'#fafafa',muted:'#c3c3ca',line:'#62626b',accent:'#cbd5e1',active:'#3c424a','tab-bg':'#303034','title-bg':'#3f4650','title-ink':'#ffffff','primary-ink':'#18181b'}},
     emerald:{name:'Emerald',description:'Dark · teal green',mode:'dark',colors:{page:'#0f0f0f',surface:'#1a1a1a',subtle:'#141414',ink:'#f5f5f5',muted:'#b9c9c3',line:'#4e625a',accent:'#00d4aa',active:'#193c33','tab-bg':'#242c28','title-bg':'#006b55','title-ink':'#ffffff','primary-ink':'#0f0f0f'}},
     violet:{name:'Violet',description:'Dark · soft purple',mode:'dark',colors:{page:'#121212',surface:'#1e1e1e',subtle:'#18161c',ink:'#e1e1e1',muted:'#c2b8cc',line:'#655b70',accent:'#bb86fc',active:'#39294b','tab-bg':'#2b2532','title-bg':'#65428b','title-ink':'#ffffff','primary-ink':'#121212'}},
-    'warm-amber':{name:'Warm Amber',description:'Light · warm cream',mode:'light',colors:{page:'#fef7f0',surface:'#fffbf5',subtle:'#f4eadc',ink:'#292524',muted:'#675647',line:'#c3af96',accent:'#9a4b08',active:'#fde7c7','tab-bg':'#f4eadc','title-bg':'#a7540b','title-ink':'#ffffff','primary-ink':'#ffffff'}}
+    'warm-amber':{name:'Warm Amber',description:'Light · warm cream',mode:'light',colors:{page:'#fef7f0',surface:'#fffbf5',subtle:'#f4eadc',ink:'#292524',muted:'#675647',line:'#c3af96',accent:'#9a4b08',active:'#fde7c7','tab-bg':'#f4eadc','title-bg':'#a7540b','title-ink':'#ffffff','primary-ink':'#ffffff'}},
+    'neon-district':{name:'Neon District',description:'Electric yellow + cyan',family:'cyberpunk',mode:'dark',colors:{page:'#0a0c10',surface:'#18191d',subtle:'#101216',ink:'#f5f5e8',muted:'#bfc0ad',line:'#5b5938',accent:'#ffe600',secondary:'#00e5ff',active:'#333113','tab-bg':'#24251e','title-bg':'#ffe600','title-ink':'#111111','primary-ink':'#111111'}},
+    synthwave:{name:'Synthwave',description:'Hot pink + purple',family:'cyberpunk',mode:'dark',colors:{page:'#110f1b',surface:'#211a31',subtle:'#181322',ink:'#f6edff',muted:'#c6b6d4',line:'#675078',accent:'#ff66c4',secondary:'#45e7ef',active:'#422643','tab-bg':'#2c2039','title-bg':'#59275f','title-ink':'#ffeaff','primary-ink':'#211a31'}},
+    matrix:{name:'Matrix',description:'Terminal green + black',family:'cyberpunk',mode:'dark',colors:{page:'#030805',surface:'#0d1811',subtle:'#09100b',ink:'#e7ffee',muted:'#a1b9a7',line:'#365a3e',accent:'#70ff89',secondary:'#d0ff5a',active:'#183321','tab-bg':'#112418','title-bg':'#14391e','title-ink':'#70ff89','primary-ink':'#09100b'}},
+    tron:{name:'Tron',description:'Ice cyan + orange',family:'cyberpunk',mode:'dark',colors:{page:'#060b11',surface:'#10202a',subtle:'#0b151d',ink:'#e4f8ff',muted:'#adc8d4',line:'#35596c',accent:'#5ce5ff',secondary:'#ffb454',active:'#133744','tab-bg':'#162b36','title-bg':'#0d4054','title-ink':'#c9f8ff','primary-ink':'#0b151d'}},
+    redline:{name:'Redline',description:'Neon red + amber',family:'cyberpunk',mode:'dark',colors:{page:'#100b0d',surface:'#23171b',subtle:'#191215',ink:'#ffeff1',muted:'#d9b2b6',line:'#70414b',accent:'#ff667d',secondary:'#ffb05a',active:'#44242d','tab-bg':'#321c23','title-bg':'#88253b','title-ink':'#ffffff','primary-ink':'#191215'}}
   };
-  let previewTheme='windows-blue',chosenTheme=null;
+  const cyberThemeIds=['neon-district','synthwave','matrix','tron','redline'];
+  let previewTheme='neon-district',chosenTheme=null;
   function applyColorTheme(id){
-    const theme=colorThemes[id];if(!theme)return;previewTheme=id;nativeRoot.dataset.colorTheme=id;nativeRoot.dataset.theme=theme.mode;nativeRoot.style.colorScheme=theme.mode;document.body.style.colorScheme=theme.mode;
+    const theme=colorThemes[id];if(!theme)return;previewTheme=id;nativeRoot.dataset.colorTheme=id;nativeRoot.dataset.theme=theme.mode;nativeRoot.dataset.themeFamily=theme.family||'classic';nativeRoot.style.colorScheme=theme.mode;document.body.style.colorScheme=theme.mode;
     Object.entries(theme.colors).forEach(([name,value])=>{nativeRoot.style.setProperty('--'+name,value);document.body.style.setProperty('--'+name,value);});
     document.querySelectorAll('[data-preview-theme]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.previewTheme===id)));document.getElementById('native-theme').value=id;document.getElementById('theme-preview-name').textContent='Previewing: '+theme.name+' · '+theme.description;
   }
   const colorOptions=document.getElementById('theme-options'),colorPicker=document.getElementById('native-theme');
-  Object.entries(colorThemes).forEach(([id,theme],i)=>{
+  cyberThemeIds.map(id=>[id,colorThemes[id]]).forEach(([id,theme],i)=>{
     const button=document.createElement('button');button.className='theme-option';button.dataset.previewTheme=id;button.type='button';button.setAttribute('aria-label','Preview theme '+(i+1)+': '+theme.name);button.setAttribute('aria-pressed','false');
     button.style.setProperty('--sample-surface',theme.colors.surface);button.style.setProperty('--sample-ink',theme.colors.ink);button.style.setProperty('--sample-title',theme.colors['title-bg']);button.style.setProperty('--sample-active',theme.colors.active);button.style.setProperty('--sample-line',theme.colors.line);
+    button.style.setProperty('--sample-secondary',theme.colors.secondary||theme.colors.accent);
     button.innerHTML='<span class="theme-sample" aria-hidden="true"><span class="theme-sample-bar"></span><span class="theme-sample-row"><span class="theme-sample-select"></span><span class="theme-sample-line"></span></span></span><span class="theme-option-name"></span><span class="theme-option-description"></span>';
-    button.querySelector('.theme-option-name').textContent=(i+1)+'. '+theme.name;button.querySelector('.theme-option-description').textContent=theme.description;button.addEventListener('click',()=>applyColorTheme(id));colorOptions.append(button);colorPicker.add(new Option(theme.name,id));
+    button.querySelector('.theme-option-name').textContent=(i+1)+'. '+theme.name;button.querySelector('.theme-option-description').textContent=theme.description;button.addEventListener('click',()=>applyColorTheme(id));colorOptions.append(button);
   });
+  [['Cyberpunk themes',cyberThemeIds],['Earlier themes',Object.keys(colorThemes).filter(id=>!cyberThemeIds.includes(id))]].forEach(([label,ids])=>{const group=document.createElement('optgroup');group.label=label;ids.forEach(id=>group.append(new Option(colorThemes[id].name,id)));colorPicker.append(group);});
   colorPicker.addEventListener('change',event=>applyColorTheme(event.target.value));
   document.getElementById('confirm-theme').addEventListener('click',()=>{
     try{localStorage.setItem('macrofy-color-theme-choice',previewTheme);chosenTheme=previewTheme;document.getElementById('theme-choice-status').textContent='Chosen: '+colorThemes[chosenTheme].name+'. Saved in this browser. Tell Codex to use this theme for the native app.';}
     catch{document.getElementById('theme-choice-status').textContent='Chosen: '+colorThemes[previewTheme].name+'. Browser storage unavailable; tell Codex your choice.';}
   });
   try{const saved=localStorage.getItem('macrofy-color-theme-choice');if(Object.hasOwn(colorThemes,saved)){chosenTheme=saved;document.getElementById('theme-choice-status').textContent='Chosen: '+colorThemes[saved].name+' · Restored from this browser.';}}catch{}
-  applyColorTheme(chosenTheme||'windows-blue');
+  applyColorTheme(cyberThemeIds.includes(chosenTheme)?chosenTheme:'neon-district');
   document.getElementById('native-clear-log').addEventListener('click',()=>document.getElementById('native-log-rows').replaceChildren());
   const macroStop=nativeRoot.querySelector('[data-stop]');const macroPause=document.createElement('button');macroPause.id='workspace-pause';macroPause.textContent='Pause';macroPause.disabled=true;macroStop.before(macroPause);
   nativeRoot.querySelector('[data-run]').addEventListener('click',()=>startMacro(profileKey,profile().selectedMacro||'0'));

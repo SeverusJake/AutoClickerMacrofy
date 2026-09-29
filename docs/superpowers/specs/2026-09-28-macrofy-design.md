@@ -180,6 +180,8 @@ Configure global hotkeys and select light, dark, or system theme. Proposed defau
 
 Color palette review (2026-09-29): the user requested five options. The browser preview offers Windows Blue (light), Graphite (dark neutral gray), Emerald (dark teal green), Violet (dark purple) and Warm Amber (light cream). Previewing a palette recolors title bar, tabs, selected rows, controls and the workspace without changing navigation or profile data. Use this theme confirms and remembers a browser preview choice. These are candidates; the final native palette is pending the user's selection.
 
+The user then requested five new cyberpunk-style candidates: Neon District (electric yellow/cyan), Synthwave (hot pink/purple), Matrix (terminal green/black), Tron (ice cyan/orange) and Redline (neon red/amber). All use dark surfaces with contrasting accent colors, a title-bar accent line and selected-tab indicators. The preview displays these five choices first and retains the earlier themes in Settings. Browsing the new palettes does not overwrite a previously confirmed choice; Use this theme explicitly records the new choice. The native palette remains pending selection.
+
 ### About tab
 
 Show app name/version, Windows-first release scope, data-folder location/open control, and dependency/license acknowledgements. Mac support is described as planned until delivered and tested.
