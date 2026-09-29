@@ -31,6 +31,9 @@
 <style>
 .appearance-switch{display:flex;gap:0}.appearance-switch button{border-radius:0;min-height:32px;padding:5px 14px}.appearance-switch button:first-child{border-radius:3px 0 0 3px}.appearance-switch button:last-child{border-radius:0 3px 3px 0;border-left:0}.appearance-switch button[aria-pressed=true]{background:var(--active);border-color:var(--accent)}.theme-option-name{padding-bottom:10px}.review-head h1{font-size:20px}.review-head .hint{font-size:12px;font-weight:400;margin-left:8px}
 </style>
+<style>
+.ui-icon{width:18px;height:18px;display:block;flex-shrink:0;pointer-events:none}.icon-button{display:inline-flex;align-items:center;justify-content:center;min-width:36px;min-height:36px;padding:7px}.native-shell .native-tabs .icon-button{padding:7px 10px;min-width:44px;min-height:36px}.native-shell .macro-controls .icon-button{width:32px;min-width:32px;height:32px;min-height:32px;padding:6px}.native-shell .native-statusbar .icon-button{min-width:38px;min-height:34px}.appearance-switch .icon-button{min-width:40px;padding:6px 10px}.native-shell[data-theme-family=cyberpunk] [data-record]{color:var(--danger);border-color:var(--danger);background:var(--danger-fill)}
+</style>
 </head>
 <body>
 <header class="review">
@@ -142,6 +145,38 @@
 </dialog>
 <script>
 (() => {
+  const icons={
+    profiles:'<path d="M3 7h6l2 2h10v11H3z"/><path d="M3 7V4h7l2 3"/>',
+    apps:'<rect x="3" y="3" width="18" height="13" rx="1"/><path d="M8 21h8m-4-5v5"/>',
+    macros:'<path d="M3 5h8M3 12h8M3 19h8m4-14 7 7-7 7z"/>',
+    compatibility:'<path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7zM8 12l3 3 5-6"/>',
+    settings:'<path d="m10 3-.5 3-2 .9L5 5.5 2.5 10 5 12v2l-2.5 2L5 20.5l2.5-1.4 2 .9.5 3h4l.5-3 2-.9 2.5 1.4 2.5-4.5-2.5-2v-2l2.5-2L19 5.5 16.5 7l-2-.9L14 3z"/><circle cx="12" cy="13" r="3"/>',
+    log:'<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 7h8M8 12h8M8 17h5"/>',
+    about:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/>',
+    play:'<path d="m8 4 13 8-13 8z"/>',
+    pause:'<path d="M8 5v14M16 5v14" stroke-width="3"/>',
+    stop:'<rect x="5" y="5" width="14" height="14" rx="1"/>',
+    edit:'<path d="m14 5 5 5M4 20l5-1L21 7l-5-5L4 14z"/>',
+    plus:'<path d="M12 4v16M4 12h16"/>',
+    trash:'<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/>',
+    check:'<path d="m4 12 5 5L20 6"/>',
+    close:'<path d="m6 6 12 12M6 18 18 6"/>',
+    record:'<circle cx="12" cy="12" r="7" fill="currentColor" stroke="none"/>',
+    test:'<path d="M9 3h6m-5 0v7L4 19q-1 2 2 2h12q3 0 2-2l-6-9V3M7 15h10"/>',
+    sun:'<circle cx="12" cy="12" r="4"/><path d="M12 1v2m0 18v2M1 12h2m18 0h2M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/>',
+    moon:'<path d="M20 15A9 9 0 0 1 9 3a9 9 0 1 0 11 12z"/>',
+    newProfile:'<path d="M3 7h6l2 2h10v11H3zM3 7V4h7l2 3m2 5v6m-3-3h6"/>',
+    pauseAll:'<path d="M3 3h15M3 3v15M10 8v12m8-12v12" stroke-width="2.5"/>',
+    resumeAll:'<path d="M3 3h15M3 3v15m7-10 11 6-11 6z"/>',
+    stopAll:'<path d="M3 3h15M3 3v15"/><rect x="8" y="8" width="13" height="13" rx="1"/>'
+  };
+  function setIconButton(button,name,label){
+    if(!button)return;
+    button.classList.add('icon-button');button.setAttribute('aria-label',label);button.title=label;
+    if(button.dataset.icon!==name||!button.querySelector('svg')){
+      button.innerHTML='<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+icons[name]+'</svg>';button.dataset.icon=name;
+    }
+  }
   const descriptions = {
     1: '<strong>Fastest for everyday clicks.</strong> Small window and few controls. Full macro editing opens separately.',
     2: '<strong>Desktop tabs, like your reference.</strong> Profiles, Apps, Macros, Compatibility, Settings, Log and About each have their own tab.',
@@ -225,11 +260,11 @@
     const running=active.filter(s=>s.state==='Running').length,paused=active.filter(s=>s.state==='Paused').length;
     globalStatus.textContent=active.length?running+' running · '+paused+' paused':'Idle';
     document.getElementById('native-stop').disabled=!active.length;document.getElementById('native-pause-all').disabled=!active.length;
-    document.getElementById('native-pause-all').textContent=active.length&&!running?'Resume all':'Pause all';
+    setIconButton(document.getElementById('native-pause-all'),active.length&&!running?'resumeAll':'pauseAll',active.length&&!running?'Resume all':'Pause all');
     if(!active.length&&playbackTick){clearInterval(playbackTick);playbackTick=null;}
     document.querySelectorAll('[data-macro-status]').forEach(n=>{const s=playbackSessions.get(sessionKey(profileKey,n.dataset.macroStatus));n.textContent=s?s.state:'Idle';n.dataset.state=s?s.state:'Idle';});
     document.querySelectorAll('[data-run-macro]').forEach(b=>{const index=b.dataset.runMacro,target=profile().macroTargets?.[index]||'screen';b.disabled=!!activeSession(profileKey,index)||!savedMacroActions(index).length||(target!=='screen'&&!profile().apps.some(a=>a.id===target));});
-    document.querySelectorAll('[data-pause-macro]').forEach(b=>{const s=activeSession(profileKey,b.dataset.pauseMacro);b.disabled=!s;b.textContent=s?.state==='Paused'?'Resume':'Pause';b.setAttribute('aria-label',(s?.state==='Paused'?'Resume':'Pause')+' macro: '+macroNames()[+b.dataset.pauseMacro]);});
+    document.querySelectorAll('[data-pause-macro]').forEach(b=>{const s=activeSession(profileKey,b.dataset.pauseMacro);b.disabled=!s;setIconButton(b,s?.state==='Paused'?'play':'pause',(s?.state==='Paused'?'Resume':'Pause')+' macro: '+macroNames()[+b.dataset.pauseMacro]);});
     document.querySelectorAll('[data-stop-macro]').forEach(b=>b.disabled=!activeSession(profileKey,b.dataset.stopMacro));
     const current=activeSession(profileKey,profile().selectedMacro||'0');
     const root=document.querySelector('[data-app="workspace"]');
@@ -238,7 +273,7 @@
     document.querySelectorAll('#compat-test,#compat-yes,#compat-no').forEach(b=>b.disabled=!!active.length||macroTarget()==='screen');
     if(!current){root.querySelector('[data-window-state]').disabled=macroTarget()==='screen';document.getElementById('remove-action').disabled=!actions.length;document.getElementById('apply-action').disabled=!actions.length;}
     root.querySelector('[data-stop]').disabled=!current;
-    document.getElementById('workspace-pause').disabled=!current;document.getElementById('workspace-pause').textContent=current?.state==='Paused'?'Resume':'Pause';
+    document.getElementById('workspace-pause').disabled=!current;setIconButton(document.getElementById('workspace-pause'),current?.state==='Paused'?'play':'pause',current?.state==='Paused'?'Resume macro':'Pause macro');
     if(current)root.querySelector('[data-status]').textContent=current.state+' · '+current.name+' · Action '+(current.action+1)+'/'+current.sequence.length+' · '+current.loops+' preview loops';
     else root.querySelector('[data-status]').textContent='Ready · '+actions.length+' action'+(actions.length===1?'':'s')+' · '+selectedAppName(profile().selectedMacro||'0');
   }
@@ -392,7 +427,7 @@
     macroNames().forEach((name,i)=>{
       const row=document.createElement('tr');const macro=document.createElement('td'),app=document.createElement('td'),count=document.createElement('td'),state=document.createElement('td'),controls=document.createElement('td'),buttons=document.createElement('div');
       const id=profileKey,index=String(i);macro.textContent=name;app.textContent=selectedAppName(index);count.textContent=savedMacroActions(index).length;state.dataset.macroStatus=index;state.className='macro-state';state.setAttribute('aria-live','polite');buttons.className='macro-controls';
-      [['Run','runMacro',()=>startMacro(id,index)],['Pause','pauseMacro',()=>pauseMacro(id,index)],['Stop','stopMacro',()=>stopMacro(id,index)],['Edit macro','editMacro',()=>{selectMacro(index);selectNativeTab('macros');document.getElementById('native-tab-macros').focus();}]].forEach(([label,data,handler])=>{const b=document.createElement('button');b.textContent=label;b.dataset[data]=index;b.setAttribute('aria-label',label==='Edit macro'?'Edit macro: '+name:label+' macro: '+name);b.addEventListener('click',handler);buttons.append(b);});
+      [['Run','runMacro','play',()=>startMacro(id,index)],['Pause','pauseMacro','pause',()=>pauseMacro(id,index)],['Stop','stopMacro','stop',()=>stopMacro(id,index)],['Edit macro','editMacro','edit',()=>{selectMacro(index);selectNativeTab('macros');document.getElementById('native-tab-macros').focus();}]].forEach(([label,data,icon,handler])=>{const b=document.createElement('button');b.dataset[data]=index;setIconButton(b,icon,label==='Edit macro'?'Edit macro: '+name:label+' macro: '+name);b.addEventListener('click',handler);buttons.append(b);});
       controls.append(buttons);row.append(macro,app,count,state,controls);rows.append(row);
     });
     const list=document.getElementById('profile-list');list.replaceChildren();
@@ -536,6 +571,10 @@
   document.getElementById('native-stop').addEventListener('click',stopAllMacros);
   document.getElementById('native-pause-all').addEventListener('click',()=>{const active=Array.from(playbackSessions.values()).filter(s=>['Running','Paused'].includes(s.state));const next=active.some(s=>s.state==='Running')?'Paused':'Running';active.forEach(s=>s.state=next);nativeLog(next==='Paused'?'Paused all preview macros.':'Resumed all preview macros.');renderPlaybackControls();});
   nativeRoot.querySelector('[data-record]').addEventListener('click',()=>nativeLog('Sample recorded actions added · '+profile().name+' · No desktop input'));
+  document.querySelectorAll('[data-native-tab]').forEach(b=>setIconButton(b,b.dataset.nativeTab,b.textContent.trim()));
+  document.querySelectorAll('[data-appearance-mode]').forEach(b=>setIconButton(b,b.dataset.appearanceMode==='light'?'sun':'moon',b.textContent.trim()+' mode'));
+  [['#confirm-theme','check','Use this theme'],['[data-new]','newProfile','New profile'],['#native-add-app','plus','Add app'],['#native-clear-log','trash','Clear preview log'],['#close-apps','close','Close'],['#compat-test','test','Preview one-click test'],['#compat-yes','check','Observed working'],['#compat-no','close','Observed ignored'],['#add-action','plus','Add action'],['#remove-action','trash','Remove selected action'],['#apply-action','check','Apply change'],['#native-stop','stopAll','Stop all (F10)']].forEach(([selector,icon,label])=>setIconButton(document.querySelector(selector),icon,label));
+  [['[data-run]','play','Run preview'],['[data-test]','test','Test selected action'],['[data-record]','record','Record preview'],['[data-stop]','stop','Stop macro'],['[data-manage-apps]','apps','Manage saved apps']].forEach(([selector,icon,label])=>nativeRoot.querySelectorAll(selector).forEach(b=>setIconButton(b,icon,label)));
   renderNativeAppList();renderProfileOverview();renderMacroLibrary();nativeLog('Tabbed preview opened. Saved apps restored for '+profile().name+'.');
 })();
 </script>

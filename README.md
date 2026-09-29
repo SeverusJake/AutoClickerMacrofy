@@ -37,6 +37,8 @@ Each cyberpunk theme now uses seven accent colors across tabs, macro/app labels,
 
 Light/Dark mode is separate from the palette and works with all ten candidate themes. The top switch and Settings selector stay synchronized, and mode persists in browser storage. The preview uses concise labels and feedback instead of explanatory paragraphs.
 
+Navigation tabs and common controls now use icons with tooltips and accessible names. Pause changes to Resume while a macro is paused. Profile/macro names, form labels and status remain text.
+
 ## Deliberate CookieRun click test
 
 1. Choose a harmless button with an obvious visible response.

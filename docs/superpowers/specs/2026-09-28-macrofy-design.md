@@ -186,6 +186,8 @@ The user requested richer palettes rather than only two or three colors. Each cy
 
 Latest UI request: Light and Dark are independent of the color palette. Every candidate supports both modes, with foreground colors adjusted for legibility on light surfaces. A Light/Dark switch and the Settings appearance selector stay synchronized, retain the selected palette and remember mode locally. Keep UI copy concise: remove explanatory intro paragraphs, palette descriptions, repeated profile/app guidance and implementation commentary. Retain control labels, short activity/save/error feedback, coordinate mode and relevant unconfirmed-compatibility state. A single Preview label identifies the browser artifact.
 
+Icon preference: use icons for navigation tabs and common controls, including playback, recording, editing, adding, deleting and Light/Dark switching. Every icon control has a tooltip and accessible name; Pause switches to Resume with the matching icon and name. Keep profile/macro names, form labels, data and status readable as text. Native implementation should follow the approved preview direction.
+
 ### About tab
 
 Show app name/version, Windows-first release scope, data-folder location/open control, and dependency/license acknowledgements. Mac support is described as planned until delivered and tested.
