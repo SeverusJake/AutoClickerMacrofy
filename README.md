@@ -29,6 +29,8 @@ Selecting a window switches to client coordinates and targeted messages; choose 
 
 Open `docs/ui/macrofy-ui-options.html` in a browser to compare Compact clicker, Macro workspace and Guided setup. These are interactive design previews with sample data, not working macro playback. The chosen number is saved in browser storage; tell Codex the number to implement.
 
+Updated profile design: each profile has many saved app rules and many macros. Each macro remembers one assigned app from that profile; no assignment means Screen. The preview's **Manage apps** control persists sample app identities/title rules and per-macro assignments in browser storage. Native profile persistence is part of the later app implementation; live window handles/process IDs are never saved.
+
 ## Deliberate CookieRun click test
 
 1. Choose a harmless button with an obvious visible response.

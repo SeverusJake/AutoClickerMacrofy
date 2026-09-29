@@ -52,7 +52,11 @@ The core scheduler uses an injectable monotonic clock, cancellation, and a froze
 
 ## 4. Profiles, macros, and target selection
 
-Each profile contains a name, application identity, saved window-title pattern, and multiple named macros. Macros can be created, renamed, duplicated, deleted, and edited.
+Each profile contains a name, multiple saved target apps, and multiple named macros. Each saved app has a stable ID, display name, application identity, and window-title pattern. User clarification (2026-09-29): a profile must support many apps and remember its target-app configuration after reopening. Macros can be created, renamed, duplicated, deleted, and edited.
+
+Saved app entries persist locally with the profile, even while those apps are closed. At each new manual run, resolve a saved rule to the current live window. Persist executable/application identity and title rules, never process IDs, HWNDs, or session target tokens. Keep separate compatibility observations for each saved app and input surface. No chosen app means explicit Screen mode; a configured app that is missing does not become Screen mode.
+
+User-approved assignment (2026-09-29): each macro uses one saved app from its profile. Persist that binding with the macro and restore it when the macro is selected. No assigned app means Screen mode. A macro does not switch apps between actions. Multiple macros can use the same saved app; different macros in the profile can use different apps. A missing saved-app reference is a validation error, never a Screen fallback. Only one macro records or plays across the application at a time unless the user changes that separate requirement.
 
 On Windows, the target rule combines process/executable identity with a simple case-insensitive window-title wildcard pattern. The picker shows actual process and window names; example names in mockups are illustrative.
 
@@ -152,7 +156,7 @@ The main window uses a vertical layout. Top-level tabs are Profiles, Settings, a
 From top to bottom:
 
 1. Profile dropdown and Manage profiles control.
-2. Target identity and connection/compatibility status.
+2. Saved apps for the profile, with Add/Edit controls and individual connection/compatibility status.
 3. Visible list of the selected profile's macros.
 4. Record, Run selected, and Stop controls with current state.
 5. Selected macro's Edit section, collapsible and collapsed by default.

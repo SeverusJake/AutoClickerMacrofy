@@ -165,14 +165,14 @@ Assert.Equal(foregroundBefore, foregroundAfter);
 
 ## Task 4: Macro model, validation, coordinates, and grouped editing
 
-**Files:** Create `src/Macrofy.Core/Macros/MacroDefinition.cs`, `MacroAction.cs`, `MacroValidator.cs`, `MacroEditor.cs`, `CoordinateMapper.cs`, `tests/Macrofy.Core.Tests/MacroEditorTests.cs`, `CoordinateMapperTests.cs`.
+**Files:** Create `src/Macrofy.Core/Profiles/ProfileDefinition.cs`, `SavedAppDefinition.cs`, `src/Macrofy.Core/Macros/MacroDefinition.cs`, `MacroAction.cs`, `MacroValidator.cs`, `MacroEditor.cs`, `CoordinateMapper.cs`, `tests/Macrofy.Core.Tests/MacroEditorTests.cs`, `CoordinateMapperTests.cs`.
 
 **Consumes:** Neutral commands and geometry from Task 1.
-**Produces:** immutable `ProfileDefinition(Guid Id, string Name, TargetRule Target, ImmutableArray<MacroDefinition> Macros)` and `MacroDefinition(Guid Id, string Name, CoordinateMode Mode, ClientGeometry RecordedGeometry, TimeSpan Interval, bool LoopEnabled, ImmutableArray<MacroAction> Actions)`.
+**Produces:** immutable `ProfileDefinition(Guid Id, string Name, ImmutableArray<SavedAppDefinition> Apps, ImmutableArray<MacroDefinition> Macros)` and `SavedAppDefinition(Guid Id, string Name, TargetRule Rule)`. Each profile persists many target apps, per the user's 2026-09-29 clarification. `MacroDefinition(Guid Id, string Name, Guid? SavedAppId, CoordinateMode Mode, ClientGeometry RecordedGeometry, TimeSpan Interval, bool LoopEnabled, ImmutableArray<MacroAction> Actions)` binds one macro to one saved app in its profile, as the user selected. A null SavedAppId explicitly represents Screen; a dangling non-null reference fails validation and never falls back. Multiple macros may share an app. Do not implement the old single profile target field or action-level app switching.
 - `MacroAction` hierarchy: `DelayAction(Guid Id, TimeSpan Duration)`, `InputAction(Guid Id, InputCommand Command)`, `ActionGroup(Guid Id, GroupKind Kind, ImmutableArray<Guid> ActionIds)` is separate editor metadata over the flat sequence.
 - `CoordinateMode` is FixedPixels or Percentage. Percentage coordinates are stored as normalized fractions (0..1), displayed as 0..100%; both modes require mapped points within `[0, Width)` and `[0, Height)`.
-- `MacroSnapshot(Guid MacroId, CoordinateMode Mode, ClientGeometry RecordedGeometry, TimeSpan Interval, bool LoopEnabled, ImmutableArray<MacroAction> Actions)` copies immutable state for a running session.
-- `MacroValidator.Validate(MacroDefinition, ClientGeometry?) -> ValidationResult`; `CoordinateMapper.Map(PointerPoint, CoordinateMode, ClientGeometry) -> PointerPoint`; `MacroEditor.Apply(MacroDefinition, EditOperation) -> EditResult`; `MacroDefinition.Snapshot() -> MacroSnapshot`.
+- `MacroSnapshot(Guid MacroId, Guid? SavedAppId, CoordinateMode Mode, ClientGeometry RecordedGeometry, TimeSpan Interval, bool LoopEnabled, ImmutableArray<MacroAction> Actions)` copies immutable state for a running session. Resolve the selected macro's saved app rule to one live token before recording/playback; changing the profile's other saved apps cannot retarget an active session.
+- `MacroValidator.Validate(MacroDefinition, ClientGeometry?) -> ValidationResult`; `ValidateBinding(MacroDefinition, ProfileDefinition) -> ValidationResult` rejects dangling app IDs and verifies the macro belongs to the profile; `CoordinateMapper.Map(PointerPoint, CoordinateMode, ClientGeometry) -> PointerPoint`; `MacroEditor.Apply(MacroDefinition, EditOperation) -> EditResult`; `MacroDefinition.Snapshot() -> MacroSnapshot`.
 
 - [ ] Add failing `ReorderPreservesPairedEvents`, `UnmatchedUpRejected`, `NegativeDelayRejected`, `EmptyMacroCannotRun`, `PercentScalesFromRecordedGeometry`, and `DragOutsideClientRequiresCorrection`. Assert 50% width/height of 800x600 maps to (400,300); changing mode retains equivalent recorded position. Snapshot remains unchanged after edit.
 
@@ -194,9 +194,9 @@ Assert.Equal(new PointerPoint(400, 300), CoordinateMapper.Map(
 
 **Consumes:** Task 4 definitions; Task 1 hotkey configuration.
 **Produces:** `JsonMacroStore.LoadAsync(CancellationToken) -> Task<StoreLoadResult>`; `SaveAsync(StoreDocument, CancellationToken) -> Task<SaveResult>`; `RecoverBackupAsync(CancellationToken) -> Task<StoreLoadResult>`. `StoreDocument` includes schema=1, profiles, settings, capability-test records. Constructor takes base-directory and file-I/O abstraction for failure tests.
-- Define `src/Macrofy.Core/Profiles/CompatibilityRecord.cs` here for serialization: `CompatibilityRecord(Guid Id, TargetRule Rule, string SurfaceFingerprint, TargetState State, InputCapability Capability, DateTimeOffset TestedAt, bool ObservedSuccess)`. Records do not contain live target tokens; Task 9 adds workflow over this type. Fingerprint includes executable version/file identity and input-surface class, not a persisted HWND.
+- Define `src/Macrofy.Core/Profiles/CompatibilityRecord.cs` here for serialization: `CompatibilityRecord(Guid Id, Guid SavedAppId, TargetRule Rule, string SurfaceFingerprint, TargetState State, InputCapability Capability, DateTimeOffset TestedAt, bool ObservedSuccess)`. Scope evidence to the saved app's stable ID and exact rule/fingerprint; different apps do not inherit each other's compatibility. Records do not contain live target tokens; Task 9 adds workflow over this type. Fingerprint includes executable version/file identity and input-surface class, not a persisted HWND.
 
-- [ ] Add failing round-trip assertions for Unicode names/text, grouped actions, coordinate mode, hotkeys, and capability records. Add `FailedReplacementKeepsLastGood`, `NewerSchemaIsPreserved`, `ReadOnlyFolderShowsUnsaved`, `BackupRecoveryPreservesCorruptOriginal` with temporary test directories.
+- [ ] Add failing round-trip assertions for Unicode names/text, multiple saved apps in one profile, app identities/title rules and bindings, grouped actions, coordinate mode, hotkeys, and capability records. Saved app settings must survive reopening while apps are closed; startup must resolve new windows without persisting live handles or process IDs. Add `SavedAppsAndMacroBindingsSurviveReload`, `DanglingSavedAppDoesNotBecomeScreen`, `FailedReplacementKeepsLastGood`, `NewerSchemaIsPreserved`, `ReadOnlyFolderShowsUnsaved`, `BackupRecoveryPreservesCorruptOriginal` with temporary test directories.
 
 ```csharp
 // Compare bytes through the file-I/O fixture before/after injected replacement failure.
@@ -306,7 +306,7 @@ Assert.DoesNotContain(recordsAfterBackgroundClickTest, r => r.Capability == Inpu
 **Consumes:** Tasks 2/4/5/6/7/8/9 services and command results.
 **Produces:** `MainWindowViewModel` with Profiles/Settings/About sections; `ProfilesViewModel.SelectedProfile`, `.SelectedMacro`, `.IsEditorExpanded` (false), `.ActivityStatus`; `MacroEditorViewModel.Draft`, `.Errors`, `.ApplyEdit(EditOperation)`; common Command service from Task 8.
 
-- [ ] Add failing headless assertions: initial editor collapsed; switching selected macro resets collapse; profile selection updates visible macros; activity prevents target/macro edits; invalid draft cannot run or overwrite saved version; save failure keeps dirty indicator. View model recorder-start waits for target focus if initiated through UI.
+- [ ] Add failing headless assertions: initial editor collapsed; switching selected macro restores its saved app binding and resets collapse; profile selection updates visible macros and saved app list; reopening restores multiple app rules and per-macro assignments; activity prevents target/macro edits; invalid draft cannot run or overwrite saved version; save failure keeps dirty indicator. View model recorder-start waits for target focus if initiated through UI.
 
 ```csharp
 Assert.False(vm.IsEditorExpanded); // New view model and after selected-macro change.
@@ -315,7 +315,7 @@ Assert.Equal(lastValidSavedActions, persistedMacro.Actions);
 ```
 
 - [ ] Run `dotnet test tests/Macrofy.App.Tests --filter 'FullyQualifiedName~ProfilesUiTests|FullyQualifiedName~EditorViewModelTests'`; expect missing view-model failures.
-- [ ] Implement vertical resizable window (initial 600x760, minimum 460x540), profile dropdown, Manage profiles dialog with process/title target picker, persistent macro list, Record/Run/Stop controls, and default-closed Expander for selected editor. Use scrollable content with visible Stop/status area; avoid bottom controls disappearing while recording.
+- [ ] Implement the selected UI direction with profile selection, Manage profiles, a per-profile saved app list and Add/Edit app rules, persistent macro list, per-macro saved app assignment with Screen default, Record/Run/Stop controls, and selected macro editor. Restore saved targets after reopening; show unavailable/ambiguous app status without retargeting. Preserve Stop/status visibility during recording/playback. Final layout remains subject to the user's choice among the updated three previews.
 - [ ] Add editor fields by action type, group expansion, move up/down or reorder controls, add/delete/duplicate actions, fixed/percentage selector, loop toggle/interval, text and raw key/shortcut input, and background-test confirmation dialog. Wire valid autosave, explicit replacement/deletion confirmations, and profile/macro rename/duplicate/new operations.
 - [ ] Verify UI with headless tests and manual Windows session: target dropdown/list works, expanding/collapsing works, recorded actions appear, edited values replay, status shows current action/next loop/skipped count, and disabled control reasons are readable.
 - [ ] Commit as `feat: build vertical profiles and macro editor UI`.
