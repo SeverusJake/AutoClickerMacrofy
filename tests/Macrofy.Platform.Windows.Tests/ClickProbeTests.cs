@@ -5,6 +5,16 @@ using Xunit;
 namespace Macrofy.Platform.Windows.Tests;
 public class ClickProbeTests
 {
+    [Fact]
+    public async Task CleanupExceptionIsReportedAndDoesNotLatchSessionBusy()
+    {
+        var context=new FakeContext(false,false);var player=new ProbePlayer{ThrowCleanup=true};
+        var probe=new ClickProbeSession(context,player);
+        var failed=await probe.TestAsync(context.Token,new(10,20),TargetState.BackgroundCovered);
+        Assert.False(failed.CanConfirm);Assert.Equal("CleanupFailed",failed.CleanupError!.Code);
+        player.ThrowCleanup=false;
+        Assert.True((await probe.TestAsync(context.Token,new(10,20),TargetState.BackgroundCovered)).CanConfirm);
+    }
     [Theory]
     [InlineData(true,false)]
     [InlineData(false,true)]
@@ -77,9 +87,9 @@ internal sealed class FakeContext(bool foreground,bool minimized) : ITargetConte
 internal sealed class ProbePlayer : IInputPlayer
 {
     public List<InputCommand> Inputs {get;}=[];public int Cleanups {get;private set;}public bool CleanupTokenWasCancelled {get;private set;}
-    public Action? AfterSend {get;set;}public bool Fail {get;set;}public bool FailCleanup {get;set;}
+    public Action? AfterSend {get;set;}public bool Fail {get;set;}public bool FailCleanup {get;set;}public bool ThrowCleanup {get;set;}
     public ValueTask<DeliveryResult> SendAsync(TargetToken target,InputCommand command,CancellationToken cancellationToken=default)
     {Inputs.Add(command);AfterSend?.Invoke();return ValueTask.FromResult(Fail?new DeliveryResult(false,new("DeliveryFailed","test rejection")):new DeliveryResult(true));}
     public ValueTask<DeliveryResult> ReleaseHeldAsync(TargetToken target,CancellationToken cancellationToken=default)
-    {Cleanups++;CleanupTokenWasCancelled=cancellationToken.IsCancellationRequested;return ValueTask.FromResult(FailCleanup?new DeliveryResult(false,new("CleanupFailed","test cleanup rejection")):new DeliveryResult(true));}
+    {Cleanups++;CleanupTokenWasCancelled=cancellationToken.IsCancellationRequested;if(ThrowCleanup) throw new IOException("test cleanup exception");return ValueTask.FromResult(FailCleanup?new DeliveryResult(false,new("CleanupFailed","test cleanup rejection")):new DeliveryResult(true));}
 }

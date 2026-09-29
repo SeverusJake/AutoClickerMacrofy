@@ -56,6 +56,7 @@ public sealed class ClickProbeSession(ITargetContext context, IInputPlayer playe
                     if (!result.Queued) attempt = attempt with { CleanupError = result.Error ?? new("CleanupFailed", "Target-held release could not be posted.") };
                 }
                 catch (OperationCanceledException) { attempt = attempt with { CleanupError = new("CleanupTimeout", "Target-held release exceeded its cleanup budget.") }; }
+                catch (Exception e) { attempt = attempt with { CleanupError = new("CleanupFailed", "Target-held release failed: " + e.Message) }; }
             }
             Volatile.Write(ref active, 0);
         }

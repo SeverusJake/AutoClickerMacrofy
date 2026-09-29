@@ -84,7 +84,12 @@ public sealed class WindowsInputPlayer : IInputPlayer, IDisposable
             await sender.WaitAsync(budget.Token); acquired = true;
             if (!held.TryGetValue(target, out var state)) return new(true);
             if (!catalog.Registry.TryResolve(target, out _)) { held.Remove(target); return Failure("TargetLost", "Cleanup skipped: original target disappeared."); }
-            var context = (await catalog.GetAsync(target, budget.Token)).Context!;
+            var refreshed = await catalog.GetAsync(target, budget.Token);
+            if (refreshed.Context is not { } context)
+            {
+                held.Remove(target);
+                return new(false, refreshed.Error ?? new("TargetLost", "Cleanup skipped: original target disappeared."));
+            }
             var point = state.LastPoint;
             if (context.Window.Geometry is { } g) point = new(Math.Clamp(point.X, 0, g.Width - 1), Math.Clamp(point.Y, 0, g.Height - 1));
             foreach (var button in state.Buttons.ToArray())

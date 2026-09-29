@@ -7,6 +7,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Macrofy.Platform.Models;
+using Macrofy.Platform;
 using Macrofy.Platform.Windows;
 
 namespace Macrofy.CompatibilityProbe;
@@ -16,9 +17,10 @@ public sealed class ProbeWindow : Window
     private readonly WindowsWindowCatalog catalog;
     private readonly ClickProbeSession session;
     private readonly bool stopRegistered;
+    private readonly Func<ProbeConfirmation, Task<string>> saveConfirmation;
     private readonly ComboBox targets = new() { Name = "TargetPicker", HorizontalAlignment = HorizontalAlignment.Stretch };
-    private readonly ComboBox surfaces = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
-    private readonly ComboBox states = new() { ItemsSource = new[] { "Minimized", "Background — fully covered", "Background — partly covered", "Background — visible" }, SelectedIndex = 0 };
+    private readonly ComboBox surfaces = new() { Name = "SurfacePicker", HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ComboBox states = new() { Name = "StatePicker", ItemsSource = new[] { "Minimized", "Background — fully covered", "Background — partly covered", "Background — visible" }, SelectedIndex = 0 };
     private readonly TextBox x = new() { Name = "ClientX", PlaceholderText = "X in client pixels", Width = 200 };
     private readonly TextBox y = new() { Name = "ClientY", PlaceholderText = "Y in client pixels", Width = 200 };
     private readonly TextBlock status = Text("Select a target and a harmless client position. Input starts only with Test one click.");
@@ -36,9 +38,10 @@ public sealed class ProbeWindow : Window
     private Task? active;
     private bool busy;
 
-    public ProbeWindow(WindowsWindowCatalog catalog, WindowsInputPlayer player, bool stopRegistered)
+    public ProbeWindow(WindowsWindowCatalog catalog, IInputPlayer player, bool stopRegistered, Func<ProbeConfirmation, Task<string>>? saveConfirmation = null)
     {
         this.catalog = catalog; this.stopRegistered = stopRegistered; session = new(catalog, player);
+        this.saveConfirmation = saveConfirmation ?? SaveConfirmationAsync;
         Title = "Macrofy — CookieRun compatibility probe"; Width = 680; Height = 750; MinWidth = 500; MinHeight = 540;
         var body = new StackPanel { Spacing = 12, Margin = new Thickness(20) };
         body.Children.Add(new TextBlock { Text = "Test background clicks", FontSize = 22 });
@@ -57,14 +60,14 @@ public sealed class ProbeWindow : Window
         refresh.Click += async (_, _) => await RefreshAsync();
         capture.Click += async (_, _) => { active = CaptureAsync(); await active; };
         targets.SelectionChanged += async (_, _) => await SelectTargetAsync();
-        surfaces.SelectionChanged += (_, _) => { ClearAttempt(); UpdateControls(); UpdateDetails(); };
+        surfaces.SelectionChanged += (_, _) => { ClearPosition(); UpdateControls(); UpdateDetails(); };
         states.SelectionChanged += (_, _) => { ClearAttempt(); UpdateControls(); };
         x.TextChanged += (_, _) => { ClearAttempt(); UpdateControls(); };
         y.TextChanged += (_, _) => { ClearAttempt(); UpdateControls(); };
         test.Click += async (_, _) => { active = TestAsync(); await active; };
         stop.Click += (_, _) => Stop();
-        observed.Click += async (_, _) => await ConfirmAsync(true);
-        ignored.Click += async (_, _) => await ConfirmAsync(false);
+        observed.Click += async (_, _) => { active = ConfirmAsync(true); await active; };
+        ignored.Click += async (_, _) => { active = ConfirmAsync(false); await active; };
         Opened += async (_, _) => await RefreshAsync();
         Closing += async (_, e) => { if (active is { IsCompleted: false } running) { e.Cancel = true; Stop(); await running; Close(); } };
     }
@@ -83,6 +86,7 @@ public sealed class ProbeWindow : Window
         point = new(px, py); return px >= 0 && py >= 0;
     }
     private void ClearAttempt() { attempt = null; observed.IsEnabled = ignored.IsEnabled = false; }
+    private void ClearPosition() { ClearAttempt(); x.Text = null; y.Text = null; }
     private void UpdateControls()
     {
         test.IsEnabled = stopRegistered && !busy && Selected is not null && TryPoint(out _);
@@ -107,7 +111,7 @@ public sealed class ProbeWindow : Window
     }
     private async Task SelectTargetAsync()
     {
-        ClearAttempt(); options = []; surfaces.ItemsSource = Array.Empty<string>();
+        ClearPosition(); options = []; surfaces.ItemsSource = Array.Empty<string>();
         if (targets.SelectedIndex >= 0 && targets.SelectedIndex < listed.Count)
         {
             var target = listed[targets.SelectedIndex]; options = await catalog.ListInputSurfacesAsync(target.Token);
@@ -154,19 +158,25 @@ public sealed class ProbeWindow : Window
     private async Task ConfirmAsync(bool success)
     {
         if (attempt is not { CanConfirm: true } current || busy) return;
-        observed.IsEnabled = ignored.IsEnabled = false;
+        busy = true; UpdateControls(); observed.IsEnabled = ignored.IsEnabled = false;
         try
         {
             var confirmation = await session.ConfirmAsync(current, success);
+            var path = await saveConfirmation(confirmation);
+            status.Text = $"Observed {(success ? "working" : "ignored")} for {current.State}. Saved: {path}"; ClearAttempt();
+        }
+        catch (Exception e) { status.Text = "Confirmation was not saved: " + e.Message; observed.IsEnabled = ignored.IsEnabled = true; }
+        finally { busy = false; UpdateControls(); }
+    }
+    private static async Task<string> SaveConfirmationAsync(ProbeConfirmation confirmation)
+    {
             var folder = Path.Combine(AppContext.BaseDirectory, "MacrofyData"); Directory.CreateDirectory(folder);
             var path = Path.Combine(folder, "compatibility-probe-results.json");
             var jsonOptions = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
             var results = File.Exists(path) ? JsonSerializer.Deserialize<List<ProbeConfirmation>>(await File.ReadAllTextAsync(path), jsonOptions) ?? [] : [];
             results.Add(confirmation); if (results.Count > 100) results.RemoveRange(0, results.Count - 100);
             var temporary = path + ".tmp"; await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(results, jsonOptions)); File.Move(temporary, path, true);
-            status.Text = $"Observed {(success ? "working" : "ignored")} for {current.State}. Saved: {path}"; ClearAttempt();
-        }
-        catch (Exception e) { status.Text = "Confirmation was not saved: " + e.Message; observed.IsEnabled = ignored.IsEnabled = true; }
+            return path;
     }
     public void Stop() => Dispatcher.UIThread.Post(() => cancellation?.Cancel());
 }

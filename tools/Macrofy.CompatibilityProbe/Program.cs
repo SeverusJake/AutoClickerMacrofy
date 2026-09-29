@@ -18,7 +18,7 @@ internal static class Program
                 Console.WriteLine($"{target.Title} | {target.App.ExecutablePath} | {(target.IsMinimized ? "minimized" : "not minimized")} | {target.Geometry}");
             return;
         }
-        if (!args.Contains("--interactive", StringComparer.Ordinal))
+        if (args.Length > 0 && !args.Contains("--interactive", StringComparer.Ordinal))
         { Console.WriteLine("Use --list (read only) or --interactive (explicit single-click tests)."); return; }
         AppBuilder.Configure<ProbeApplication>().UsePlatformDetect().StartWithClassicDesktopLifetime(args);
     }

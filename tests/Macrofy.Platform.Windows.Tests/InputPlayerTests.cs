@@ -5,6 +5,17 @@ namespace Macrofy.Platform.Windows.Tests;
 public class InputPlayerTests
 {
     [Fact]
+    public async Task TargetLostDuringCleanupContextReadReturnsFailureWithoutPosting()
+    {
+        using var f = new PlayerFixture();
+        await f.Player.SendAsync(f.Token,new KeyCommand(KeyKind.Down,new("A")));
+        var reads=0;
+        f.Windows.BeforeRead=()=>{if(++reads==2) f.Windows.Windows.Clear();};
+        var result=await f.Player.ReleaseHeldAsync(f.Token);
+        Assert.False(result.Queued);Assert.Equal("TargetLost",result.Error!.Code);
+        Assert.Single(f.Native.Sends);
+    }
+    [Fact]
     public void SignedCoordinatePackingDoesNotLoseNegativeMonitorCoordinates()
     {
         var packed = MessageEncoder.PackPoint(new(-3,-2));

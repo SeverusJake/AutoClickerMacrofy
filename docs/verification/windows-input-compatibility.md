@@ -4,9 +4,9 @@
 
 Backend and click probe implemented. Actual CookieRun input is unconfirmed. Full application work is gated on the user's observed click result.
 
-## Automated evidence (2026-09-28)
+## Automated evidence (2026-09-29)
 
-Release verification: locked restore, zero-warning build, 36 tests passed (Core 2, Windows 32, App headless 2), no skips. Self-contained single-file probe published; read-only --list launched successfully on the current Windows desktop.
+Release verification: locked restore, zero-warning build, 40 tests passed (Core 2, Windows 34, App headless 4), no skips. Self-contained single-file probe published; read-only --list launched successfully on the current Windows desktop.
 
 - Core contracts: opaque GUID tokens and delivery/observation separation.
 - Windows native-seam tests: ambiguous/missing resolution; explicit selection; process restart; same-process and child destruction; DPI/resize/minimized geometry; permission denial; pointer capture bounds.
@@ -15,7 +15,8 @@ Release verification: locked restore, zero-warning build, 36 tests passed (Core 
 - Real receiving fixture: ordered mouse down/move/up, shortcut key sequence, Unicode/emoji, vertical/horizontal wheel, both non-minimized background and minimized. Cursor and foreground remain unchanged immediately around each native post; ordinary physical mouse use between posts is allowed. Current desktop reports DPI scale 1.25.
 - Stalled fixture: stopped future input is absent; previously queued down/up arrives after receiver resumes. Cleanup is ordered behind input, not an acknowledgement of target processing.
 - Click probe: foreground/wrong state blocked; cancellation releases with an independent token; rejected delivery is not confirmable; changed fingerprint invalidates confirmation; minimized observation can be confirmed after restoring the same target; cleanup errors are retained.
-- Headless probe UI: no automatic target/position selection or observed confirmation; unavailable F10 disables testing.
+- Headless probe UI: no automatic target/position selection or observed confirmation; unavailable F10 disables testing; changing target/surface clears coordinates; confirmation disables new input and closing waits for saving.
+- Cleanup regression checks: target loss between lifetime and context reads returns a failure; unexpected release exceptions are reported without leaving the probe session busy.
 
 The controlled fixture logs raw received messages without TranslateMessage, so its receipt of Ctrl/A events is not proof a real application's keyboard-state-based shortcuts or holds work. Background/minimized and action capabilities require independent game observation.
 

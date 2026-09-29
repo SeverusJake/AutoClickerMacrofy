@@ -113,7 +113,8 @@ internal sealed class FakeWindows : IWindowNative
     public bool TryReadPointer(nint surface,out PointerPoint point){point=Pointer;return true;}
     public event Action<nint>? Destroyed;
     public IReadOnlyList<NativeWindow> EnumerateWindows() => Windows.ToArray();
-    public NativeWindow? ReadWindow(nint top, nint surface) => Windows.FirstOrDefault(w => w.TopHandle == top && w.SurfaceHandle == surface);
+    public Action? BeforeRead {get;set;}
+    public NativeWindow? ReadWindow(nint top, nint surface) { BeforeRead?.Invoke(); return Windows.FirstOrDefault(w => w.TopHandle == top && w.SurfaceHandle == surface); }
     public void Destroy(nint handle) => Destroyed?.Invoke(handle);
     public void Dispose() { }
     public static NativeWindow Window(int handle) => new(handle,handle,42,1,@"C:\game.exe","Game","Surface",new(800,600,1),false,false,"file-v1");
