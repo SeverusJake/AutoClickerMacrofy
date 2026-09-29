@@ -31,16 +31,16 @@
 
 - Source folder: `H:\MyProjects\Apps\AutoClickerMacrofy`; all paths below are relative to that repository.
 - "The first release targets Windows 10 and Windows 11, x64."
-- "Only one macro can record or play across the entire application at a time."
-- "Top-level tabs are Profiles, Settings, and About."
-- "Selected macro's Edit section, collapsible and collapsed by default."
+- Multiple different macros may play concurrently, including on the same app. Recording and compatibility tests remain exclusive. A macro cannot have duplicate active sessions.
+- Top-level tabs are Profiles, Apps, Macros, Compatibility, Settings, Log and About, with common profile context and Pause all/Resume all/Stop all controls.
+- Profiles shows all macros with per-row Run/Pause/Resume/Stop. Macros displays Design 2's workspace and the selected macro's editor directly.
 - "The default interval is 60 seconds and is editable per macro. Manual single-run playback is also available."
-- "Runs never overlap. If a scheduled boundary arrives while a run is active, skip that boundary."
+- Iterations of one macro never overlap. If its scheduled boundary arrives while its run is active, skip that boundary; other macros remain independent.
 - "Skipped runs are never queued or replayed as a catch-up burst."
 - "The target must be active when recording begins."
 - "Data resides in `MacrofyData` beside the executable."
 - Target closes, becomes ambiguous before start, or delivery/geometry/access fails: stop; never silently retarget.
-- Use targeted window messages only. Never call SetCursorPos, SendInput, SetForegroundWindow, or input-queue attachment as playback fallbacks.
+- Window mode uses targeted messages and never switches to physical input or activates a window as a fallback. Explicit Screen mode uses physical input and remains Screen when no app is assigned.
 - Windows package is self-contained and portable; no installer. Mac implementation requires a later real-Mac milestone.
 - Platform/game compatibility cannot be inferred from PostMessage success. Require user-confirmed compatibility tests by target state and required action capabilities.
 - First real target: CookieRun: Crumble - Idle RPG in Google Play Games. Use picker-discovered executable identity and title pattern `*CookieRun: Crumble - Idle RPG*`; do not persist a nickname, PID, or HWND as identity.
@@ -210,15 +210,15 @@ Assert.Equal("CookieRun é›¶", reloadedProfile.Name);
 - [ ] Run storage tests and inspect temporary-directory cleanup. On save failure keep dirty draft in memory and expose error; only successful save clears dirty state.
 - [ ] Commit as `feat: persist portable profiles and settings`.
 
-## Task 6: Exclusive session and fixed-boundary playback scheduler
+## Task 6: Concurrent macro sessions, pause controls and fixed-boundary scheduling
 
-**Files:** Create `src/Macrofy.Core/Playback/MacroRunner.cs`, `IntervalScheduler.cs`, `ActivityCoordinator.cs`, `PlaybackStatus.cs`, `IMonotonicClock.cs`, `tests/Macrofy.Core.Tests/SchedulerTests.cs`, `PlaybackCancellationTests.cs`.
+**Files:** Create `src/Macrofy.Core/Playback/MacroRunner.cs`, `IntervalScheduler.cs`, `ActivityCoordinator.cs`, `PlaybackSessionManager.cs`, `InputDispatcher.cs`, `PlaybackStatus.cs`, `IMonotonicClock.cs`, `tests/Macrofy.Core.Tests/SchedulerTests.cs`, `PlaybackCancellationTests.cs`, `PlaybackConcurrencyTests.cs`, `PlaybackPauseTests.cs`. Adapt platform delivery/session cleanup contracts and their Windows implementation where required; the initial probe's single-caller player does not itself provide concurrent session support.
 
 **Consumes:** Task 4 snapshot, Task 1 player/system events, Task 2 target events/live context and Task 9 compatibility checks (inject a contract during Task 6, compose implementation after Task 9).
-**Produces:** `ActivityCoordinator.TryBegin(ActivityKind) -> ActivityLease?`; `MacroRunner.RunAsync(MacroSnapshot, TargetWindow, CancellationToken) -> Task<RunResult>`; `IntervalScheduler.StartAsync(MacroSnapshot, TargetWindow, CancellationToken) -> Task<SessionResult>`; `StopAsync() -> Task`; event `Action<PlaybackStatus> StatusChanged`.
+**Produces:** `ActivityCoordinator.TryBegin(ActivityKind, Guid? macroId) -> ActivityLease?` allows distinct playback sessions while keeping recording/compatibility tests exclusive. `PlaybackSessionManager.StartAsync(ProfileId, MacroSnapshot, TargetWindow, CancellationToken)`, `PauseAsync(MacroId)`, `ResumeAsync(MacroId)`, `StopAsync(MacroId)` and `StopAllAsync()` coordinate per-macro frozen state. `MacroRunner.RunAsync(MacroSnapshot, TargetWindow, CancellationToken) -> Task<RunResult>`; `IntervalScheduler.StartAsync(MacroSnapshot, TargetWindow, CancellationToken) -> Task<SessionResult>`; event `Action<PlaybackStatus> StatusChanged` includes macro/session identity.
 - `IMonotonicClock.Elapsed -> TimeSpan`, `DelayUntilAsync(TimeSpan deadline, CancellationToken) -> Task`. Real clock uses Stopwatch; fake clock advances explicitly.
 
-- [ ] Add failing tests asserting run starts [0,60,120] seconds for 10-second macro, [0,120] for 70-second macro, and no overlapping player calls. Exact-boundary completion permits next run only if prior run completed. Loop-off yields one run.
+- [ ] Add failing tests asserting run starts [0,60,120] seconds for 10-second macro, [0,120] for 70-second macro, and no overlapping iterations of the same macro. Exact-boundary completion permits next run only if that macro's prior run completed. Loop-off yields one run.
 
 Use a test-local fake implementing IMonotonicClock and a player that logs run-start timestamps. Assertion excerpts from separate 10-second and 70-second fixtures:
 
@@ -227,14 +227,16 @@ Use a test-local fake implementing IMonotonicClock and a player that logs run-st
 Assert.Equal(new[] { 0d, 60d, 120d }, starts.Select(t => t.TotalSeconds));
 // Separate 70-second fixture: 60s boundary was busy, never queued.
 Assert.Equal(new[] { 0d, 120d }, longRunStarts.Select(t => t.TotalSeconds));
-Assert.Equal(1, maximumConcurrentRuns);
+Assert.Equal(1, maximumConcurrentRunsForOneMacro);
 ```
 
-- [ ] Add cancellation assertions: stop during delay sends no next action; stop during held key calls target-only cleanup once; target lost never retargets; suspend stops session; edit after start cannot alter snapshot. Concurrent record/play lease request returns failure.
-- [ ] Run `dotnet test tests/Macrofy.Core.Tests --filter 'FullyQualifiedName~SchedulerTests|FullyQualifiedName~PlaybackCancellationTests'`; expect scheduler/coordinator failures.
-- [ ] Implement origin=t0 from clock.Elapsed, sequential replay, one session lease, finite monotonic deadlines, missed-boundary skip, next-loop countdown/skipped count, and bounded cleanup cancellation token independent of cancelled run token. Sleep completes session with a stopped reason and requires manual restart.
-- [ ] Run fake-clock tests without real minute waits. Verify status order Idle -> Running -> Waiting or Error -> Idle/Stopped, and target closure releases lease.
-- [ ] Commit as `feat: schedule exclusive fixed-interval playback`.
+- [ ] Add cancellation assertions: stop during delay sends no next action; cleanup releases only the stopped session's held-input ownership; target lost never retargets; suspend stops every session; edit after start cannot alter a snapshot. Recording/compatibility lease requests fail while any playback session is running, pausing, paused or waiting.
+- [ ] Add concurrency assertions: two different macros run together on different targets and on the same resolved live target; a second start for the same macro is rejected; pausing/stopping one leaves others running; profile browsing does not retarget sessions; Stop all/F10 cancels all profiles. A shared dispatcher serializes actual native calls, preserves each session's event order and enforces the aggregate post budget. Shared key/button ownership prevents one session's cleanup from releasing another's input. Screen batches preserve their own move/down/up ordering while multiple Screen macro sessions can interleave batches.
+- [ ] Add pause assertions: Pausing reaches Paused at a boundary with no session-owned held inputs; no action sends while paused; resume preserves position, remaining delay and live target identity; paused duration shifts only that session's scheduling clock; stopping a paused session cancels future loops; target loss while paused cannot rebind on resume.
+- [ ] Run `dotnet test tests/Macrofy.Core.Tests --filter 'FullyQualifiedName~SchedulerTests|FullyQualifiedName~PlaybackCancellationTests|FullyQualifiedName~PlaybackConcurrencyTests|FullyQualifiedName~PlaybackPauseTests'`; expect scheduler/coordinator failures.
+- [ ] Implement per-session origin=t0, sequential replay within each macro, independent pause/cancel controls, finite monotonic deadlines, missed-boundary skip, next-loop countdown/skipped count and bounded cleanup cancellation tokens independent of cancelled run tokens. Use shared native dispatch and held-input ownership without a send-ahead queue. Sleep stops every session and requires manual restart.
+- [ ] Run fake-clock tests without real minute waits. Verify independent state transitions and cleanup, same-app concurrency, pause/resume, and target closure releasing only affected leases.
+- [ ] Commit as `feat: schedule concurrent macros with pause and stop controls`.
 
 ## Task 7: Physical-input recording and focus transitions
 
@@ -265,7 +267,7 @@ Assert.Equal(beforePauseDelayTotal, afterPauseDelayTotal); // 20s pause excluded
 **Consumes:** Task 1 hotkey/system/permission contracts, Tasks 6/7 session controls.
 **Produces:** Windows hotkey/system implementations; `ControlCommands.ExecuteAsync(HotkeyCommand, CancellationToken) -> Task<CommandResult>` shared by UI buttons and hotkeys.
 
-- [ ] Add failing assertions for conflicting bindings, failed emergency-stop registration blocking playback, proposed F8/F9/F10 defaults, atomic reconfiguration preserving old bindings after failure, and stop from every active state.
+- [ ] Add failing assertions for conflicting bindings, failed emergency-stop registration blocking playback, proposed F8/F9/F10 defaults, atomic reconfiguration preserving old bindings after failure, selected-macro F9 control and F10 stopping all sessions from every active state across profiles.
 
 ```csharp
 Assert.Equal(new[] { "F8", "F9", "F10" }, defaultBindingDisplayNames);
@@ -306,10 +308,10 @@ Assert.DoesNotContain(recordsAfterBackgroundClickTest, r => r.Capability == Inpu
 **Consumes:** Tasks 2/4/5/6/7/8/9 services and command results.
 **Produces:** `MainWindowViewModel` with Profiles/Apps/Macros/Compatibility/Settings/Log/About tabs and selected-tab state; `ProfilesViewModel.SelectedProfile`, `.SelectedMacro`, `.ActivityStatus`; `MacroEditorViewModel.Draft`, `.Errors`, `.ApplyEdit(EditOperation)`; common Command service from Task 8. Profiles shows every macro in the selected profile. Macros uses Design 2's workspace with a macro list, action sequence, action inspector and playback settings. Shared profile selection and Stop/status survive tab changes.
 
-- [ ] Add failing headless assertions: Profiles shows all selected-profile macros with app assignments and action counts; opening a macro from Profiles selects it and opens Macros; workspace displays the selected macro's editor; switching selected macro restores its actions and saved app binding and resets action selection; profile selection updates visible macros and saved app list; reopening restores multiple app rules and per-macro assignments; activity prevents target/macro edits; invalid draft cannot run or overwrite saved version; save failure keeps dirty indicator. View model recorder-start waits for target focus if initiated through UI.
+- [ ] Add failing headless assertions: Profiles shows all selected-profile macros with app assignments, action counts and session status; row Run/Pause/Resume/Stop commands address only that macro; multiple rows can run concurrently, including on one app; shared Pause all/Resume all/Stop all controls include sessions in other profiles. Opening a macro selects it and opens Macros; workspace displays the selected editor; switching selected macro restores its actions and saved app binding and resets action selection; profile selection updates visible macros and saved app list; reopening restores multiple app rules and per-macro assignments. Active macros are read-only while browsing and starting other eligible macros remain available; invalid draft cannot run or overwrite saved version; save failure keeps dirty indicator. View model recorder-start waits for target focus if initiated through UI.
 
 ```csharp
-Assert.False(vm.IsEditorExpanded); // New view model and after selected-macro change.
+Assert.Equal(selectedMacro.Id, editor.MacroId); // Workspace opens the selected macro directly.
 Assert.NotEmpty(editor.Errors); // Invalid coordinate/delay draft fixture.
 Assert.Equal(lastValidSavedActions, persistedMacro.Actions);
 ```
@@ -317,7 +319,7 @@ Assert.Equal(lastValidSavedActions, persistedMacro.Actions);
 - [ ] Run `dotnet test tests/Macrofy.App.Tests --filter 'FullyQualifiedName~ProfilesUiTests|FullyQualifiedName~EditorViewModelTests'`; expect missing view-model failures.
 - [ ] Implement the user-requested desktop tab bar resembling the DS4Windows reference, with separate Profiles, Apps, Macros, Compatibility, Settings, Log and About content. Profiles shows all macros in the selected profile and opens them in Macros. Use Design 2's workspace inside Macros: macro list left, selected macro/target above the sequence, action inspector right and playback settings below. Provide common profile selection, profile management, per-profile saved app list and Add/Edit app rules, persistent macro list, per-macro saved app assignment with Screen default and Record/Run/Stop controls. Restore saved targets after reopening; show unavailable/ambiguous app status without retargeting. Verify tab switches preserve selected profile/macro/app and shared Stop/status visibility during recording/playback.
 - [ ] Add editor fields by action type, group expansion, move up/down or reorder controls, add/delete/duplicate actions, fixed/percentage selector, loop toggle/interval, text and raw key/shortcut input, and background-test confirmation dialog. Wire valid autosave, explicit replacement/deletion confirmations, and profile/macro rename/duplicate/new operations.
-- [ ] Verify UI with headless tests and manual Windows session: target dropdown/list works, expanding/collapsing works, recorded actions appear, edited values replay, status shows current action/next loop/skipped count, and disabled control reasons are readable.
+- [ ] Verify UI with headless tests and manual Windows session: profile macro row controls work independently during concurrent playback; same-app macros can run together; Pause/Resume retains session position; Stop all works across tabs/profiles; active macro edits are disabled while idle macro browsing remains available. Target dropdown/list works, recorded actions appear, edited values replay, status shows current action/next loop/skipped count and disabled control reasons are readable.
 - [ ] Commit as `feat: build desktop tabs and macro workspace UI`.
 
 ## Task 11: Settings, About, and portable delivery

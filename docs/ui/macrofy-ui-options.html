@@ -11,6 +11,7 @@
 @media(max-width:650px){.review,.preview{padding:16px 12px}.review-head{flex-direction:column}.choices{display:grid;grid-template-columns:1fr 1fr 1fr}.choices button{font-size:13px;padding:8px}.decision{align-items:start}.workspace{display:block}.profiles{border-right:0;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;padding:12px}.profiles h3{width:100%;margin:0}.profile{width:auto;flex:1}.body,.action-list,.guide-main{padding:20px 16px}.fields.three{grid-template-columns:1fr 1fr}.fields,.workspace-target .fields,.run-settings{grid-template-columns:1fr}.guide-layout{display:block}.guide-aside{border-left:0;border-top:1px solid var(--line);padding:16px}.guide-aside dl{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.guide-aside dt{margin-top:4px}.guide-aside dd{margin:4px 0}.step-nav{padding:0 6px}.step-nav button{font-size:13px;padding:12px 4px}.modebar{grid-template-columns:1fr}.quick-summary{gap:8px 16px}.action-table th,.action-table td{padding:8px 4px;font-size:13px}.window-actions{display:none}.titlebar{gap:8px}.explainer{padding:0 12px 20px}.action-detail .detail-grid{grid-template-columns:1fr}}
 .saved-app-strip{padding:12px 20px;border-bottom:1px solid var(--line);background:var(--subtle)}.saved-app-strip p{margin:4px 0}.saved-app-list{padding:0;margin:12px 0;list-style:none}.saved-app-list li{padding:12px 0;border-bottom:1px solid var(--line)}.saved-app-list code{font-size:12px;overflow-wrap:anywhere}dialog{width:min(620px,calc(100% - 24px));max-height:85vh;overflow:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:24px}dialog::backdrop{background:#2228}.dialog-fields{display:grid;gap:12px;margin:16px 0}.macro-picker{padding:16px 20px;border-bottom:1px solid var(--line)}.macro-picker select{max-width:280px}
 .review .choices,.review .decision,.review #choice-status{display:none}
+.macro-controls{display:flex;gap:6px;flex-wrap:wrap;min-width:145px}.macro-controls button{font-size:12px;padding:4px 7px}.profile-macros .native-table td:last-child{white-space:normal}.profile-table-scroll{overflow-x:auto}.profile-macros .native-table{min-width:490px}.macro-state{white-space:nowrap}.native-statusbar .row{gap:8px}.profile-run-note{margin-top:14px}
 </style>
 <style>
 .native-shell{--surface:#fafafa;--subtle:#f0f0f0;--ink:#202020;--muted:#555;--line:#b7b7b7;--accent:#0078d4;--active:#e8f2fc;border-radius:0;background:var(--subtle)}.native-shell .titlebar{background:#0078d4;color:#fff;padding:7px 10px;border:0}.native-shell .titlebar .hint,.native-shell .window-actions{color:#fff}.native-shell button,.native-shell input,.native-shell select{border-radius:2px;min-height:30px}.native-shell .primary{background:var(--accent)}.native-tabs{display:flex;flex-wrap:wrap;gap:0;align-items:end;padding:4px 5px 0;border-bottom:1px solid var(--line);background:#e6e6e6}.native-tabs button{background:#ededed;border:1px solid var(--line);border-right:0;padding:4px 10px;min-height:29px;margin-bottom:-1px;border-radius:2px 2px 0 0}.native-tabs button:last-child{border-right:1px solid var(--line)}.native-tabs button[aria-selected=true]{background:var(--surface);border-bottom-color:var(--surface);padding-top:6px}.native-context{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface)}.native-context label{display:flex;align-items:center;gap:8px}.native-context label>span{margin:0}.native-context select{min-width:150px;max-width:230px;width:auto}.native-shell .workspace{display:block}.native-pane{background:var(--surface);min-height:370px}.native-pane .profiles{border:0;padding:20px;display:block;background:var(--surface)}.native-pane .profile{width:100%;text-align:left;border:1px solid var(--line);margin:8px 0;max-width:380px;padding:12px}.native-pane .profile small{display:block}.native-pane .saved-app-strip{background:var(--surface)}.native-pane .native-table{border-collapse:collapse;width:100%;margin-top:16px;table-layout:fixed}.native-pane .native-table th,.native-pane .native-table td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);overflow-wrap:anywhere;font-size:13px}.native-pane .native-table th{font-weight:500}.native-settings{max-width:560px;display:grid;gap:20px}.native-statusbar{padding:8px 12px;border-top:1px solid var(--line);background:var(--subtle);display:flex;align-items:center;gap:12px;justify-content:space-between}.native-statusbar span{min-width:0;overflow-wrap:anywhere}.native-statusbar button{white-space:nowrap}.native-shell[data-theme=dark]{--surface:#262626;--subtle:#202020;--ink:#eee;--muted:#c3c3c3;--line:#626262;--active:#25435c}.native-shell[data-theme=dark] .native-tabs{background:#292929}.native-shell[data-theme=dark] .native-tabs button{background:#353535}.native-shell[data-theme=dark] .native-tabs button[aria-selected=true]{background:var(--surface)}.native-shell[data-theme=dark] .native-tabs button:hover{background:var(--active)}
@@ -181,6 +182,48 @@
     try {localStorage.setItem('macrofy-preview-profiles',JSON.stringify({profiles,activeProfile:profileKey}));document.querySelector('[data-save-state]').textContent='Sample app settings saved. Reopening this page restores them.';return true;}
     catch {document.querySelector('[data-save-state]').textContent='Browser storage unavailable. These edits are not saved.';return false;}
   }
+  // Runtime sessions are preview-only and never restored from browser storage.
+  const playbackSessions=new Map();let playbackTick=null;
+  function sessionKey(id,index){return id+':'+index;}
+  function activeSession(id,index){const session=playbackSessions.get(sessionKey(id,index));return session&&['Running','Paused'].includes(session.state)?session:null;}
+  function startMacro(id,index){
+    if(activeSession(id,index))return;
+    const p=profiles[id],target=p.macroTargets?.[index]||'screen';
+    if(target!=='screen'&&!p.apps.some(a=>a.id===target)){nativeLog('Cannot run: saved app unavailable.');return;}
+    // Select the sample to read its saved sequence, then freeze its session context.
+    const previous=profileKey;profileKey=id;const sequence=savedMacroActions(index);const name=macroNames()[+index];profileKey=previous;
+    if(!sequence.length){nativeLog('Cannot run an empty macro.');return;}
+    playbackSessions.set(sessionKey(id,index),{id,index,name,profileName:p.name,targetName:target==='screen'?'Screen':p.apps.find(a=>a.id===target).name,sequence:sequence.map(a=>({...a})),state:'Running',action:0,loops:0});
+    nativeLog('Run preview: '+p.name+' / '+name+' · No desktop input');
+    if(!playbackTick)playbackTick=setInterval(()=>{playbackSessions.forEach(s=>{if(s.state==='Running'){s.action++;if(s.action>=s.sequence.length){s.action=0;s.loops++;}}});renderPlaybackControls();},600);
+    renderPlaybackControls();
+  }
+  function pauseMacro(id,index){const session=activeSession(id,index);if(!session)return;session.state=session.state==='Paused'?'Running':'Paused';nativeLog(session.state+': '+session.profileName+' / '+session.name+' · Preview');renderPlaybackControls();}
+  function stopMacro(id,index){const session=activeSession(id,index);if(!session)return;session.state='Stopped';nativeLog('Stopped: '+session.profileName+' / '+session.name+' · Preview');renderPlaybackControls();}
+  function stopAllMacros(){playbackSessions.forEach(s=>{if(['Running','Paused'].includes(s.state))s.state='Stopped';});nativeLog('Stopped all preview macros.');renderPlaybackControls();}
+  function renderPlaybackControls(){
+    const globalStatus=document.getElementById('native-status');if(!globalStatus)return;
+    const active=Array.from(playbackSessions.values()).filter(s=>['Running','Paused'].includes(s.state));
+    const running=active.filter(s=>s.state==='Running').length,paused=active.filter(s=>s.state==='Paused').length;
+    globalStatus.textContent=active.length?running+' running · '+paused+' paused · Preview only':'Idle · Preview only';
+    document.getElementById('native-stop').disabled=!active.length;document.getElementById('native-pause-all').disabled=!active.length;
+    document.getElementById('native-pause-all').textContent=active.length&&!running?'Resume all':'Pause all';
+    if(!active.length&&playbackTick){clearInterval(playbackTick);playbackTick=null;}
+    document.querySelectorAll('[data-macro-status]').forEach(n=>{const s=playbackSessions.get(sessionKey(profileKey,n.dataset.macroStatus));n.textContent=s?s.state:'Idle';});
+    document.querySelectorAll('[data-run-macro]').forEach(b=>{const index=b.dataset.runMacro,target=profile().macroTargets?.[index]||'screen';b.disabled=!!activeSession(profileKey,index)||!savedMacroActions(index).length||(target!=='screen'&&!profile().apps.some(a=>a.id===target));});
+    document.querySelectorAll('[data-pause-macro]').forEach(b=>{const s=activeSession(profileKey,b.dataset.pauseMacro);b.disabled=!s;b.textContent=s?.state==='Paused'?'Resume':'Pause';b.setAttribute('aria-label',(s?.state==='Paused'?'Resume':'Pause')+' macro: '+macroNames()[+b.dataset.pauseMacro]);});
+    document.querySelectorAll('[data-stop-macro]').forEach(b=>b.disabled=!activeSession(profileKey,b.dataset.stopMacro));
+    const current=activeSession(profileKey,profile().selectedMacro||'0');
+    const root=document.querySelector('[data-app="workspace"]');
+    root.querySelectorAll('[data-run],[data-test],[data-record],#add-type,#add-action,#remove-action,#apply-action,#edit-kind,#edit-value,#edit-delay,[data-target],[data-window-state],.run-settings input,.run-settings select').forEach(b=>b.disabled=!!current);
+    root.querySelector('[data-record]').disabled=!!active.length;root.querySelector('[data-test]').disabled=!!active.length;
+    document.querySelectorAll('#compat-test,#compat-yes,#compat-no').forEach(b=>b.disabled=!!active.length||macroTarget()==='screen');
+    if(!current){root.querySelector('[data-window-state]').disabled=macroTarget()==='screen';document.getElementById('remove-action').disabled=!actions.length;document.getElementById('apply-action').disabled=!actions.length;}
+    root.querySelector('[data-stop]').disabled=!current;
+    document.getElementById('workspace-pause').disabled=!current;document.getElementById('workspace-pause').textContent=current?.state==='Paused'?'Resume':'Pause';
+    if(current)root.querySelector('[data-status]').textContent=current.state+' · '+current.name+' · Action '+(current.action+1)+'/'+current.sequence.length+' · '+current.loops+' preview loops';
+    else root.querySelector('[data-status]').textContent='Ready · '+actions.length+' action'+(actions.length===1?'':'s')+' · '+selectedAppName(profile().selectedMacro||'0');
+  }
   function applyMode(app, mode) {
     modes.set(app, mode);
     app.querySelectorAll('[data-mode-note]').forEach(n => n.textContent = mode === 'screen' ? 'Uses your real pointer. Keep the intended app visible.' : 'Clicks only the chosen window. Background / minimized support is unconfirmed.');
@@ -203,6 +246,7 @@
       const status = app.querySelector('[data-status]'); if (status) status.textContent = 'Sample point chosen: (480, 640). No real pointer was read.';
       if (app.dataset.app === 'guided') { document.getElementById('guide-action-summary').textContent = 'Left click at (480, 640)'; document.getElementById('guide-summary-actions').textContent = '1 click'; }
     }));
+    if(app.dataset.app==='workspace')return;
     function finish(message) { clearTimeout(timers.get(app)); app.querySelectorAll('[data-run],[data-test]').forEach(b => b.disabled = false); app.querySelectorAll('[data-stop]').forEach(b => b.disabled = true); app.querySelector('[data-status]').textContent = message; }
     app.querySelectorAll('[data-run],[data-test]').forEach(b => b.addEventListener('click', () => {
       app.querySelectorAll('[data-run],[data-test]').forEach(c => c.disabled = true); app.querySelectorAll('[data-stop]').forEach(c => c.disabled = false);
@@ -237,6 +281,7 @@
     }); editSelection();
     profile().macroActions??={};profile().macroActions[profile().selectedMacro||'0']=actions.map(a=>({...a}));saveProfiles();renderProfileOverview();
     document.querySelector('[data-app="workspace"] [data-status]').textContent = 'Ready · ' + actions.length + ' action' + (actions.length === 1 ? '' : 's') + ' · ' + (modes.get(document.querySelector('[data-app="workspace"]')) === 'screen' ? 'Screen' : targetName(document.querySelector('[data-app="workspace"]')));
+    renderPlaybackControls();
   }
   document.getElementById('add-action').addEventListener('click', () => { const kind = document.getElementById('add-type').value; actions.push({kind,value:kind === 'Click' ? '480, 640' : kind === 'Key' ? 'Ctrl + K' : kind === 'Text' ? 'Hello' : kind === 'Wheel' ? '120' : '1000 ms',delay:100}); selected = actions.length - 1; renderActions(); });
   document.getElementById('remove-action').addEventListener('click', () => { if (selected < 0) return; actions.splice(selected, 1); selected = actions.length ? Math.min(selected, actions.length - 1) : -1; renderActions(); });
@@ -318,7 +363,7 @@
   document.querySelector('[data-saved-app-picker]').addEventListener('change',event=>setMacroTarget(event.target.value));
   document.getElementById('guide-action').addEventListener('change', event => { const action = event.target.value; document.getElementById('guide-action-summary').textContent = action === 'Click' ? 'Left click at (480, 640)' : action === 'Key shortcut' ? 'Ctrl + K' : action === 'Type text' ? 'Type “Hello”' : 'Scroll 120'; document.getElementById('guide-summary-actions').textContent = '1 ' + action.toLowerCase(); });
   document.getElementById('guide-record').addEventListener('click', () => { document.getElementById('guide-action-summary').textContent = 'Recorded sample: click → Space'; document.getElementById('guide-summary-actions').textContent = '2 recorded sample actions'; });
-  document.addEventListener('keydown', event => { if (event.key === 'F10') { event.preventDefault(); document.querySelectorAll('[data-stop]').forEach(b => { if (!b.disabled) b.click(); }); } });
+  document.addEventListener('keydown', event => { if (event.key === 'F10') { event.preventDefault();stopAllMacros();document.querySelectorAll('[data-stop]').forEach(b => { if (!b.disabled) b.click(); }); } });
   function renderNativeAppList(){
     const table=document.getElementById('native-app-rows');if(!table)return;table.replaceChildren();
     profile().apps.forEach(app=>{const row=document.createElement('tr');[app.name,app.path,app.pattern].forEach(value=>{const cell=document.createElement('td');cell.textContent=value;row.append(cell);});table.append(row);});
@@ -327,11 +372,14 @@
     const rows=document.getElementById('profile-macro-rows');if(!rows)return;rows.replaceChildren();
     document.getElementById('profile-macros-title').textContent=profile().name+' — macros';
     macroNames().forEach((name,i)=>{
-      const row=document.createElement('tr');const macro=document.createElement('td'),app=document.createElement('td'),count=document.createElement('td'),edit=document.createElement('td'),button=document.createElement('button');
-      macro.textContent=name;app.textContent=selectedAppName(String(i));count.textContent=savedMacroActions(String(i)).length;button.textContent='Edit macro';button.className='small-action';button.setAttribute('aria-label','Edit macro: '+name);button.addEventListener('click',()=>{selectMacro(String(i));selectNativeTab('macros');document.getElementById('native-tab-macros').focus();});edit.append(button);row.append(macro,app,count,edit);rows.append(row);
+      const row=document.createElement('tr');const macro=document.createElement('td'),app=document.createElement('td'),count=document.createElement('td'),state=document.createElement('td'),controls=document.createElement('td'),buttons=document.createElement('div');
+      const id=profileKey,index=String(i);macro.textContent=name;app.textContent=selectedAppName(index);count.textContent=savedMacroActions(index).length;state.dataset.macroStatus=index;state.className='macro-state';state.setAttribute('aria-live','polite');buttons.className='macro-controls';
+      [['Run','runMacro',()=>startMacro(id,index)],['Pause','pauseMacro',()=>pauseMacro(id,index)],['Stop','stopMacro',()=>stopMacro(id,index)],['Edit macro','editMacro',()=>{selectMacro(index);selectNativeTab('macros');document.getElementById('native-tab-macros').focus();}]].forEach(([label,data,handler])=>{const b=document.createElement('button');b.textContent=label;b.dataset[data]=index;b.setAttribute('aria-label',label==='Edit macro'?'Edit macro: '+name:label+' macro: '+name);b.addEventListener('click',handler);buttons.append(b);});
+      controls.append(buttons);row.append(macro,app,count,state,controls);rows.append(row);
     });
     const list=document.getElementById('profile-list');list.replaceChildren();
     Object.entries(profiles).forEach(([id,p])=>{const button=document.createElement('button'),detail=document.createElement('small');button.className='profile';button.dataset.profile=id;button.setAttribute('aria-pressed',String(id===profileKey));button.textContent=p.name;detail.textContent=p.apps.length+' saved app'+(p.apps.length===1?'':'s');button.append(detail);button.addEventListener('click',()=>selectProfile(id));list.append(button);});
+    renderPlaybackControls();
   }
   function renderMacroLibrary(){
     const list=document.getElementById('workspace-macro-list');if(!list)return;list.replaceChildren();
@@ -355,7 +403,7 @@
   });
   const profileOverview=document.createElement('div');profileOverview.className='profile-overview';
   profileSection.innerHTML='<h3>Profiles</h3><div id="profile-list"></div><button data-new>+ New profile</button>';
-  const profileMacros=document.createElement('section');profileMacros.className='profile-macros';profileMacros.innerHTML='<h3 id="profile-macros-title">Profile macros</h3><table class="native-table"><thead><tr><th>Macro</th><th>Target app</th><th>Actions</th><th>Open</th></tr></thead><tbody id="profile-macro-rows"></tbody></table>';
+  const profileMacros=document.createElement('section');profileMacros.className='profile-macros';profileMacros.innerHTML='<h3 id="profile-macros-title">Profile macros</h3><div class="profile-table-scroll"><table class="native-table"><thead><tr><th>Macro</th><th>Target app</th><th>Actions</th><th>Status</th><th>Controls</th></tr></thead><tbody id="profile-macro-rows"></tbody></table></div><p class="hint profile-run-note">Run macros individually or together. Pause and Stop affect only that row. Macros sharing an app can interleave actions.</p>';
   profileOverview.append(profileSection,profileMacros);panes.profiles.append(profileOverview);
   panes.apps.append(appStrip);
   const appsBody=document.createElement('div');appsBody.className='body';appsBody.innerHTML='<div class="row spread"><h3 style="margin:0">Remembered target apps</h3><button id="native-add-app">Add app</button></div><table class="native-table"><thead><tr><th>App</th><th>Executable</th><th>Title rule</th></tr></thead><tbody id="native-app-rows"></tbody></table><p class="hint">App rules stay saved when an app is closed. Each macro chooses one app from this list.</p>';panes.apps.append(appsBody);
@@ -367,7 +415,7 @@
   panes.log.innerHTML='<div class="body"><div class="row spread"><h3 style="margin:0">Log</h3><button id="native-clear-log">Clear preview log</button></div><table class="native-table"><thead><tr><th style="width:110px">Time</th><th>Event</th></tr></thead><tbody id="native-log-rows"></tbody></table></div>';
   panes.about.innerHTML='<div class="body"><h3>Macrofy</h3><p>Windows macro recorder and clicker.</p><p>Profiles hold many saved apps and macros. Each macro remembers one target app; no assigned app means Screen.</p><p class="hint">Interactive design preview. Recorder, scheduler and native profile storage are planned; no desktop input is sent here.</p></div>';
   workspace.replaceChildren(...Object.values(panes));
-  const statusbar=document.createElement('div');statusbar.className='native-statusbar';statusbar.innerHTML='<span id="native-status" class="hint" aria-live="polite">Idle · Preview only</span><button id="native-stop" disabled>Stop (F10)</button>';nativeRoot.append(statusbar);
+  const statusbar=document.createElement('div');statusbar.className='native-statusbar';statusbar.innerHTML='<span id="native-status" class="hint" aria-live="polite">Idle · Preview only</span><div class="row"><button id="native-pause-all" disabled>Pause all</button><button id="native-stop" disabled>Stop all (F10)</button></div>';nativeRoot.append(statusbar);
   document.querySelectorAll('[data-native-tab]').forEach(b=>{
     b.addEventListener('click',()=>selectNativeTab(b.dataset.nativeTab));
     b.addEventListener('keydown',event=>{if(event.ctrlKey||event.altKey||event.metaKey||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const tabs=Array.from(document.querySelectorAll('[data-native-tab]'));const i=tabs.indexOf(b);const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(i+(event.key==='ArrowRight'?1:tabs.length-1))%tabs.length;tabs[next].focus();selectNativeTab(tabs[next].dataset.nativeTab);});
@@ -379,10 +427,13 @@
   document.getElementById('native-add-app').addEventListener('click',()=>{renderAppManager();document.getElementById('apps-dialog').showModal();});
   document.getElementById('native-theme').addEventListener('change',event=>{nativeRoot.dataset.theme=event.target.value;nativeLog('Preview appearance changed: '+event.target.value);});
   document.getElementById('native-clear-log').addEventListener('click',()=>document.getElementById('native-log-rows').replaceChildren());
-  const macroStatus=nativeRoot.querySelector('[data-status]'),macroStop=nativeRoot.querySelector('[data-stop]');
-  const statusObserver=new MutationObserver(()=>{document.getElementById('native-status').textContent=macroStatus.textContent;document.getElementById('native-stop').disabled=macroStop.disabled;});statusObserver.observe(macroStatus,{childList:true,subtree:true,characterData:true});
-  document.getElementById('native-stop').addEventListener('click',()=>macroStop.click());
-  nativeRoot.querySelectorAll('[data-run],[data-test],[data-record]').forEach(b=>b.addEventListener('click',()=>nativeLog(b.textContent+' · '+profile().name+' · '+targetName(nativeRoot)+' · No desktop input')));
+  const macroStop=nativeRoot.querySelector('[data-stop]');const macroPause=document.createElement('button');macroPause.id='workspace-pause';macroPause.textContent='Pause';macroPause.disabled=true;macroStop.before(macroPause);
+  nativeRoot.querySelector('[data-run]').addEventListener('click',()=>startMacro(profileKey,profile().selectedMacro||'0'));
+  nativeRoot.querySelector('[data-test]').addEventListener('click',()=>nativeLog('Test selected action · Preview only; no desktop input'));
+  macroPause.addEventListener('click',()=>pauseMacro(profileKey,profile().selectedMacro||'0'));macroStop.addEventListener('click',()=>stopMacro(profileKey,profile().selectedMacro||'0'));
+  document.getElementById('native-stop').addEventListener('click',stopAllMacros);
+  document.getElementById('native-pause-all').addEventListener('click',()=>{const active=Array.from(playbackSessions.values()).filter(s=>['Running','Paused'].includes(s.state));const next=active.some(s=>s.state==='Running')?'Paused':'Running';active.forEach(s=>s.state=next);nativeLog(next==='Paused'?'Paused all preview macros.':'Resumed all preview macros.');renderPlaybackControls();});
+  nativeRoot.querySelector('[data-record]').addEventListener('click',()=>nativeLog('Sample recorded actions added · '+profile().name+' · No desktop input'));
   renderNativeAppList();renderProfileOverview();renderMacroLibrary();nativeLog('Tabbed preview opened. Saved apps restored for '+profile().name+'.');
 })();
 </script>

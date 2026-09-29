@@ -48,7 +48,7 @@ A future `Macrofy.Platform.MacOS` implements the platform contracts. Shared code
 - `IPermissionService`: report missing access or incompatible privilege levels; provide a future boundary for macOS permissions.
 - Geometry/capability information is exposed through these contracts, not inferred by UI code from OS-specific structures.
 
-The core scheduler uses an injectable monotonic clock, cancellation, and a frozen macro snapshot. Platform callbacks enqueue input events without blocking the Windows hook thread or UI thread.
+Each macro playback session uses an injectable monotonic clock, its own cancellation/pause state, and a frozen macro snapshot. A session manager supports concurrent macros, including macros bound to the same app, as requested on 2026-09-29. Platform callbacks enqueue input events without blocking the Windows hook thread or UI thread.
 
 ## 4. Profiles, macros, and target selection
 
@@ -56,7 +56,7 @@ Each profile contains a name, multiple saved target apps, and multiple named mac
 
 Saved app entries persist locally with the profile, even while those apps are closed. At each new manual run, resolve a saved rule to the current live window. Persist executable/application identity and title rules, never process IDs, HWNDs, or session target tokens. Keep separate compatibility observations for each saved app and input surface. No chosen app means explicit Screen mode; a configured app that is missing does not become Screen mode.
 
-User-approved assignment (2026-09-29): each macro uses one saved app from its profile. Persist that binding with the macro and restore it when the macro is selected. No assigned app means Screen mode. A macro does not switch apps between actions. Multiple macros can use the same saved app; different macros in the profile can use different apps. A missing saved-app reference is a validation error, never a Screen fallback. Only one macro records or plays across the application at a time unless the user changes that separate requirement.
+User-approved assignment (2026-09-29): each macro uses one saved app from its profile. Persist that binding with the macro and restore it when the macro is selected. No assigned app means Screen mode. A macro does not switch apps between actions. Multiple macros can use the same saved app; different macros in the profile can use different apps. A missing saved-app reference is a validation error, never a Screen fallback. The user subsequently requested concurrent playback, including on the same app; recording remains exclusive.
 
 On Windows, the target rule combines process/executable identity with a simple case-insensitive window-title wildcard pattern. The picker shows actual process and window names; example names in mockups are illustrative.
 
@@ -66,7 +66,7 @@ The selectable list includes user-facing top-level windows, including minimized 
 - Multiple matches: require selecting one matching window before playback; never silently choose the first.
 - A profile can resolve a new window after an app restart for a new manual run.
 - A running session stays bound to its resolved target identity. If the window/process disappears, stop immediately; do not transfer input to a replacement or reused handle.
-- Only one macro can record or play across the entire application at a time.
+- Multiple distinct macros can play concurrently, including on one app. Recording and compatibility tests require exclusive input activity. Each macro has at most one active playback session.
 
 ## 5. Action model and editing
 
@@ -131,7 +131,7 @@ Playback requires a successful user-confirmed test for the requested target stat
 - Messages accepted but ignored: Macrofy cannot claim successful gameplay. The user can stop and mark compatibility unsupported.
 - No automatic foreground or physical-input fallback is offered.
 
-The emergency-stop handler cancels future application actions; already-posted Windows messages cannot be withdrawn. A serial sender uses no send-ahead queue and limits posts to 100 native messages/second with a burst of one. Stop then makes a bounded 500ms best-effort release of macro-held keys/buttons to the same target. It never sends cleanup to another window if the original disappeared. Failed cleanup is reported; the physical keyboard/mouse state is not modified.
+The emergency-stop handler cancels future actions for every playback session; already-posted Windows messages cannot be withdrawn. A shared serial dispatcher uses no send-ahead queue and limits posts to 100 native messages/second in aggregate with a burst of one. Concurrent sessions preserve their own action order while actions from different macros may interleave on the same target. Track held-input ownership per session and live target; stopping one session releases only its own ownership and must not release a key/button still owned by another session. A bounded 500ms best-effort cleanup targets the same live identity. It never sends cleanup to another window if the original disappeared. Failed cleanup is reported; window-mode cleanup does not modify the physical keyboard/mouse state. Screen sessions share a global dispatcher for physical input, so pointer movement and keyboard actions from those sessions may also interleave.
 
 ## 8. Scheduling
 
@@ -140,12 +140,15 @@ The default interval is 60 seconds and is editable per macro. Manual single-run 
 For interval `I`, session start defines `t0`. Planned loop starts occur at `t0`, `t0 + I`, `t0 + 2I`, and so on. The first run starts immediately.
 
 - Each run replays the frozen action snapshot and its recorded/customized delays.
-- Runs never overlap. If a scheduled boundary arrives while a run is active, skip that boundary.
+- Runs of the same macro never overlap, and a macro cannot start a second session while running or paused. Different macros can run concurrently, including on the same app. If a scheduled boundary arrives while that macro's run is active, skip that boundary.
 - Example: a 70-second run on a 60-second interval starts at 0 seconds, skips 60, and next starts at 120.
 - Skipped runs are never queued or replayed as a catch-up burst.
 - Use monotonic elapsed time, not wall-clock time, to avoid clock adjustments affecting the schedule.
 - Machine sleep cancels the current run. On resume, stop the session and require a new manual start; do not burst overdue input into the target.
 - Stop cancels both active playback and future loops. A new start establishes a fresh `t0`.
+- Each macro has independent Run, Pause/Resume and Stop controls. Pause completes at a safe action boundary after the session has no held inputs; show Pausing until that boundary. Paused time is excluded from remaining delays and the session's scheduling clock. Resume preserves sequence position and the original live target binding; revalidate it and stop on target loss rather than rebinding.
+- Stop all and F10 cancel every running, pausing, paused or waiting session across profiles. Machine sleep also stops every session. Closing a target stops all sessions bound to that identity while unrelated targets continue.
+- Recording and deliberate compatibility tests remain exclusive activities: they cannot start while any playback session is active or paused, and playback cannot start while either exclusive activity owns input.
 
 ## 9. UI design
 
@@ -153,7 +156,7 @@ User UI update (2026-09-29): the main window uses a horizontal desktop tab bar l
 
 ### Profiles tab
 
-Create, select, rename, duplicate and manage profiles. Each profile owns a collection of saved apps and named macros. Choosing a profile immediately shows all of its macros, including their assigned app and action count. Opening a macro from this list selects it and opens the Macros tab. A common profile picker preserves this context across tabs.
+Create, select, rename, duplicate and manage profiles. Each profile owns a collection of saved apps and named macros. Choosing a profile immediately shows all of its macros, including their assigned app, action count and independent playback status. Each row provides Run, Pause/Resume, Stop and Edit macro. Multiple rows may run together, even on the same app; no profile-wide run is required. Opening a macro from this list selects it and opens the Macros tab. A common profile picker preserves this context across tabs.
 
 ### Apps tab
 
@@ -167,9 +170,9 @@ Use the previously presented Design 2 macro workspace within this tab: the selec
 
 Show separate user-observed click/key/etc. results for the selected saved app and window state. Test only a deliberate harmless sequence. Screen input does not qualify as background or minimized compatibility evidence.
 
-The Record and Run controls are disabled where prerequisites are missing, with a short reason. Stop remains prominent during recording/playback. During activity, switching target/profile/macro and changing the active sequence are disabled to avoid applying edits to a running session.
+The Record and Run controls are disabled where prerequisites are missing, with a short reason. Stop remains prominent during recording/playback. A macro's actions, target and run settings are read-only while its session is active or paused. Profile/macro browsing and starting other eligible macros remain available during playback. Prevent deleting active macros or changing/deleting their referenced app rules. Recording and compatibility tests lock their relevant context. Shared Pause all/Resume all and Stop all controls remain visible on every tab, with aggregate running/paused counts; each row's Stop affects only that macro.
 
-Status shows Idle, Recording, Recording paused, Running, Waiting for next loop, or Error, with the active macro, current action, next-loop countdown, and skipped-run count where relevant.
+Per-session status shows Idle, Recording, Recording paused, Running, Pausing, Paused, Waiting for next loop, Stopped or Error, with macro name, current action, next-loop countdown and skipped-run count where relevant. Aggregate status includes sessions in other profiles.
 
 ### Settings tab
 
@@ -222,7 +225,8 @@ If the intended game ignores the permitted input path, report incompatibility an
 - Background/minimized compatibility test records user-confirmed results correctly.
 - Emergency stop interrupts a delay/drag/hold and attempts target-specific cleanup.
 - Multi-monitor/DPI geometry, resized/minimized windows, target closure, and hotkey conflicts.
-- Vertical UI, dropdown, macro list, collapsed editor, editing, and status/countdown behavior.
+- Desktop tabs, profile macro list, Design 2 workspace, editing and status/countdown behavior.
+- Concurrent macros on distinct and shared targets; independent Pause/Resume/Stop, safe held-input ownership and Stop all/F10 across profiles.
 - Portable package starts without installed .NET, persists data beside executable, and reports a read-only folder clearly.
 
 Mac verification is a separate future milestone on real Mac hardware. The Windows release must not advertise functional Mac recording/replay.
@@ -237,6 +241,6 @@ Mac verification is a separate future milestone on real Mac hardware. The Window
 
 ## 13. Design status and next step
 
-User approved architecture, recording/replay model, vertical tabs/dropdown/list layout with collapsed editor, and reliability/testing direction. This written document consolidates those decisions for review.
+User approved architecture, recording/replay model and reliability/testing direction. Subsequent 2026-09-29 UI requests supersede the original vertical tabs and collapsed editor: desktop tabs, all macros in Profiles, Design 2's workspace in Macros and per-macro Run/Pause/Resume/Stop. The user explicitly chose simultaneous macros even on the same app. The preview demonstrates these controls; native recording/scheduling/UI implementation remains behind the actual-game compatibility gate.
 
 The user approved the written spec and selected the final source folder. Create the implementation plan there. Application implementation follows plan review and execution-method selection.

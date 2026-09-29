@@ -27,7 +27,7 @@ Selecting a window switches to client coordinates and targeted messages; choose 
 
 ## UI concepts
 
-Open `docs/ui/macrofy-ui-options.html` in a browser to try the desktop tab layout requested in the user's DS4Windows reference: Profiles, Apps, Macros, Compatibility, Settings, Log and About. Shared profile context and Stop/status remain visible across tabs. Earlier compact/guided concepts remain in the preview source, while the requested tabbed design is shown. This is an interactive design preview with sample data, not working macro playback.
+Open `docs/ui/macrofy-ui-options.html` in a browser to try the desktop tab layout requested in the user's DS4Windows reference: Profiles, Apps, Macros, Compatibility, Settings, Log and About. Profiles shows its macros with individual Run, Pause/Resume, Stop and Edit controls. Multiple preview macros can run together, including on the same app. Shared Pause all/Resume all, Stop all and aggregate status remain visible across tabs and include other profiles. Macros uses Design 2's workspace. Earlier compact/guided concepts remain in the source. This is an interactive design preview with sample data; native concurrent macro playback is still planned.
 
 Updated profile design: each profile has many saved app rules and many macros. Each macro remembers one assigned app from that profile; no assignment means Screen. The preview's **Manage apps** control persists sample app identities/title rules and per-macro assignments in browser storage. Native profile persistence is part of the later app implementation; live window handles/process IDs are never saved.
 
