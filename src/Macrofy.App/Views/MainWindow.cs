@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using System.Globalization;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -12,6 +12,10 @@ using Avalonia.VisualTree;
 using Avalonia.Interactivity;
 using Macrofy.App.Models;
 using Macrofy.App.Services;
+#if WINDOWS
+using Macrofy.Platform.Models;
+using Macrofy.Platform.Windows;
+#endif
 
 namespace Macrofy.App.Views;
 
@@ -33,6 +37,11 @@ public sealed partial class MainWindow : Window
     private Button runAllButton = new(), pauseAll = new(), stopAll = new();
     private TextBox? shortcutCapture;
     private readonly HashSet<Key> pressedShortcuts = [];
+    private CancellationTokenSource? screenTestCancellation;
+    private bool screenTestActive;
+#if WINDOWS
+    private readonly IScreenClicker screenClicker;
+#endif
     private ComboBox? commonProfile;
     private Grid? responsiveEditor;
     private Control? responsiveSequence, responsiveInspector;
@@ -40,15 +49,22 @@ public sealed partial class MainWindow : Window
 
     public MainWindow() : this(new WorkspaceStore(System.IO.Path.Combine(AppContext.BaseDirectory, "MacrofyData"))) { }
     private MainWindow(WorkspaceStore store) : this(new WorkspaceState(store.Load()), store) { message = store.LoadError ?? ""; Render(); }
+#if WINDOWS
+    public MainWindow(WorkspaceState workspace, WorkspaceStore? store = null, IScreenClicker? screenClicker = null)
+#else
     public MainWindow(WorkspaceState workspace, WorkspaceStore? store = null)
+#endif
     {
         Workspace = workspace; this.store = store;
+#if WINDOWS
+        this.screenClicker = screenClicker ?? new WindowsScreenClicker();
+#endif
         palette = new(workspace.Document.Theme, workspace.Document.Mode);
         Title = "Macrofy — UI preview"; Width = 1100; Height = 760; MinWidth = 780; MinHeight = 580;
         FontFamily = new FontFamily("Tahoma"); FontSize = 14;
         timer.Tick += (_, _) => { Workspace.Tick(); RefreshPlayback(); };
         Opened += (_, _) => timer.Start();
-        Closed += (_, _) => { timer.Stop(); Workspace.StopAll(); };
+        Closed += (_, _) => { CancelCompatibilityTest(); timer.Stop(); Workspace.StopAll(); };
         AddHandler(InputElement.KeyDownEvent, HandleShortcutKeyDown, RoutingStrategies.Tunnel);
         AddHandler(InputElement.KeyUpEvent, (_, e) => pressedShortcuts.Remove(e.Key), RoutingStrategies.Tunnel);
         SizeChanged += (_, _) => ReflowEditor();
@@ -123,7 +139,7 @@ public sealed partial class MainWindow : Window
         ToolTip.SetTip(runAllButton, $"Run enabled macros in this profile ({Workspace.Document.Shortcuts.Run}) · preview");
         AutomationProperties.SetName(runAllButton, $"Run all enabled macros in this profile ({Workspace.Document.Shortcuts.Run})");
         pauseAll = IconButton("pause", "Pause all preview macros", () => TogglePauseAll(), "warning"); pauseAll.Name = "PauseAll";
-        stopAll = IconButton("stop", "Stop all", () => StopAll(), "danger"); stopAll.Name = "StopAll";
+        stopAll = IconButton("stop", "Stop all or cancel screen test", () => StopAll(), "danger"); stopAll.Name = "StopAll";
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new Thickness(16, 8) };
         footer.Children.Add(Stack(footerStatus, messageText)); var globalControls = Row(runAllButton, pauseAll, stopAll); Grid.SetColumn(globalControls, 1); footer.Children.Add(globalControls);
         Add(root, new Border { Background = palette.Tint("info", .06), BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 1, 0, 0), Child = footer }, 4);
@@ -154,24 +170,27 @@ public sealed partial class MainWindow : Window
     private void RefreshPlayback()
     {
         footerStatus.Text = Workspace.AggregateStatus;
-        pauseAll.IsEnabled = stopAll.IsEnabled = Workspace.ActiveCount > 0;
+        pauseAll.IsEnabled = Workspace.ActiveCount > 0;
+        stopAll.IsEnabled = Workspace.ActiveCount > 0 || screenTestActive;
         runAllButton.IsEnabled = Workspace.Profile.Macros.Any(CanRunAll);
         var paused = Workspace.ActiveCount > 0 && Workspace.Sessions.Values.All(s => s.State != "Running");
         SetIcon(pauseAll, paused ? "play" : "pause", $"{(paused ? "Resume" : "Pause")} all ({Workspace.Document.Shortcuts.Pause})", "warning");
         ToolTip.SetTip(runAllButton, $"Run enabled macros in this profile ({Workspace.Document.Shortcuts.Run}) · preview");
         AutomationProperties.SetName(runAllButton, $"Run all enabled macros in this profile ({Workspace.Document.Shortcuts.Run})");
-        SetIcon(stopAll, "stop", $"Stop all ({Workspace.Document.Shortcuts.Stop})", "danger");
+        SetIcon(stopAll, "stop", $"{(screenTestActive ? "Cancel screen action / stop all" : "Stop all")} ({Workspace.Document.Shortcuts.Stop})", "danger");
         foreach (var refresh in refreshPlayback) refresh();
     }
     private void Start(Macro macro)
     {
+        if (screenTestActive) { messageText.Text = "Stop the screen test before previewing a macro."; return; }
         if (HasDraft(macro)) { messageText.Text = "Apply action edits before previewing."; return; }
         if (Workspace.StartPreview(macro)) { AddLog("Preview started: " + Workspace.Profile.Name + " / " + macro.Name); RefreshPlayback(); }
         else { message = "Cannot preview: add valid steps and a saved target, or choose Screen."; messageText.Text = message; }
     }
-    private bool CanRunAll(Macro macro) => macro.Enabled && !HasDraft(macro) && Workspace.CanStartPreview(macro);
+    private bool CanRunAll(Macro macro) => !screenTestActive && macro.Enabled && !HasDraft(macro) && Workspace.CanStartPreview(macro);
     private void RunAllEnabled()
     {
+        if (screenTestActive) return;
         var skipped = 0;
         foreach (var macro in Workspace.Profile.Macros.Where(m => m.Enabled && !Workspace.IsActive(m)))
         {
@@ -192,8 +211,11 @@ public sealed partial class MainWindow : Window
     }
     private void StopAll()
     {
-        Workspace.StopAll(); AddLog("Stopped all preview macros"); RefreshPlayback();
+        var wasTesting = screenTestActive;
+        CancelCompatibilityTest();
+        Workspace.StopAll(); AddLog(wasTesting ? "Cancelled screen test and stopped all preview macros" : "Stopped all preview macros"); RefreshPlayback();
     }
+    private void CancelCompatibilityTest() => screenTestCancellation?.Cancel();
     private void HandleShortcutKeyDown(object? sender, KeyEventArgs e)
     {
         var key = e.Key.ToString();
@@ -280,14 +302,6 @@ public sealed partial class MainWindow : Window
     private void NewMacro()
     {
         var macro = new Macro(); Workspace.Profile.Macros.Add(macro); Edit(macro); RenameMacro(macro);
-    }
-    private void OpenProbe()
-    {
-        var candidates = new[] { System.IO.Path.Combine(AppContext.BaseDirectory, "CompatibilityProbe", "Macrofy.CompatibilityProbe.exe"), System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "..", "compatibility-probe", "win-x64", "Macrofy.CompatibilityProbe.exe")) };
-        var path = candidates.FirstOrDefault(File.Exists);
-        if (path is null) { message = "Compatibility probe was not found beside the app."; messageText.Text = message; return; }
-        try { Process.Start(new ProcessStartInfo(path, "--interactive") { UseShellExecute = true }); }
-        catch (Exception error) { messageText.Text = "Could not open probe: " + error.Message; }
     }
 }
 

@@ -6,7 +6,7 @@ Windows-first macro recorder/editor project. Foundation, window discovery and th
 
 Double-click `artifacts/win-x64/Macrofy.exe`. It uses the approved desktop tabs, profile macro overview, macro workspace, icons and multicolor Light/Dark themes. Profiles, saved app rules, macro assignments, valid action edits and appearance choices are remembered beside the executable in `MacrofyData/ui-workspace.json`.
 
-**This build is a UI preview.** Run/Pause/Resume/Stop simulate independent macro sequences without desktop input. Recording is disabled. The Compatibility tab opens the separate click probe for deliberate real input tests. Closing Macrofy stops preview sessions; active/paused sessions are not restored after restart. F10 stops previews while this window has focus; global hotkeys remain pending.
+**This build is a UI preview.** Run/Pause/Resume/Stop simulate independent macro sequences without desktop input. Recording is disabled. The Compatibility tab can capture a visible screen position and send one explicit left-click test after a countdown; it does not confirm app response or test background/minimized delivery. Closing Macrofy stops preview sessions; active/paused sessions are not restored after restart. Function-key shortcuts work while this window has focus; global hotkeys remain pending.
 
 Rebuild the self-contained Windows executable with `powershell -NoProfile -File scripts/publish-ui.ps1`. No .NET installation is required to run the published EXE. Clean-machine verification remains pending.
 

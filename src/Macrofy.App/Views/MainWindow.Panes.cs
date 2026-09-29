@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -5,6 +6,9 @@ using Avalonia.Layout;
 using Avalonia.VisualTree;
 using Macrofy.App.Models;
 using Macrofy.App.Services;
+#if WINDOWS
+using Macrofy.Platform.Models;
+#endif
 
 namespace Macrofy.App.Views;
 
@@ -100,15 +104,102 @@ public sealed partial class MainWindow
 
     private Control CompatibilityPane()
     {
-        var macro = Workspace.Macro;
-        var body = Stack(Text("Compatibility", size: 16), Text(Workspace.TargetName(macro), "secondary"));
-        foreach (var state in new[] { "Minimized", "Background — visible", "Background — partly covered", "Background — covered" })
-            body.Children.Add(Row(Text(state), Text("Unconfirmed", "warning", 12)));
-        body.Children.Add(Wrap("Use the click probe to test a chosen game button. Preview playback sends no desktop input.", "muted", 13));
-        var probe = TextButton("Open click probe", OpenProbe); probe.IsEnabled = Workspace.ActiveCount == 0;
-        refreshPlayback.Add(() => probe.IsEnabled = Workspace.ActiveCount == 0); body.Children.Add(probe);
+#if WINDOWS
+        return ScreenCompatibilityPane();
+#else
+        return Panel(Text("Screen click test requires Windows."));
+#endif
+    }
+
+#if WINDOWS
+    private Control ScreenCompatibilityPane()
+    {
+        var x = new TextBox { Name = "ScreenX", IsReadOnly = true, Width = 130, MinHeight = 32, PlaceholderText = "X" };
+        var y = new TextBox { Name = "ScreenY", IsReadOnly = true, Width = 130, MinHeight = 32, PlaceholderText = "Y" };
+        var status = Wrap("No click sent.", "muted", 13); status.Name = "ScreenTestStatus";
+        var capture = TextButton("Capture pointer position in 5 seconds", () => { }); capture.Name = "CaptureScreenPosition";
+        var test = TextButton("Test one click", () => { }); test.Name = "TestScreenClick";
+        var body = Stack(Text("Screen click test", size: 16),
+            Wrap("Screen is the default target. Keep the intended app visible and capture a harmless point. This sends one real left click and moves the pointer.", "muted", 13),
+            Text("Screen position (desktop pixels)"), Row(x, y), Row(capture, test), status,
+            Wrap("Test one click starts a 3 second countdown. The footer Stop button or the configured stop key cancels the countdown. A successful send confirms that Windows accepted input; check the visible app to see its response. This does not test background or minimized clicks.", "muted", 12));
+
+        bool HasPosition() => double.TryParse(x.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var px) && double.IsFinite(px) &&
+                              double.TryParse(y.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var py) && double.IsFinite(py);
+        void UpdateControls()
+        {
+            capture.IsEnabled = !screenTestActive && Workspace.ActiveCount == 0;
+            test.IsEnabled = !screenTestActive && Workspace.ActiveCount == 0 && HasPosition();
+            x.IsEnabled = y.IsEnabled = !screenTestActive;
+        }
+        refreshPlayback.Add(UpdateControls);
+        UpdateControls();
+
+        async Task CaptureScreenPoint()
+        {
+            if (screenTestActive || Workspace.ActiveCount > 0) return;
+            var cancellation = BeginScreenTest();
+            try
+            {
+                for (var seconds = 5; seconds > 0; seconds--)
+                {
+                    status.Text = $"Hover over a harmless point. Position captured in {seconds}s. No click will be sent.";
+                    await Task.Delay(1000, cancellation.Token);
+                }
+                var result = screenClicker.ReadPointerPosition();
+                if (result.Point is { } point)
+                {
+                    x.Text = point.X.ToString(CultureInfo.InvariantCulture); y.Text = point.Y.ToString(CultureInfo.InvariantCulture);
+                    status.Text = $"Captured ({point.X}, {point.Y}). No click sent.";
+                }
+                else status.Text = result.Error?.Message ?? "Could not read pointer position.";
+            }
+            catch (OperationCanceledException) { status.Text = "Position capture cancelled."; }
+            finally { EndScreenTest(cancellation); UpdateControls(); }
+        }
+
+        async Task TestScreenClick()
+        {
+            if (screenTestActive || Workspace.ActiveCount > 0 || !HasPosition() ||
+                !double.TryParse(x.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var px) ||
+                !double.TryParse(y.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var py)) return;
+            var cancellation = BeginScreenTest();
+            try
+            {
+                for (var seconds = 3; seconds > 0; seconds--)
+                {
+                    status.Text = $"One screen click at ({px}, {py}) in {seconds}s. Stop or press {Workspace.Document.Shortcuts.Stop} to cancel.";
+                    await Task.Delay(1000, cancellation.Token);
+                }
+                var result = await screenClicker.ClickAsync(new(px, py), cancellation.Token);
+                status.Text = result.Queued ? "Windows accepted one click. Check the visible app response." : "Click not sent: " + (result.Error?.Message ?? "unknown error");
+                AddLog(result.Queued ? $"Screen click accepted at ({px}, {py})" : "Screen click rejected: " + (result.Error?.Message ?? "unknown error"));
+            }
+            catch (OperationCanceledException) { status.Text = "Screen click cancelled before injection."; }
+            finally { EndScreenTest(cancellation); UpdateControls(); }
+        }
+
+        capture.Click += async (_, _) => await CaptureScreenPoint();
+        test.Click += async (_, _) => await TestScreenClick();
         return Panel(Scroll(body));
     }
+
+    private CancellationTokenSource BeginScreenTest()
+    {
+        screenTestActive = true;
+        screenTestCancellation = new CancellationTokenSource();
+        RefreshPlayback();
+        return screenTestCancellation;
+    }
+
+    private void EndScreenTest(CancellationTokenSource cancellation)
+    {
+        if (screenTestCancellation == cancellation) screenTestCancellation = null;
+        screenTestActive = false;
+        cancellation.Dispose();
+        RefreshPlayback();
+    }
+#endif
 
     private Control SettingsPane()
     {

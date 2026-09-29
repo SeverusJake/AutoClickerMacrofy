@@ -311,6 +311,7 @@ Assert.DoesNotContain(recordsAfterBackgroundClickTest, r => r.Capability == Inpu
 
 - [x] Add saved Enabled switches and hover feedback in Profiles, plus Run all for enabled macros in the selected profile. Batch preview skips active/paused sessions, invalid steps/targets and pending drafts. Toggling changes batch inclusion without stopping existing sessions.
 - [x] Group Run all, Pause/Resume all and Stop all in the footer; add persisted, configurable F1–F12 shortcuts (F9/F8/F10 defaults) while Macrofy is focused. System-wide hotkeys remain in Task 8.
+- [x] Add a visible Screen click test inside Macrofy’s Compatibility tab, with delayed position capture, explicit single-click confirmation and a cancelable countdown. This validates only that the screen click was queued; actual app/game response remains unconfirmed.
 
 - [x] Replace the foundation placeholder with native Profiles, Apps, Macros, Compatibility, Settings, Log and About tabs; use icon controls with tooltips/accessibility names and shared profile/Stop/status context.
 - [x] Implement profile/macro creation, rename/duplicate/delete confirmation; per-profile saved app add/edit/delete protection; remembered per-macro app bindings or explicit Screen default; action editing/validation/reordering and independent repeat/interval settings.
