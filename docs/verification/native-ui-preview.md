@@ -10,6 +10,7 @@ User asked to bring the approved browser design into the EXE before continuing g
 - Ten color palettes and independent Light/Dark, with local persistence.
 - Versioned UI workspace with atomic replacement/backup; corrupt/newer files and edits from another instance are protected. Invalid/unapplied action drafts remain in memory through tab/theme changes, and cannot run or replace valid stored actions.
 - Simulated concurrent sessions on shared or different targets; pause/stop one or all across profiles. Session state is not persisted. Focused-window F10 stops previews.
+- Profiles has a persistent Enabled switch per macro, with row hover feedback. Run all starts enabled, valid macros in the selected profile; skips unapplied drafts and missing targets; leaves existing running/paused sessions intact. Switching off excludes the macro from future Run all starts; manual Run and existing sessions remain available.
 
 ## Verification
 
@@ -18,7 +19,8 @@ User asked to bring the approved browser design into the EXE before continuing g
 - Independent code review found stale-instance overwrite, final-Wait timing, and draft-loss issues. Regression tests reproduced all three, then passed after fixes. Stale control state and display-name-based target validation were also corrected.
 - Captures under `artifacts/native-ui-captures/` are rendered by Avalonia's headless Skia host; they are not screenshots of the user's desktop.
 - Self-contained single-file Windows publish uses dedicated locked RID graphs and includes the separate click probe.
-- Final Release verification: locked restore succeeded, build had zero warnings/errors, and all 64 tests passed (2 Core, 40 Windows, 22 App). Locked portable publish succeeded; `Macrofy.exe` is 101,906,052 bytes.
+- Final Release verification: locked restore succeeded, build had zero warnings/errors, and all 68 tests passed (2 Core, 40 Windows, 26 App). New headless tests exercise actual switch hover/click, all-disabled availability, persistence, profile isolation, same-target batch starts, pending drafts, invalid targets/steps, and paused-session preservation. Existing documents without Enabled flags default to enabled. Locked portable publish succeeded.
+- Review caught Run all hiding storage errors; a failing save-conflict regression reproduced it, and batch feedback now preserves unresolved load/save diagnostics. One full verification run failed `ActualTargetReceivesOrderedGesturesWithoutCursorOrFocusChange(minimized: True)` on a one-pixel live cursor difference (119 vs 118); an unchanged full-suite rerun passed all 68. This native integration assertion samples the live desktop and is sensitive to concurrent physical input.
 
 ## Remaining
 

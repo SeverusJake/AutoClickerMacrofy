@@ -29,19 +29,38 @@ public sealed partial class MainWindow
         library.Children.Add(delete);
         Add(grid, new Border { Background = palette.Brush("subtle"), BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 0, 1, 0), Padding = new Thickness(16, 20), Child = Scroll(library) }, 0);
         var main = new StackPanel { Spacing = 16 };
-        main.Children.Add(Row(Text(Workspace.Profile.Name + " — macros", size: 16), IconButton("plus", "New macro", NewMacro)));
-        main.Children.Add(TableRow("Macro", "Target app", "Steps", "Status", "Controls"));
+        var runAll = TextButton("Run all", RunAllEnabled); runAll.Name = "RunAllEnabled";
+        runAll.Content = Row(UiIcons.Create("play", palette.Brush("success")), Text("Run all", "success"));
+        runAll.BorderBrush = palette.Brush("success"); runAll.Background = palette.Tint("success");
+        ToolTip.SetTip(runAll, "Run enabled macros in this profile (preview)");
+        AutomationProperties.SetName(runAll, "Run all enabled macros in this profile");
+        refreshPlayback.Add(() => runAll.IsEnabled = Workspace.Profile.Macros.Any(CanRunAll));
+        main.Children.Add(Row(Text(Workspace.Profile.Name + " — macros", size: 16), IconButton("plus", "New macro", NewMacro), runAll));
+        main.Children.Add(TableRow("Enabled", "Macro", "Target app", "Steps", "Status", "Controls"));
         foreach (var macro in Workspace.Profile.Macros)
         {
+            var enabled = new ToggleSwitch { Name = "Enable_" + macro.Id.ToString("N"), IsChecked = macro.Enabled,
+                OnContent = null, OffContent = null, MinWidth = 0, Width = 48, VerticalAlignment = VerticalAlignment.Center };
+            AutomationProperties.SetName(enabled, "Include in Run all: " + macro.Name);
+            ToolTip.SetTip(enabled, "Include in Run all · current runs keep their state");
+            enabled.IsCheckedChanged += (_, _) => { macro.Enabled = enabled.IsChecked == true; Save(); RefreshPlayback(); };
             var status = Text(Workspace.Status(macro), StateRole(Workspace.Status(macro)), 12); status.Name = "Status_" + macro.Id.ToString("N");
             var run = IconButton("play", "Run preview: " + macro.Name, () => Start(macro), "success"); run.Name = "Run_" + macro.Id.ToString("N");
             var pause = IconButton("pause", "Pause macro: " + macro.Name, () => { Workspace.TogglePause(macro.Id); RefreshPlayback(); }, "warning"); pause.Name = "Pause_" + macro.Id.ToString("N");
             var stop = IconButton("stop", "Stop macro: " + macro.Name, () => { Workspace.Stop(macro.Id); RefreshPlayback(); }, "danger"); stop.Name = "Stop_" + macro.Id.ToString("N");
             var edit = IconButton("edit", "Edit macro: " + macro.Name, () => Edit(macro), "tertiary"); edit.Name = "Edit_" + macro.Id.ToString("N");
-            main.Children.Add(TableRow(Text(macro.Name, "secondary", 13), Text(Workspace.TargetName(macro), "tertiary", 13), Text(macro.Steps.Count.ToString(), "accent", 13), status, Row(run, pause, stop, edit)));
+            var macroName = Text(macro.Name, "secondary", 13);
+            var targetName = Text(Workspace.TargetName(macro), "tertiary", 13);
+            macroName.TextTrimming = targetName.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis;
+            ToolTip.SetTip(macroName, macro.Name); ToolTip.SetTip(targetName, Workspace.TargetName(macro));
+            var row = TableRow(enabled, macroName, targetName, Text(macro.Steps.Count.ToString(), "accent", 13), status, Row(run, pause, stop, edit));
+            row.Name = "MacroRow_" + macro.Id.ToString("N"); row.Background = Avalonia.Media.Brushes.Transparent;
+            row.PointerEntered += (_, _) => row.Background = palette.Tint("accent", .08);
+            row.PointerExited += (_, _) => row.Background = Avalonia.Media.Brushes.Transparent;
+            main.Children.Add(row);
             refreshPlayback.Add(() =>
             {
-                var active = Workspace.IsActive(macro); run.IsEnabled = !active && !HasDraft(macro) && macro.Steps.Count > 0 && Workspace.HasTarget(macro);
+                var active = Workspace.IsActive(macro); run.IsEnabled = !HasDraft(macro) && Workspace.CanStartPreview(macro);
                 pause.IsEnabled = stop.IsEnabled = active; status.Text = Workspace.Status(macro); status.Foreground = palette.Brush(StateRole(status.Text));
                 var paused = status.Text == "Paused"; SetIcon(pause, paused ? "play" : "pause", (paused ? "Resume macro: " : "Pause macro: ") + macro.Name, "warning");
             });
@@ -49,9 +68,9 @@ public sealed partial class MainWindow
         Add(grid, Panel(Scroll(main)), 0, 1); return grid;
     }
     private Control TableRow(params string[] cells) => TableRow(cells.Select(c => (Control)Text(c, "muted", 12)).ToArray());
-    private Control TableRow(params Control[] cells)
+    private Border TableRow(params Control[] cells)
     {
-        var grid = new Grid { ColumnDefinitions = new("*,*,55,85,172"), MinWidth = 610, Margin = new Thickness(0, 8) };
+        var grid = new Grid { ColumnDefinitions = new("64,*,*,55,85,172"), MinWidth = 674, Margin = new Thickness(0, 8) };
         for (var i = 0; i < cells.Length; i++) { cells[i].Margin = new Thickness(4, 0); Add(grid, cells[i], 0, i); }
         return new Border { BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(0, 0, 0, 6), Child = grid };
     }

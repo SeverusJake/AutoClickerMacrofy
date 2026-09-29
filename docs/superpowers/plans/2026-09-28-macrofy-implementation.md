@@ -309,6 +309,8 @@ Assert.DoesNotContain(recordsAfterBackgroundClickTest, r => r.Capability == Inpu
 
 ### Delivered UI-first subset (2026-09-29)
 
+- [x] Add saved Enabled switches and hover feedback in Profiles, plus Run all for enabled macros in the selected profile. Batch preview skips active/paused sessions, invalid steps/targets and pending drafts. Toggling changes batch inclusion without stopping existing sessions.
+
 - [x] Replace the foundation placeholder with native Profiles, Apps, Macros, Compatibility, Settings, Log and About tabs; use icon controls with tooltips/accessibility names and shared profile/Stop/status context.
 - [x] Implement profile/macro creation, rename/duplicate/delete confirmation; per-profile saved app add/edit/delete protection; remembered per-macro app bindings or explicit Screen default; action editing/validation/reordering and independent repeat/interval settings.
 - [x] Persist valid UI workspace and independent appearance/palette choices atomically, keep backups, preserve unsupported/corrupt files and reject overwrites by stale app instances. Keep unapplied/invalid drafts through navigation/theme changes in the current window.

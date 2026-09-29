@@ -7,6 +7,16 @@ namespace Macrofy.App.Tests;
 public class WorkspaceStateTests
 {
     [Fact]
+    public void ExistingWorkspaceWithoutEnabledFlagDefaultsToEnabled()
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(WorkspaceDocument.CreateDefault()))!;
+        foreach (var profile in json["Profiles"]!.AsArray())
+            foreach (var macro in profile!["Macros"]!.AsArray()) macro!.AsObject().Remove("Enabled");
+        var loaded = System.Text.Json.JsonSerializer.Deserialize<WorkspaceDocument>(json.ToJsonString())!;
+        Assert.All(loaded.Profiles.SelectMany(p => p.Macros), m => Assert.True(m.Enabled));
+    }
+
+    [Fact]
     public void MacroSelectionRestoresItsOwnStepsAndApp()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());

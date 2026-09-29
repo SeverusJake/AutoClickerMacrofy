@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -12,6 +14,99 @@ namespace Macrofy.App.Tests;
 
 public class NativeUiTests
 {
+    [AvaloniaFact]
+    public void RunAllPreservesUnresolvedSaveConflictMessage()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "macrofy-ui-tests-" + Guid.NewGuid());
+        var store = new WorkspaceStore(folder); var document = store.Load(); store.Save(document);
+        var state = new WorkspaceState(document); var window = new MainWindow(state, store); window.Show();
+        try
+        {
+            var other = new WorkspaceStore(folder); var external = other.Load(); external.Mode = "dark"; other.Save(external);
+            Find<ToggleSwitch>(window, "Enable_" + state.Macro.Id.ToString("N")).IsChecked = false;
+            var feedback = window.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text?.StartsWith("Changes not saved:") == true);
+            var error = feedback.Text;
+            Click(window, "RunAllEnabled");
+            Assert.Equal(error, feedback.Text);
+            Assert.Contains("Unsaved", window.Title);
+            Assert.Equal(1, state.ActiveCount);
+        }
+        finally { window.Close(); if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+
+    [AvaloniaFact]
+    public void ProfileSwitchRespondsToHoverAndClickAndPersistsRunAllSelection()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "macrofy-ui-tests-" + Guid.NewGuid());
+        var store = new WorkspaceStore(folder);
+        var state = new WorkspaceState(store.Load());
+        var first = state.Macro;
+        var second = state.Profile.Macros[1];
+        var window = new MainWindow(state, store); window.Show();
+        try
+        {
+            var toggle = Find<ToggleSwitch>(window, "Enable_" + first.Id.ToString("N"));
+            Assert.True(toggle.IsChecked);
+            var row = Find<Border>(window, "MacroRow_" + first.Id.ToString("N"));
+            var background = row.Background;
+            var point = toggle.TranslatePoint(new Point(20, toggle.Bounds.Height / 2), window)!.Value;
+            window.MouseMove(point);
+            Assert.True(toggle.IsPointerOver);
+            Assert.NotEqual(background, row.Background);
+            window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);
+            Assert.False(toggle.IsChecked);
+            var secondToggle = Find<ToggleSwitch>(window, "Enable_" + second.Id.ToString("N"));
+            secondToggle.IsChecked = false;
+            Assert.False(Find<Button>(window, "RunAllEnabled").IsEnabled);
+            secondToggle.IsChecked = true;
+            Assert.True(Find<Button>(window, "RunAllEnabled").IsEnabled);
+            Click(window, "RunAllEnabled");
+            Assert.Equal("Idle", state.Status(first));
+            Assert.Equal("Running", state.Status(second));
+            Assert.Single(state.Sessions);
+            Click(window, "Tab_Settings"); Click(window, "Tab_Profiles");
+            Assert.False(Find<ToggleSwitch>(window, toggle.Name!).IsChecked);
+            Assert.False(Find<Button>(window, "RunAllEnabled").IsEnabled);
+            var reopened = new WorkspaceState(new WorkspaceStore(folder).Load());
+            Assert.False(reopened.Profile.Macros[0].Enabled);
+            Assert.True(reopened.Profile.Macros[1].Enabled);
+        }
+        finally { window.Close(); if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+
+    [AvaloniaFact]
+    public void RunAllKeepsExistingSessionsAndSkipsInvalidTargetsAndUnappliedDrafts()
+    {
+        var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
+        var first = state.Macro; var second = state.Profile.Macros[1];
+        second.AppId = first.AppId;
+        var missing = new Macro { AppId = Guid.NewGuid(), Steps = [new("Click", "10, 20", 0)] };
+        var invalid = new Macro { Steps = [new("Click", "bad", 0)] };
+        var draft = new Macro { Steps = [new("Click", "10, 20", 0)] };
+        state.Profile.Macros.AddRange([missing, invalid, draft]);
+        Assert.True(state.StartPreview(first)); state.TogglePause(first.Id);
+        var existing = state.Sessions[first.Id];
+        var window = new MainWindow(state); window.Show();
+        try
+        {
+            Click(window, "Edit_" + draft.Id.ToString("N"));
+            Find<TextBox>(window, "ActionValue").Text = "30, 40";
+            Click(window, "Tab_Profiles"); Click(window, "RunAllEnabled");
+            Assert.Equal("Paused", state.Status(first)); Assert.Same(existing, state.Sessions[first.Id]);
+            Assert.Equal("Running", state.Status(second));
+            Assert.Equal(2, state.Sessions.Count);
+            Click(window, "RunAllEnabled"); Assert.Same(existing, state.Sessions[first.Id]);
+            var toggle = Find<ToggleSwitch>(window, "Enable_" + second.Id.ToString("N"));
+            toggle.IsChecked = false;
+            Assert.Equal("Running", state.Status(second));
+            Find<ComboBox>(window, "ActiveProfile").SelectedItem = state.Document.Profiles[1];
+            Click(window, "RunAllEnabled");
+            Assert.All(state.Profile.Macros, m => Assert.Equal("Running", state.Status(m)));
+            Assert.Equal(4, state.Sessions.Count);
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaFact]
     public void NativeShellProvidesApprovedTabsAndProfiles()
     {

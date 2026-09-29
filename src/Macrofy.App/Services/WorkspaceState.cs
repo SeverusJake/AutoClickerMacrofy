@@ -17,10 +17,11 @@ public sealed class WorkspaceState(WorkspaceDocument document)
     public string AggregateStatus => ActiveCount == 0 ? "Idle · UI preview" : $"{Sessions.Values.Count(s => s.State == "Running")} running · {Sessions.Values.Count(s => s.State == "Paused")} paused · UI preview";
     public void SelectProfile(Guid id) { if (Document.Profiles.Any(p => p.Id == id)) Document.ActiveProfileId = id; }
     public void SelectMacro(Guid id) { if (Profile.Macros.Any(m => m.Id == id)) Profile.SelectedMacroId = id; }
+    public bool CanStartPreview(Macro macro) => !IsActive(macro) && macro.Steps.Count > 0 &&
+        macro.Steps.All(s => ValidateStep(s, out _)) && HasTarget(macro);
     public bool StartPreview(Macro macro)
     {
-        if (IsActive(macro) || macro.Steps.Count == 0 || macro.Steps.Any(s => !ValidateStep(s, out _)) ||
-            (macro.AppId is { } id && !Profile.Apps.Any(a => a.Id == id))) return false;
+        if (!CanStartPreview(macro)) return false;
         Sessions[macro.Id] = new PreviewSession(macro.Name, Profile.Name, TargetName(macro), macro.Steps.ToArray(), macro.Repeat, macro.IntervalMs);
         return true;
     }

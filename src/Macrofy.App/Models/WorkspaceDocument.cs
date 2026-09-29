@@ -50,6 +50,7 @@ public sealed class Macro
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "New macro";
+    public bool Enabled { get; set; } = true;
     public Guid? AppId { get; set; }
     public string WindowState { get; set; } = "Minimized";
     public string Coordinates { get; set; } = "Fixed pixels";

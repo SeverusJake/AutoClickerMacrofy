@@ -156,6 +156,23 @@ public sealed partial class MainWindow : Window
         if (Workspace.StartPreview(macro)) { AddLog("Preview started: " + Workspace.Profile.Name + " / " + macro.Name); RefreshPlayback(); }
         else { message = "Cannot preview: add valid steps and a saved target, or choose Screen."; messageText.Text = message; }
     }
+    private bool CanRunAll(Macro macro) => macro.Enabled && !HasDraft(macro) && Workspace.CanStartPreview(macro);
+    private void RunAllEnabled()
+    {
+        var skipped = 0;
+        foreach (var macro in Workspace.Profile.Macros.Where(m => m.Enabled && !Workspace.IsActive(m)))
+        {
+            if (CanRunAll(macro)) Start(macro);
+            else { skipped++; AddLog("Preview skipped: " + macro.Name + " — unapplied edits, invalid steps or missing target"); }
+        }
+        // Playback cannot resolve a blocked load or failed save; keep that diagnostic visible.
+        if (!dirty && store?.LoadError is null)
+        {
+            message = skipped == 0 ? "" : $"Skipped {skipped}: check edits, steps and targets.";
+            messageText.Text = message;
+        }
+        RefreshPlayback();
+    }
     private void Edit(Macro macro) { Workspace.SelectMacro(macro.Id); selectedStep = 0; selectedTab = "Macros"; Save(); Render(); }
     private bool HasDraft(Macro macro) => drafts.Any(pair => pair.Key.Macro == macro.Id && pair.Value.Changed);
     private void ClearDrafts(Macro macro) { foreach (var key in drafts.Keys.Where(key => key.Macro == macro.Id).ToArray()) drafts.Remove(key); }
