@@ -6,6 +6,7 @@ public sealed class WorkspaceDocument
     public int Version { get; set; } = 1;
     public string Theme { get; set; } = "neon-district";
     public string Mode { get; set; } = "light";
+    public ShortcutSettings Shortcuts { get; set; } = new();
     public Guid ActiveProfileId { get; set; }
     public List<Profile> Profiles { get; set; } = [];
 
@@ -25,6 +26,13 @@ public sealed class WorkspaceDocument
         daily.SelectedMacroId = daily.Macros[0].Id; desktop.SelectedMacroId = desktop.Macros[0].Id;
         return new() { ActiveProfileId = daily.Id, Profiles = [daily, desktop] };
     }
+}
+
+public sealed class ShortcutSettings
+{
+    public string Run { get; set; } = "F9";
+    public string Pause { get; set; } = "F8";
+    public string Stop { get; set; } = "F10";
 }
 
 public sealed class Profile

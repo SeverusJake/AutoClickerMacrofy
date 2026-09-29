@@ -21,6 +21,10 @@ public sealed class WorkspaceStore(string folder)
             var result = JsonSerializer.Deserialize<WorkspaceDocument>(bytes) ?? throw new InvalidDataException("Empty workspace.");
             if (result.Version != 1) throw new InvalidDataException("Unsupported workspace version.");
             if (result.Mode is not ("light" or "dark") || ThemePalette.Choices.All(t => t.Id != result.Theme)) throw new InvalidDataException("Invalid appearance settings.");
+            if (result.Shortcuts is null || new[] { result.Shortcuts.Run, result.Shortcuts.Pause, result.Shortcuts.Stop }
+                .Any(key => key is null || !System.Text.RegularExpressions.Regex.IsMatch(key, "^F(?:[1-9]|1[0-2])$")) ||
+                new[] { result.Shortcuts.Run, result.Shortcuts.Pause, result.Shortcuts.Stop }.Distinct(StringComparer.OrdinalIgnoreCase).Count() != 3)
+                throw new InvalidDataException("Shortcut keys must be unique function keys from F1 to F12.");
             if (result.Profiles is null || result.Profiles.Count == 0 ||
                 result.Profiles.Any(p => p is null || string.IsNullOrWhiteSpace(p.Name) || p.Apps is null || p.Macros is null || p.Macros.Count == 0 ||
                     p.Apps.Any(a => a is null || string.IsNullOrWhiteSpace(a.Name) || a.Executable is null || a.TitleRule is null) ||

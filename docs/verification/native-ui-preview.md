@@ -11,6 +11,7 @@ User asked to bring the approved browser design into the EXE before continuing g
 - Versioned UI workspace with atomic replacement/backup; corrupt/newer files and edits from another instance are protected. Invalid/unapplied action drafts remain in memory through tab/theme changes, and cannot run or replace valid stored actions.
 - Simulated concurrent sessions on shared or different targets; pause/stop one or all across profiles. Session state is not persisted. Focused-window F10 stops previews.
 - Profiles has a persistent Enabled switch per macro, with row hover feedback. Run all starts enabled, valid macros in the selected profile; skips unapplied drafts and missing targets; leaves existing running/paused sessions intact. Switching off excludes the macro from future Run all starts; manual Run and existing sessions remain available.
+- Run all, Pause/Resume all and Stop all share the footer. Configurable F-key defaults are F9, F8 and F10 respectively; shortcuts work while Macrofy is focused and persist with workspace settings. They trigger UI preview actions; global system-wide hotkeys remain pending.
 
 ## Verification
 

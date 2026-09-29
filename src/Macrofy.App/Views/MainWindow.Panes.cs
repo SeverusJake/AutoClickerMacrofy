@@ -30,13 +30,7 @@ public sealed partial class MainWindow
         library.Children.Add(delete);
         Add(grid, new Border { Background = palette.Brush("subtle"), BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 0, 1, 0), Padding = new Thickness(16, 20), Child = Scroll(library) }, 0);
         var main = new StackPanel { Spacing = 16 };
-        var runAll = TextButton("Run all", RunAllEnabled); runAll.Name = "RunAllEnabled";
-        runAll.Content = Row(UiIcons.Create("play", palette.Brush("success")), Text("Run all", "success"));
-        runAll.BorderBrush = palette.Brush("success"); runAll.Background = palette.Tint("success");
-        ToolTip.SetTip(runAll, "Run enabled macros in this profile (preview)");
-        AutomationProperties.SetName(runAll, "Run all enabled macros in this profile");
-        refreshPlayback.Add(() => runAll.IsEnabled = Workspace.Profile.Macros.Any(CanRunAll));
-        main.Children.Add(Row(Text(Workspace.Profile.Name + " — macros", size: 16), IconButton("plus", "New macro", NewMacro), runAll));
+        main.Children.Add(Row(Text(Workspace.Profile.Name + " — macros", size: 16), IconButton("plus", "New macro", NewMacro)));
         main.Children.Add(TableRow("Enabled", "Macro", "Target app", "Steps", "Status", "Controls"));
         foreach (var macro in Workspace.Profile.Macros)
         {
@@ -127,7 +121,13 @@ public sealed partial class MainWindow
         var mode = Choice(["Light", "Dark"], palette.Dark ? "Dark" : "Light", value => SetAppearance(value.ToLowerInvariant())); mode.Name = "Appearance"; mode.Width = 300;
         var chips = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         foreach (var role in new[] { "accent", "secondary", "tertiary", "success", "warning", "danger", "info" }) chips.Children.Add(new Border { Width = 32, Height = 12, Background = palette.Brush(role) });
-        var body = Stack(Text("Settings", size: 16), Field("Color theme", theme), chips, Field("Appearance", mode), Text("Shortcuts", size: 15), Text("Stop previews in this window: F10", "muted", 13), Text("Recording / global shortcuts: pending", "muted", 13));
+        var shortcuts = new Grid { ColumnDefinitions = new("*,Auto"), RowDefinitions = new("Auto,Auto,Auto"), RowSpacing = 8 };
+        var run = ShortcutInput("Run", Workspace.Document.Shortcuts.Run);
+        var pause = ShortcutInput("Pause", Workspace.Document.Shortcuts.Pause);
+        var stop = ShortcutInput("Stop", Workspace.Document.Shortcuts.Stop);
+        Add(shortcuts, Field("Run all enabled macros", run), 0); Add(shortcuts, Field("Pause / resume all", pause), 1); Add(shortcuts, Field("Stop all", stop), 2);
+        var body = Stack(Text("Settings", size: 16), Field("Color theme", theme), chips, Field("Appearance", mode), Text("Shortcuts", size: 15), shortcuts,
+            Text("F1–F12 · Works while Macrofy is focused", "muted", 12), Text("Run and Pause control previews in this build.", "muted", 12));
         return Panel(Scroll(body));
     }
     private Control LogPane()

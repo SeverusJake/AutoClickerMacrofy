@@ -9,6 +9,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Avalonia.Interactivity;
 using Macrofy.App.Models;
 using Macrofy.App.Services;
 
@@ -29,7 +30,9 @@ public sealed partial class MainWindow : Window
     private TextBlock messageText = new();
     private string message = "";
     private bool dirty;
-    private Button pauseAll = new(), stopAll = new();
+    private Button runAllButton = new(), pauseAll = new(), stopAll = new();
+    private TextBox? shortcutCapture;
+    private readonly HashSet<Key> pressedShortcuts = [];
     private ComboBox? commonProfile;
     private Grid? responsiveEditor;
     private Control? responsiveSequence, responsiveInspector;
@@ -46,14 +49,15 @@ public sealed partial class MainWindow : Window
         timer.Tick += (_, _) => { Workspace.Tick(); RefreshPlayback(); };
         Opened += (_, _) => timer.Start();
         Closed += (_, _) => { timer.Stop(); Workspace.StopAll(); };
-        KeyDown += (_, e) => { if (e.Key == Key.F10) { Workspace.StopAll(); AddLog("Stopped all preview macros"); RefreshPlayback(); e.Handled = true; } };
+        AddHandler(InputElement.KeyDownEvent, HandleShortcutKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(InputElement.KeyUpEvent, (_, e) => pressedShortcuts.Remove(e.Key), RoutingStrategies.Tunnel);
         SizeChanged += (_, _) => ReflowEditor();
         Render();
     }
 
     private void Render()
     {
-        refreshPlayback.Clear(); responsiveEditor = null; responsiveSequence = responsiveInspector = null;
+        refreshPlayback.Clear(); shortcutCapture = null; responsiveEditor = null; responsiveSequence = responsiveInspector = null;
         palette = new(Workspace.Document.Theme, Workspace.Document.Mode);
         RequestedThemeVariant = palette.Dark ? ThemeVariant.Dark : ThemeVariant.Light;
         Background = palette.Brush("page"); Foreground = palette.Brush("ink");
@@ -113,10 +117,15 @@ public sealed partial class MainWindow : Window
         Add(root, content, 3);
         footerStatus = Text(Workspace.AggregateStatus, "muted", 12); footerStatus.Name = "GlobalStatus";
         messageText = Text(message, "danger", 12); messageText.TextWrapping = TextWrapping.Wrap;
-        pauseAll = IconButton("pause", "Pause all preview macros", () => { Workspace.TogglePauseAll(); AddLog("Toggled pause for all preview macros"); RefreshPlayback(); }, "warning"); pauseAll.Name = "PauseAll";
-        stopAll = IconButton("stop", "Stop all (F10)", () => { Workspace.StopAll(); AddLog("Stopped all preview macros"); RefreshPlayback(); }, "danger"); stopAll.Name = "StopAll";
+        runAllButton = TextButton("Run all", RunAllEnabled); runAllButton.Name = "RunAllEnabled";
+        runAllButton.Content = Row(UiIcons.Create("play", palette.Brush("success")), Text("Run all", "success"));
+        runAllButton.BorderBrush = palette.Brush("success"); runAllButton.Background = palette.Tint("success");
+        ToolTip.SetTip(runAllButton, $"Run enabled macros in this profile ({Workspace.Document.Shortcuts.Run}) · preview");
+        AutomationProperties.SetName(runAllButton, $"Run all enabled macros in this profile ({Workspace.Document.Shortcuts.Run})");
+        pauseAll = IconButton("pause", "Pause all preview macros", () => TogglePauseAll(), "warning"); pauseAll.Name = "PauseAll";
+        stopAll = IconButton("stop", "Stop all", () => StopAll(), "danger"); stopAll.Name = "StopAll";
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new Thickness(16, 8) };
-        footer.Children.Add(Stack(footerStatus, messageText)); var globalControls = Row(pauseAll, stopAll); Grid.SetColumn(globalControls, 1); footer.Children.Add(globalControls);
+        footer.Children.Add(Stack(footerStatus, messageText)); var globalControls = Row(runAllButton, pauseAll, stopAll); Grid.SetColumn(globalControls, 1); footer.Children.Add(globalControls);
         Add(root, new Border { Background = palette.Tint("info", .06), BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 1, 0, 0), Child = footer }, 4);
         Content = root; RefreshPlayback(); ReflowEditor();
     }
@@ -146,8 +155,12 @@ public sealed partial class MainWindow : Window
     {
         footerStatus.Text = Workspace.AggregateStatus;
         pauseAll.IsEnabled = stopAll.IsEnabled = Workspace.ActiveCount > 0;
+        runAllButton.IsEnabled = Workspace.Profile.Macros.Any(CanRunAll);
         var paused = Workspace.ActiveCount > 0 && Workspace.Sessions.Values.All(s => s.State != "Running");
-        SetIcon(pauseAll, paused ? "play" : "pause", paused ? "Resume all preview macros" : "Pause all preview macros", "warning");
+        SetIcon(pauseAll, paused ? "play" : "pause", $"{(paused ? "Resume" : "Pause")} all ({Workspace.Document.Shortcuts.Pause})", "warning");
+        ToolTip.SetTip(runAllButton, $"Run enabled macros in this profile ({Workspace.Document.Shortcuts.Run}) · preview");
+        AutomationProperties.SetName(runAllButton, $"Run all enabled macros in this profile ({Workspace.Document.Shortcuts.Run})");
+        SetIcon(stopAll, "stop", $"Stop all ({Workspace.Document.Shortcuts.Stop})", "danger");
         foreach (var refresh in refreshPlayback) refresh();
     }
     private void Start(Macro macro)
@@ -172,6 +185,58 @@ public sealed partial class MainWindow : Window
             messageText.Text = message;
         }
         RefreshPlayback();
+    }
+    private void TogglePauseAll()
+    {
+        Workspace.TogglePauseAll(); AddLog("Toggled pause for all preview macros"); RefreshPlayback();
+    }
+    private void StopAll()
+    {
+        Workspace.StopAll(); AddLog("Stopped all preview macros"); RefreshPlayback();
+    }
+    private void HandleShortcutKeyDown(object? sender, KeyEventArgs e)
+    {
+        var key = e.Key.ToString();
+        if (!key.StartsWith('F') || !int.TryParse(key.AsSpan(1), out var number) || number is < 1 or > 12) return;
+        e.Handled = true;
+        if (shortcutCapture is not null)
+        {
+            var action = shortcutCapture.Tag as string;
+            var shortcuts = Workspace.Document.Shortcuts;
+            var duplicate = action switch
+            {
+                "Run" when key == shortcuts.Pause => "Pause",
+                "Run" when key == shortcuts.Stop => "Stop",
+                "Pause" when key == shortcuts.Run => "Run",
+                "Pause" when key == shortcuts.Stop => "Stop",
+                "Stop" when key == shortcuts.Run => "Run",
+                "Stop" when key == shortcuts.Pause => "Pause",
+                _ => null
+            };
+            if (duplicate is not null) { message = $"{key} is already assigned to {duplicate}."; messageText.Text = message; return; }
+            if (action == "Run") shortcuts.Run = key;
+            else if (action == "Pause") shortcuts.Pause = key;
+            else shortcuts.Stop = key;
+            shortcutCapture.Text = key; Save(); RefreshPlayback(); return;
+        }
+        if (!pressedShortcuts.Add(e.Key)) return;
+        if (key == Workspace.Document.Shortcuts.Run) RunAllEnabled();
+        else if (key == Workspace.Document.Shortcuts.Pause && Workspace.ActiveCount > 0) TogglePauseAll();
+        else if (key == Workspace.Document.Shortcuts.Stop) StopAll();
+        else pressedShortcuts.Remove(e.Key);
+    }
+    private TextBox ShortcutInput(string action, string key)
+    {
+        var input = new TextBox { Name = "Shortcut_" + action, Text = key, Width = 100, MinHeight = 32, IsReadOnly = true, Tag = action };
+        ToolTip.SetTip(input, "Click, then press F1–F12");
+        AutomationProperties.SetName(input, action + " function-key shortcut");
+        input.GotFocus += (_, _) => { shortcutCapture = input; input.Text = "Press a key"; };
+        input.LostFocus += (_, _) =>
+        {
+            if (shortcutCapture == input) shortcutCapture = null;
+            input.Text = action switch { "Run" => Workspace.Document.Shortcuts.Run, "Pause" => Workspace.Document.Shortcuts.Pause, _ => Workspace.Document.Shortcuts.Stop };
+        };
+        return input;
     }
     private void Edit(Macro macro) { Workspace.SelectMacro(macro.Id); selectedStep = 0; selectedTab = "Macros"; Save(); Render(); }
     private bool HasDraft(Macro macro) => drafts.Any(pair => pair.Key.Macro == macro.Id && pair.Value.Changed);
