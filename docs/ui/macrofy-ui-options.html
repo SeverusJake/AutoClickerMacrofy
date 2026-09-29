@@ -3,24 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Macrofy — Choose a UI</title>
+<title>Macrofy — Desktop tabs preview</title>
 <style>
 :root{color-scheme:light;--page:#f5f5f4;--surface:#fff;--subtle:#fafaf9;--ink:#222020;--muted:#615d59;--line:#d7d3cf;--accent:#65508a;--active:#f0ebf6;--error:#a53b38}
 *{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 Tahoma,sans-serif}button,input,select{font:inherit;color:inherit}button{cursor:pointer}button:disabled{cursor:default;opacity:.55}button,input,select{border:1px solid var(--line);border-radius:5px;background:var(--surface);min-height:36px}button{padding:6px 12px}input,select{padding:6px 9px;min-width:0;width:100%}button:hover:not(:disabled){background:var(--active)}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}button.primary{background:var(--accent);border-color:var(--accent);color:#fff}button.primary:hover{background:#554174}h1{font-size:23px;font-weight:500;margin:0}h2{font-size:20px;font-weight:500;margin:0}h3{font-size:16px;font-weight:500;margin:0 0 12px}p{margin:8px 0}small,.hint{font-size:13px;color:var(--muted)}label{display:block}label>span{display:block;margin-bottom:6px}input[type=radio],input[type=checkbox]{width:auto;min-height:0;accent-color:var(--accent)}[hidden]{display:none!important}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.spread{justify-content:space-between}.grow{flex:1}.fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}.fields.three{grid-template-columns:1fr 1fr 1fr}.stack{display:grid;gap:16px}.review{max-width:1120px;margin:auto;padding:24px 24px 16px}.review-head{display:flex;gap:16px;justify-content:space-between;align-items:start}.review-head p{color:var(--muted);max-width:690px}.choices{display:flex;gap:0;margin-top:20px;border-bottom:1px solid var(--line)}.choices button{border:0;border-radius:0;border-bottom:3px solid transparent;background:transparent;padding:10px 18px;min-height:48px}.choices button[aria-selected=true]{border-bottom-color:var(--accent);color:var(--accent);background:var(--active)}.decision{padding:14px 0;gap:20px}.decision p{margin:0}.decision strong{font-weight:500}.preview{max-width:1120px;margin:auto;padding:8px 24px 32px}.concept{margin:auto}.app{background:var(--surface);border:1px solid #bbb5af;border-radius:7px;overflow:hidden}.titlebar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--subtle)}.titlebar .window-actions{color:var(--muted);letter-spacing:9px;user-select:none}.toolbar{padding:12px 20px;border-bottom:1px solid var(--line)}.body{padding:24px}.footer{padding:12px 20px;background:var(--subtle);border-top:1px solid var(--line)}.separator{height:1px;background:var(--line);margin:20px 0}.mode-note{margin:6px 0 0}.inline-field{display:flex;align-items:center;gap:8px}.inline-field input{max-width:110px}.inline-label{display:flex;align-items:center;gap:8px}.inline-label span{margin:0}.status{color:var(--muted);min-height:22px}.compact{max-width:760px}.modebar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}.quick-summary{font-size:13px;color:var(--muted);display:flex;gap:24px;flex-wrap:wrap}.workspace{display:grid;grid-template-columns:200px minmax(0,1fr)}.profiles{border-right:1px solid var(--line);padding:20px 12px;background:var(--subtle)}.profiles h3{padding:0 8px}.profile{display:block;text-align:left;width:100%;border:0;border-radius:4px;padding:12px 10px;margin:4px 0;background:transparent}.profile[aria-pressed=true]{background:var(--active);color:var(--accent)}.profile small{display:block;margin-top:2px}.workspace-body{min-width:0}.workspace-target{padding:16px 20px;border-bottom:1px solid var(--line)}.workspace-target .fields{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}.editor{display:grid;grid-template-columns:minmax(0,1fr) 210px}.action-list{padding:20px;min-width:0}.action-table{width:100%;border-collapse:collapse;margin:16px 0}.action-table th{text-align:left;font-weight:500;color:var(--muted);padding:8px;border-bottom:1px solid var(--line);font-size:13px}.action-table td{padding:10px 8px;border-bottom:1px solid var(--line)}.action-table .step{width:32px;color:var(--muted)}.action-table .timing{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.action-table tbody tr.selected{background:var(--active)}.action-select{border:0;background:transparent;text-align:left;padding:0;min-height:24px;display:block;width:100%}.action-detail{border-left:1px solid var(--line);padding:20px 16px;background:var(--subtle)}.action-detail .fields{gap:8px}.action-detail label{margin-bottom:12px}.workspace-footer{padding:16px 20px}.run-settings{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;border-top:1px solid var(--line);padding-top:16px}.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);padding:0 20px}.tabs button{border:0;border-radius:0;background:none;padding:10px 0}.tabs button[aria-selected=true]{border-bottom:2px solid var(--accent)}.guided{max-width:900px}.step-nav{display:flex;gap:0;border-bottom:1px solid var(--line);padding:0 24px;background:var(--subtle)}.step-nav button{flex:1;border:0;background:none;padding:12px 8px;border-radius:0;border-bottom:2px solid transparent}.step-nav button[aria-current=step]{border-bottom-color:var(--accent);color:var(--accent)}.step-nav button span{display:inline-block;margin-right:6px;color:var(--muted)}.guide-layout{display:grid;grid-template-columns:minmax(0,1fr) 240px;min-height:345px}.guide-main{padding:28px}.guide-aside{border-left:1px solid var(--line);background:var(--subtle);padding:24px}.guide-aside dl{margin:0}.guide-aside dt{font-size:13px;color:var(--muted);margin-top:16px}.guide-aside dd{margin:2px 0;overflow-wrap:anywhere}.guide-aside dt:first-child{margin-top:0}.guide-main h2{margin-bottom:20px}.destination{display:flex;align-items:start;gap:12px;padding:16px 0;border-bottom:1px solid var(--line)}.destination input{margin-top:6px}.destination span{margin:0}.destination small{display:block;margin-top:4px}.point-demo{border:1px solid var(--line);background:var(--subtle);padding:18px;margin-top:16px}.point-demo button{margin-top:10px}.selection-result{color:var(--accent);font-weight:500}.small-action{min-height:32px;padding:4px 8px}.explainer{max-width:1120px;margin:0 auto;padding:0 24px 24px;display:flex;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:13px}.output{border-top:1px solid var(--line);padding-top:12px}.key{font-family:monospace;border:1px solid var(--line);padding:1px 5px;border-radius:3px;background:var(--surface)}
 @media(max-width:900px){.editor{grid-template-columns:minmax(0,1fr)}.action-detail{border-left:0;border-top:1px solid var(--line)}.action-detail .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.workspace{grid-template-columns:165px minmax(0,1fr)}.guide-layout{grid-template-columns:minmax(0,1fr) 200px}}
 @media(max-width:650px){.review,.preview{padding:16px 12px}.review-head{flex-direction:column}.choices{display:grid;grid-template-columns:1fr 1fr 1fr}.choices button{font-size:13px;padding:8px}.decision{align-items:start}.workspace{display:block}.profiles{border-right:0;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;padding:12px}.profiles h3{width:100%;margin:0}.profile{width:auto;flex:1}.body,.action-list,.guide-main{padding:20px 16px}.fields.three{grid-template-columns:1fr 1fr}.fields,.workspace-target .fields,.run-settings{grid-template-columns:1fr}.guide-layout{display:block}.guide-aside{border-left:0;border-top:1px solid var(--line);padding:16px}.guide-aside dl{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.guide-aside dt{margin-top:4px}.guide-aside dd{margin:4px 0}.step-nav{padding:0 6px}.step-nav button{font-size:13px;padding:12px 4px}.modebar{grid-template-columns:1fr}.quick-summary{gap:8px 16px}.action-table th,.action-table td{padding:8px 4px;font-size:13px}.window-actions{display:none}.titlebar{gap:8px}.explainer{padding:0 12px 20px}.action-detail .detail-grid{grid-template-columns:1fr}}
 .saved-app-strip{padding:12px 20px;border-bottom:1px solid var(--line);background:var(--subtle)}.saved-app-strip p{margin:4px 0}.saved-app-list{padding:0;margin:12px 0;list-style:none}.saved-app-list li{padding:12px 0;border-bottom:1px solid var(--line)}.saved-app-list code{font-size:12px;overflow-wrap:anywhere}dialog{width:min(620px,calc(100% - 24px));max-height:85vh;overflow:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:24px}dialog::backdrop{background:#2228}.dialog-fields{display:grid;gap:12px;margin:16px 0}.macro-picker{padding:16px 20px;border-bottom:1px solid var(--line)}.macro-picker select{max-width:280px}
+.review .choices,.review .decision,.review #choice-status{display:none}
+</style>
+<style>
+.native-shell{--surface:#fafafa;--subtle:#f0f0f0;--ink:#202020;--muted:#555;--line:#b7b7b7;--accent:#0078d4;--active:#e8f2fc;border-radius:0;background:var(--subtle)}.native-shell .titlebar{background:#0078d4;color:#fff;padding:7px 10px;border:0}.native-shell .titlebar .hint,.native-shell .window-actions{color:#fff}.native-shell button,.native-shell input,.native-shell select{border-radius:2px;min-height:30px}.native-shell .primary{background:var(--accent)}.native-tabs{display:flex;flex-wrap:wrap;gap:0;align-items:end;padding:4px 5px 0;border-bottom:1px solid var(--line);background:#e6e6e6}.native-tabs button{background:#ededed;border:1px solid var(--line);border-right:0;padding:4px 10px;min-height:29px;margin-bottom:-1px;border-radius:2px 2px 0 0}.native-tabs button:last-child{border-right:1px solid var(--line)}.native-tabs button[aria-selected=true]{background:var(--surface);border-bottom-color:var(--surface);padding-top:6px}.native-context{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface)}.native-context label{display:flex;align-items:center;gap:8px}.native-context label>span{margin:0}.native-context select{min-width:150px;max-width:230px;width:auto}.native-shell .workspace{display:block}.native-pane{background:var(--surface);min-height:370px}.native-pane .profiles{border:0;padding:20px;display:block;background:var(--surface)}.native-pane .profile{width:100%;text-align:left;border:1px solid var(--line);margin:8px 0;max-width:380px;padding:12px}.native-pane .profile small{display:block}.native-pane .saved-app-strip{background:var(--surface)}.native-pane .native-table{border-collapse:collapse;width:100%;margin-top:16px;table-layout:fixed}.native-pane .native-table th,.native-pane .native-table td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);overflow-wrap:anywhere;font-size:13px}.native-pane .native-table th{font-weight:500}.native-settings{max-width:560px;display:grid;gap:20px}.native-statusbar{padding:8px 12px;border-top:1px solid var(--line);background:var(--subtle);display:flex;align-items:center;gap:12px;justify-content:space-between}.native-statusbar span{min-width:0;overflow-wrap:anywhere}.native-statusbar button{white-space:nowrap}.native-shell[data-theme=dark]{--surface:#262626;--subtle:#202020;--ink:#eee;--muted:#c3c3c3;--line:#626262;--active:#25435c}.native-shell[data-theme=dark] .native-tabs{background:#292929}.native-shell[data-theme=dark] .native-tabs button{background:#353535}.native-shell[data-theme=dark] .native-tabs button[aria-selected=true]{background:var(--surface)}.native-shell[data-theme=dark] .native-tabs button:hover{background:var(--active)}
+@media(max-width:650px){.native-tabs button{font-size:13px;padding:4px 7px}.native-context{padding:12px;gap:8px}.native-context label{flex:1}.native-pane .native-table th,.native-pane .native-table td{padding:8px 4px}.native-pane .profiles{padding:16px}.native-pane{min-height:320px}}
 </style>
 </head>
 <body>
 <header class="review">
-  <div class="review-head"><div><h1>Choose Macrofy’s layout</h1><p>Each profile contains multiple saved apps and macros. Screen is the default when no app is chosen. Saved app settings are remembered in this preview.</p></div><span class="hint">Interactive previews · Sample data · No desktop input</span></div>
+  <div class="review-head"><div><h1>Macrofy — Desktop tabs</h1><p>Horizontal desktop tabs, following your reference. Each profile contains multiple saved apps and macros. Screen is the default when no app is assigned.</p></div><span class="hint">Interactive preview · Sample data · No desktop input</span></div>
   <nav class="choices" role="tablist" aria-label="UI design options">
     <button id="tab-1" role="tab" aria-selected="false" aria-controls="concept-1" data-option="1">1. Compact clicker</button>
-    <button id="tab-2" role="tab" aria-selected="true" aria-controls="concept-2" data-option="2">2. Macro workspace</button>
+    <button id="tab-2" role="tab" aria-selected="true" aria-controls="concept-2" data-option="2">2. Desktop tabs</button>
     <button id="tab-3" role="tab" aria-selected="false" aria-controls="concept-3" data-option="3">3. Guided setup</button>
   </nav>
-  <div class="row spread decision"><p id="option-description"><strong>Recommended for full macros.</strong> Profiles, action list and settings stay together. More controls are visible.</p><button class="primary" id="choose">Choose design 2</button></div>
+  <div class="row spread decision"><p id="option-description"><strong>Desktop tabs, like your reference.</strong> Profiles, Apps, Macros, Compatibility, Settings, Log and About each have their own tab.</p><button class="primary" id="choose">Choose design 2</button></div>
   <p id="choice-status" class="selection-result" aria-live="polite"></p>
 </header>
 <main class="preview">
@@ -51,8 +56,18 @@
   </section>
 
   <section class="concept" id="concept-2" role="tabpanel" aria-labelledby="tab-2">
-    <div class="app" data-app="workspace">
+    <div class="app native-shell" data-app="workspace">
       <div class="titlebar"><span>Macrofy</span><span class="hint">Profile: <span id="workspace-profile">Daily games</span></span><span class="window-actions" aria-hidden="true">— □ ×</span></div>
+      <nav class="native-tabs" role="tablist" aria-label="Macrofy sections">
+        <button type="button" id="native-tab-profiles" role="tab" aria-selected="true" aria-controls="native-pane-profiles" data-native-tab="profiles">Profiles</button>
+        <button type="button" id="native-tab-apps" role="tab" aria-selected="false" aria-controls="native-pane-apps" data-native-tab="apps">Apps</button>
+        <button type="button" id="native-tab-macros" role="tab" aria-selected="false" aria-controls="native-pane-macros" data-native-tab="macros">Macros</button>
+        <button type="button" id="native-tab-compatibility" role="tab" aria-selected="false" aria-controls="native-pane-compatibility" data-native-tab="compatibility">Compatibility</button>
+        <button type="button" id="native-tab-settings" role="tab" aria-selected="false" aria-controls="native-pane-settings" data-native-tab="settings">Settings</button>
+        <button type="button" id="native-tab-log" role="tab" aria-selected="false" aria-controls="native-pane-log" data-native-tab="log">Log</button>
+        <button type="button" id="native-tab-about" role="tab" aria-selected="false" aria-controls="native-pane-about" data-native-tab="about">About</button>
+      </nav>
+      <div class="native-context"><label><span>Profile</span><select id="native-profile" aria-label="Active profile"></select></label><span class="hint">Saved apps and macro assignments belong to this profile.</span></div>
       <div class="workspace">
         <aside class="profiles"><h3>Profiles</h3><button class="profile" data-profile="click" aria-pressed="true">Daily games<small>Many saved apps · 2 macros</small></button><button class="profile" data-profile="combo" aria-pressed="false">Desktop tasks<small>Saved apps · 2 macros</small></button><button class="profile" data-new>+ New profile</button></aside>
         <div class="workspace-body">
@@ -96,7 +111,7 @@
     </div>
   </section>
 </main>
-<footer class="explainer"><span>Sample app lists and each macro’s app assignment persist in this browser; native app storage is still planned.</span><span id="selection-footer">Your design choice is saved here. Tell Codex the design number to implement.</span></footer>
+<footer class="explainer"><span>Sample app lists and each macro’s app assignment persist in this browser; native app storage is still planned.</span><span id="selection-footer">Tabbed layout follows your DS4Windows reference.</span></footer>
 <dialog id="apps-dialog" aria-labelledby="apps-dialog-title">
   <div class="row spread"><h2 id="apps-dialog-title">Saved apps — Daily games</h2><button id="close-apps">Close</button></div>
   <p class="hint">Add several apps to one profile. Save their identity and window-title rule, even when the app is closed. These are editable sample configurations.</p>
@@ -110,7 +125,7 @@
 (() => {
   const descriptions = {
     1: '<strong>Fastest for everyday clicks.</strong> Small window and few controls. Full macro editing opens separately.',
-    2: '<strong>Recommended for full macros.</strong> Profiles, action list and settings stay together. More controls are visible.',
+    2: '<strong>Desktop tabs, like your reference.</strong> Profiles, Apps, Macros, Compatibility, Settings, Log and About each have their own tab.',
     3: '<strong>Easiest for first-time setup.</strong> Destination, actions and run settings appear in three steps. More navigation for frequent edits.'
   };
   let current = 2;
@@ -130,6 +145,8 @@
   }
   choose.addEventListener('click', () => rememberChoice(current));
   try { const saved = +localStorage.getItem('macrofy-ui-choice'); if ([1,2,3].includes(saved)) { selectOption(saved); rememberChoice(saved); } } catch {}
+  // The user's desktop-tab reference supersedes the earlier layout-choice stage.
+  selectOption(2);
 
   const modes = new WeakMap();
   const timers = new WeakMap();
@@ -239,6 +256,7 @@
     document.querySelectorAll('[data-app-count]').forEach(n=>n.textContent=p.apps.length);
     document.querySelectorAll('[data-saved-app-names]').forEach(n=>n.textContent=p.apps.length?p.apps.map(a=>a.name).join(' · '):'No saved apps yet. Screen is available.');
     document.querySelectorAll('[data-profile-name]').forEach(n=>n.textContent=p.name);document.getElementById('workspace-profile').textContent=p.name;
+    const profilePicker=document.getElementById('native-profile');profilePicker.replaceChildren();Object.entries(profiles).forEach(([id,p])=>profilePicker.add(new Option(p.name,id)));profilePicker.value=profileKey;
     document.querySelectorAll('[data-profile]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.profile===profileKey)));
     document.querySelectorAll('[data-target]').forEach(picker=>{
       picker.replaceChildren(new Option('Screen (default)','screen'));
@@ -257,6 +275,7 @@
     document.getElementById('compat-result').textContent=isScreen?'Assign a saved app to this macro to test window compatibility.':(p.apps.find(a=>a.id===selectedId)?.name||'Unavailable saved app')+' · Unconfirmed sample state';
     document.querySelectorAll('#compat-test,#compat-yes,#compat-no').forEach(b=>b.disabled=isScreen);
     renderAppManager();
+    renderNativeAppList();
   }
   function renderAppManager(){
     document.getElementById('apps-dialog-title').textContent='Saved apps — '+profile().name;
@@ -295,6 +314,50 @@
   document.getElementById('guide-action').addEventListener('change', event => { const action = event.target.value; document.getElementById('guide-action-summary').textContent = action === 'Click' ? 'Left click at (480, 640)' : action === 'Key shortcut' ? 'Ctrl + K' : action === 'Type text' ? 'Type “Hello”' : 'Scroll 120'; document.getElementById('guide-summary-actions').textContent = '1 ' + action.toLowerCase(); });
   document.getElementById('guide-record').addEventListener('click', () => { document.getElementById('guide-action-summary').textContent = 'Recorded sample: click → Space'; document.getElementById('guide-summary-actions').textContent = '2 recorded sample actions'; });
   document.addEventListener('keydown', event => { if (event.key === 'F10') { event.preventDefault(); document.querySelectorAll('[data-stop]').forEach(b => { if (!b.disabled) b.click(); }); } });
+  function renderNativeAppList(){
+    const table=document.getElementById('native-app-rows');if(!table)return;table.replaceChildren();
+    profile().apps.forEach(app=>{const row=document.createElement('tr');[app.name,app.path,app.pattern].forEach(value=>{const cell=document.createElement('td');cell.textContent=value;row.append(cell);});table.append(row);});
+  }
+  function nativeLog(message){
+    const list=document.getElementById('native-log-rows');if(!list)return;
+    const row=document.createElement('tr'),time=document.createElement('td'),text=document.createElement('td');time.textContent=new Date().toLocaleTimeString();text.textContent=message;row.append(time,text);list.append(row);
+  }
+  function selectNativeTab(name){
+    document.querySelectorAll('[data-native-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.nativeTab===name)));
+    document.querySelectorAll('[data-native-pane]').forEach(p=>p.hidden=p.dataset.nativePane!==name);
+  }
+  const nativeRoot=document.querySelector('[data-app="workspace"]'),workspace=nativeRoot.querySelector('.workspace');
+  const profileSection=nativeRoot.querySelector('.profiles'),appStrip=nativeRoot.querySelector('.saved-app-strip');
+  const macroPicker=nativeRoot.querySelector('.macro-picker'),targetSection=nativeRoot.querySelector('.workspace-target'),actionSection=nativeRoot.querySelector('[data-workspace-actions]'),compatSection=nativeRoot.querySelector('[data-workspace-compatibility]');
+  const panes={};
+  ['profiles','apps','macros','compatibility','settings','log','about'].forEach(name=>{
+    const pane=document.createElement('section');pane.id='native-pane-'+name;pane.className='native-pane';pane.dataset.nativePane=name;pane.setAttribute('role','tabpanel');pane.setAttribute('aria-labelledby','native-tab-'+name);pane.hidden=name!=='profiles';panes[name]=pane;
+  });
+  panes.profiles.append(profileSection);
+  const profileHelp=document.createElement('p');profileHelp.className='hint';profileHelp.textContent='Choose a profile, then use Apps to configure its targets and Macros to edit its sequences.';profileSection.prepend(profileHelp);
+  panes.apps.append(appStrip);
+  const appsBody=document.createElement('div');appsBody.className='body';appsBody.innerHTML='<div class="row spread"><h3 style="margin:0">Remembered target apps</h3><button id="native-add-app">Add app</button></div><table class="native-table"><thead><tr><th>App</th><th>Executable</th><th>Title rule</th></tr></thead><tbody id="native-app-rows"></tbody></table><p class="hint">App rules stay saved when an app is closed. Each macro chooses one app from this list.</p>';panes.apps.append(appsBody);
+  panes.macros.append(macroPicker,targetSection,actionSection);compatSection.hidden=false;panes.compatibility.append(compatSection);
+  panes.settings.innerHTML='<div class="body"><h3>Settings</h3><div class="native-settings"><label><span>Appearance</span><select id="native-theme"><option value="light">Light</option><option value="dark">Dark</option></select></label><div class="fields three"><label><span>Record shortcut</span><input value="F8" readonly></label><label><span>Play shortcut</span><input value="F9" readonly></label><label><span>Emergency stop</span><input value="F10" readonly></label></div><p class="hint">Example shortcut bindings. This preview does not register desktop hotkeys.</p><p>Profile app assignments save automatically in this preview.</p></div></div>';
+  panes.log.innerHTML='<div class="body"><div class="row spread"><h3 style="margin:0">Log</h3><button id="native-clear-log">Clear preview log</button></div><table class="native-table"><thead><tr><th style="width:110px">Time</th><th>Event</th></tr></thead><tbody id="native-log-rows"></tbody></table></div>';
+  panes.about.innerHTML='<div class="body"><h3>Macrofy</h3><p>Windows macro recorder and clicker.</p><p>Profiles hold many saved apps and macros. Each macro remembers one target app; no assigned app means Screen.</p><p class="hint">Interactive design preview. Recorder, scheduler and native profile storage are planned; no desktop input is sent here.</p></div>';
+  workspace.replaceChildren(...Object.values(panes));
+  const statusbar=document.createElement('div');statusbar.className='native-statusbar';statusbar.innerHTML='<span id="native-status" class="hint" aria-live="polite">Idle · Preview only</span><button id="native-stop" disabled>Stop (F10)</button>';nativeRoot.append(statusbar);
+  document.querySelectorAll('[data-native-tab]').forEach(b=>{
+    b.addEventListener('click',()=>selectNativeTab(b.dataset.nativeTab));
+    b.addEventListener('keydown',event=>{if(event.ctrlKey||event.altKey||event.metaKey||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const tabs=Array.from(document.querySelectorAll('[data-native-tab]'));const i=tabs.indexOf(b);const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(i+(event.key==='ArrowRight'?1:tabs.length-1))%tabs.length;tabs[next].focus();selectNativeTab(tabs[next].dataset.nativeTab);});
+  });
+  document.getElementById('native-profile').addEventListener('change',event=>{
+    profileKey=event.target.value;saveProfiles();renderSavedApps();renderMacroPicker();actions=profileKey==='combo'?[{kind:'Key',value:'Ctrl + K',delay:150},{kind:'Text',value:'Hello',delay:100}]:[{kind:'Click',value:'480, 640',delay:250}];selected=0;renderActions();nativeLog('Profile selected: '+profile().name);
+  });
+  document.getElementById('native-add-app').addEventListener('click',()=>{renderAppManager();document.getElementById('apps-dialog').showModal();});
+  document.getElementById('native-theme').addEventListener('change',event=>{nativeRoot.dataset.theme=event.target.value;nativeLog('Preview appearance changed: '+event.target.value);});
+  document.getElementById('native-clear-log').addEventListener('click',()=>document.getElementById('native-log-rows').replaceChildren());
+  const macroStatus=nativeRoot.querySelector('[data-status]'),macroStop=nativeRoot.querySelector('[data-stop]');
+  const statusObserver=new MutationObserver(()=>{document.getElementById('native-status').textContent=macroStatus.textContent;document.getElementById('native-stop').disabled=macroStop.disabled;});statusObserver.observe(macroStatus,{childList:true,subtree:true,characterData:true});
+  document.getElementById('native-stop').addEventListener('click',()=>macroStop.click());
+  nativeRoot.querySelectorAll('[data-run],[data-test],[data-record]').forEach(b=>b.addEventListener('click',()=>nativeLog(b.textContent+' · '+profile().name+' · '+targetName(nativeRoot)+' · No desktop input')));
+  renderNativeAppList();nativeLog('Tabbed preview opened. Saved apps restored for '+profile().name+'.');
 })();
 </script>
 </body>

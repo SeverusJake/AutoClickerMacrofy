@@ -149,19 +149,23 @@ For interval `I`, session start defines `t0`. Planned loop starts occur at `t0`,
 
 ## 9. UI design
 
-The main window uses a vertical layout. Top-level tabs are Profiles, Settings, and About.
+User UI update (2026-09-29): the main window uses a horizontal desktop tab bar like the provided DS4Windows screenshot, with adjacent bordered tabs rather than a sidebar. Top-level tabs are Profiles, Apps, Macros, Compatibility, Settings, Log, and About. Selected profile context stays visible above each tab; shared activity status and Stop remain visible below every tab. Switching tabs does not switch the selected profile, macro or target app.
 
 ### Profiles tab
 
-From top to bottom:
+Create, select, rename, duplicate and manage profiles. Each profile owns a collection of saved apps and named macros. A common profile picker preserves this context across tabs.
 
-1. Profile dropdown and Manage profiles control.
-2. Saved apps for the profile, with Add/Edit controls and individual connection/compatibility status.
-3. Visible list of the selected profile's macros.
-4. Record, Run selected, and Stop controls with current state.
-5. Selected macro's Edit section, collapsible and collapsed by default.
+### Apps tab
 
-The editor expands to show loop settings, coordinate mode, action list, action-detail editing, and background-input test access. Selecting another macro resets the editor to collapsed. Profile and macro lists remain visible when editing expands; no sidebar is required.
+Show the selected profile's remembered app identities, executable paths, title patterns and individual connection status. Add/Edit app controls configure multiple apps for the same profile. Closing an app leaves its configuration saved; a new run resolves the current window from its saved rule.
+
+### Macros tab
+
+Show the profile's macro list and the selected macro's assigned saved app, with Screen as the default for no assignment. Provide Record, Run selected, Stop, loop settings, coordinate mode, action list and action-detail editing. The selected editor can be collapsed by default; choosing another macro resets its editor state and restores its target assignment.
+
+### Compatibility tab
+
+Show separate user-observed click/key/etc. results for the selected saved app and window state. Test only a deliberate harmless sequence. Screen input does not qualify as background or minimized compatibility evidence.
 
 The Record and Run controls are disabled where prerequisites are missing, with a short reason. Stop remains prominent during recording/playback. During activity, switching target/profile/macro and changing the active sequence are disabled to avoid applying edits to a running session.
 
@@ -175,11 +179,15 @@ Configure global hotkeys and select light, dark, or system theme. Proposed defau
 
 Show app name/version, Windows-first release scope, data-folder location/open control, and dependency/license acknowledgements. Mac support is described as planned until delivered and tested.
 
+### Log tab
+
+Show bounded local activity/error history with timestamps, profile/macro/app context and delivery or cleanup failures. Log messages must distinguish queued input from a user-confirmed game response. Do not record typed text content, credentials, or native handle/session identities in persistent logs.
+
 ### Persistence in UI
 
 Valid edits save automatically using atomic writes. Show save failures and unsaved state clearly. Invalid drafts remain visible for correction and do not replace the last valid persisted macro. Deleting a profile or macro requires confirmation; duplicating provides a simple way to preserve a version before editing.
 
-The approved preview direction is a vertical profile dropdown and macro list, with the selected editor collapsed initially. The browser companion is a design artifact, not the eventual application runtime.
+The requested preview direction now uses desktop tabs like the user's DS4Windows example. Profile selection and shared Stop/status remain available across tab changes. The browser companion is a design artifact, not the eventual application runtime.
 
 ## 10. Storage and errors
 
