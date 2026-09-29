@@ -33,6 +33,8 @@ Updated profile design: each profile has many saved app rules and many macros. E
 
 The Profiles count column is **Steps**: sequence length for one run, independent of repeats. Five new cyberpunk theme candidates appear above the preview: Neon District (yellow/cyan), Synthwave (pink/purple), Matrix (green/black), Tron (cyan/orange) and Redline (red/amber). Click one to preview it throughout the app; **Use this theme** remembers the confirmed choice in this browser. The earlier Windows Blue, Graphite, Emerald, Violet and Warm Amber themes remain available through Settings. The native palette is pending selection.
 
+Each cyberpunk theme now uses seven accent colors across tabs, macro/app labels, Run/Pause/Stop/Edit controls and status text, with related tints in the workspace panels. The palette strips show all seven colors; status labels remain readable without relying on color alone.
+
 ## Deliberate CookieRun click test
 
 1. Choose a harmless button with an obvious visible response.

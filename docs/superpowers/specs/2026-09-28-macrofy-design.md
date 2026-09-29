@@ -182,6 +182,8 @@ Color palette review (2026-09-29): the user requested five options. The browser 
 
 The user then requested five new cyberpunk-style candidates: Neon District (electric yellow/cyan), Synthwave (hot pink/purple), Matrix (terminal green/black), Tron (ice cyan/orange) and Redline (neon red/amber). All use dark surfaces with contrasting accent colors, a title-bar accent line and selected-tab indicators. The preview displays these five choices first and retains the earlier themes in Settings. Browsing the new palettes does not overwrite a previously confirmed choice; Use this theme explicitly records the new choice. The native palette remains pending selection.
 
+The user requested richer palettes rather than only two or three colors. Each cyberpunk candidate now includes seven accent roles plus dark surface tints: title/selection accent, secondary cyan/green/orange, tertiary pink/purple, Run green, Pause amber, Stop red and informational blue. Tabs use distinct accents, and target/action/detail/settings regions use related tinted surfaces. Status retains readable text alongside color, and palette samples show every accent. These expanded palettes remain review candidates.
+
 ### About tab
 
 Show app name/version, Windows-first release scope, data-folder location/open control, and dependency/license acknowledgements. Mac support is described as planned until delivered and tested.

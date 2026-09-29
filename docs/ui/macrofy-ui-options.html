@@ -25,6 +25,9 @@
 <style>
 .native-shell[data-theme-family=cyberpunk] .titlebar{border-bottom:2px solid var(--secondary);font-family:Consolas,monospace}.native-shell[data-theme-family=cyberpunk] .native-tabs button[aria-selected=true]{color:var(--secondary);border-top:2px solid var(--secondary)}.native-shell[data-theme-family=cyberpunk] .profile[aria-pressed=true]{border-left:3px solid var(--accent)}.native-shell[data-theme-family=cyberpunk] .macro-entry[aria-pressed=true]{border-left:3px solid var(--accent)}.native-shell[data-theme-family=cyberpunk] .primary{font-weight:600}.theme-sample-bar{border-bottom:2px solid var(--sample-secondary,var(--sample-title))}
 </style>
+<style>
+.theme-palette{display:flex;gap:3px;margin-top:8px}.theme-palette span{height:9px;flex:1;min-width:0}.native-shell[data-color-theme][data-theme-family=cyberpunk] .native-tabs button{background:var(--section-fill);color:var(--section-color);border-top:2px solid var(--section-color)}.native-shell[data-color-theme][data-theme-family=cyberpunk] .native-tabs button[aria-selected=true]{background:var(--section-fill-selected);color:var(--section-color);border-bottom-color:var(--section-fill-selected)}.native-shell[data-color-theme][data-theme-family=cyberpunk] .native-tabs button:hover{background:var(--section-fill-selected)}.native-shell[data-theme-family=cyberpunk] .native-context{background:var(--target-panel)}.native-shell[data-theme-family=cyberpunk] .native-context select{border-color:var(--secondary)}.native-shell[data-theme-family=cyberpunk] .profile-macros .native-table td:first-child{color:var(--secondary)}.native-shell[data-theme-family=cyberpunk] .profile-macros .native-table td:nth-child(2){color:var(--tertiary)}.native-shell[data-theme-family=cyberpunk] .profile-macros .native-table td:nth-child(3){color:var(--accent)}.native-shell[data-theme-family=cyberpunk] .macro-state{font-weight:500}.native-shell[data-theme-family=cyberpunk] .macro-state[data-state=Running]{color:var(--success)}.native-shell[data-theme-family=cyberpunk] .macro-state[data-state=Paused]{color:var(--warning)}.native-shell[data-theme-family=cyberpunk] .macro-state[data-state=Stopped]{color:var(--danger)}.native-shell[data-theme-family=cyberpunk] .macro-state[data-state=Idle]{color:var(--info)}.native-shell[data-theme-family=cyberpunk] .macro-controls [data-run-macro],.native-shell[data-theme-family=cyberpunk] [data-run]{color:var(--success);background:var(--success-fill);border-color:var(--success)}.native-shell[data-theme-family=cyberpunk] .macro-controls [data-pause-macro],.native-shell[data-theme-family=cyberpunk] #workspace-pause,.native-shell[data-theme-family=cyberpunk] #native-pause-all{color:var(--warning);background:var(--warning-fill);border-color:var(--warning)}.native-shell[data-theme-family=cyberpunk] .macro-controls [data-stop-macro],.native-shell[data-theme-family=cyberpunk] [data-stop],.native-shell[data-theme-family=cyberpunk] #native-stop{color:var(--danger);background:var(--danger-fill);border-color:var(--danger)}.native-shell[data-theme-family=cyberpunk] .macro-controls [data-edit-macro],.native-shell[data-theme-family=cyberpunk] #apply-action{color:var(--tertiary);background:var(--tertiary-fill);border-color:var(--tertiary)}.native-shell[data-theme-family=cyberpunk] .workspace-target{background:var(--target-panel);border-bottom-color:var(--secondary)}.native-shell[data-theme-family=cyberpunk] .action-list{background:var(--editor-panel)}.native-shell[data-theme-family=cyberpunk] .action-detail{background:var(--inspector-panel);border-color:var(--tertiary)}.native-shell[data-theme-family=cyberpunk] .workspace-footer{background:var(--footer-panel)}.native-shell[data-theme-family=cyberpunk] .macro-workspace-heading h3{color:var(--secondary)}.native-shell[data-theme-family=cyberpunk] .action-list h3{color:var(--info)}.native-shell[data-theme-family=cyberpunk] .action-detail h3{color:var(--tertiary)}.native-shell[data-theme-family=cyberpunk] .native-statusbar{border-top-color:var(--info);background:var(--editor-panel)}
+</style>
 </head>
 <body>
 <header class="review">
@@ -38,7 +41,7 @@
   <p id="choice-status" class="selection-result" aria-live="polite"></p>
 </header>
 <section class="theme-review" aria-label="Color theme options">
-  <div class="row spread"><h2>Choose a cyberpunk theme</h2><span class="hint">Five new palettes · Earlier themes remain in Settings</span></div>
+  <div class="row spread"><h2>Choose a cyberpunk theme</h2><span class="hint">Seven accent colors per theme · Earlier themes remain in Settings</span></div>
   <div class="theme-options" id="theme-options"></div>
   <div class="row spread theme-decision"><span id="theme-preview-name" aria-live="polite">Previewing Windows Blue</span><button id="confirm-theme">Use this theme</button></div>
   <p class="hint" id="theme-choice-status" aria-live="polite">No color theme chosen yet.</p>
@@ -222,7 +225,7 @@
     document.getElementById('native-stop').disabled=!active.length;document.getElementById('native-pause-all').disabled=!active.length;
     document.getElementById('native-pause-all').textContent=active.length&&!running?'Resume all':'Pause all';
     if(!active.length&&playbackTick){clearInterval(playbackTick);playbackTick=null;}
-    document.querySelectorAll('[data-macro-status]').forEach(n=>{const s=playbackSessions.get(sessionKey(profileKey,n.dataset.macroStatus));n.textContent=s?s.state:'Idle';});
+    document.querySelectorAll('[data-macro-status]').forEach(n=>{const s=playbackSessions.get(sessionKey(profileKey,n.dataset.macroStatus));n.textContent=s?s.state:'Idle';n.dataset.state=s?s.state:'Idle';});
     document.querySelectorAll('[data-run-macro]').forEach(b=>{const index=b.dataset.runMacro,target=profile().macroTargets?.[index]||'screen';b.disabled=!!activeSession(profileKey,index)||!savedMacroActions(index).length||(target!=='screen'&&!profile().apps.some(a=>a.id===target));});
     document.querySelectorAll('[data-pause-macro]').forEach(b=>{const s=activeSession(profileKey,b.dataset.pauseMacro);b.disabled=!s;b.textContent=s?.state==='Paused'?'Resume':'Pause';b.setAttribute('aria-label',(s?.state==='Paused'?'Resume':'Pause')+' macro: '+macroNames()[+b.dataset.pauseMacro]);});
     document.querySelectorAll('[data-stop-macro]').forEach(b=>b.disabled=!activeSession(profileKey,b.dataset.stopMacro));
@@ -451,10 +454,28 @@
     redline:{name:'Redline',description:'Neon red + amber',family:'cyberpunk',mode:'dark',colors:{page:'#100b0d',surface:'#23171b',subtle:'#191215',ink:'#ffeff1',muted:'#d9b2b6',line:'#70414b',accent:'#ff667d',secondary:'#ffb05a',active:'#44242d','tab-bg':'#321c23','title-bg':'#88253b','title-ink':'#ffffff','primary-ink':'#191215'}}
   };
   const cyberThemeIds=['neon-district','synthwave','matrix','tron','redline'];
+  const extraThemeColors={
+    'neon-district':{tertiary:'#ff70d6',success:'#b7ff5a',warning:'#ffb454',danger:'#ff7186',info:'#8eabff'},
+    synthwave:{tertiary:'#bd99ff',success:'#89f5ad',warning:'#ffd36d',danger:'#ff8799',info:'#76baff'},
+    matrix:{tertiary:'#bba0ff',success:'#48e2a0',warning:'#ffd05a',danger:'#ff8b83',info:'#64c9ff'},
+    tron:{tertiary:'#cb9aff',success:'#9dff8a',warning:'#ffcb66',danger:'#ff7ea2',info:'#8da8ff'},
+    redline:{tertiary:'#ff82df',success:'#acff86',warning:'#ffc467',danger:'#ff8075',info:'#7baeff'}
+  };
+  function mixColor(foreground,background,amount){return '#'+[1,3,5].map(i=>Math.round(parseInt(foreground.slice(i,i+2),16)*amount+parseInt(background.slice(i,i+2),16)*(1-amount)).toString(16).padStart(2,'0')).join('');}
+  Object.entries(extraThemeColors).forEach(([id,colors])=>{
+    const theme=colorThemes[id];Object.assign(theme.colors,colors);
+    ['success','warning','danger','tertiary'].forEach(role=>theme.colors[role+'-fill']=mixColor(theme.colors[role],theme.colors.surface,.16));
+    theme.colors['target-panel']=mixColor(theme.colors.secondary,theme.colors.surface,.07);theme.colors['editor-panel']=mixColor(theme.colors.info,theme.colors.surface,.06);theme.colors['inspector-panel']=mixColor(theme.colors.tertiary,theme.colors.surface,.09);theme.colors['footer-panel']=mixColor(theme.colors.warning,theme.colors.surface,.06);
+  });
+  Object.entries({'neon-district':'Yellow / cyan / pink / lime',synthwave:'Pink / violet / aqua / gold',matrix:'Green / lime / blue / violet',tron:'Cyan / orange / violet / lime',redline:'Red / amber / pink / blue'}).forEach(([id,description])=>colorThemes[id].description=description);
   let previewTheme='neon-district',chosenTheme=null;
   function applyColorTheme(id){
     const theme=colorThemes[id];if(!theme)return;previewTheme=id;nativeRoot.dataset.colorTheme=id;nativeRoot.dataset.theme=theme.mode;nativeRoot.dataset.themeFamily=theme.family||'classic';nativeRoot.style.colorScheme=theme.mode;document.body.style.colorScheme=theme.mode;
     Object.entries(theme.colors).forEach(([name,value])=>{nativeRoot.style.setProperty('--'+name,value);document.body.style.setProperty('--'+name,value);});
+    if(theme.family==='cyberpunk'){
+      const roles=['accent','info','tertiary','secondary','warning','success','danger'];
+      nativeRoot.querySelectorAll('[data-native-tab]').forEach((tab,i)=>{const color=theme.colors[roles[i]];tab.style.setProperty('--section-color',color);tab.style.setProperty('--section-fill',mixColor(color,theme.colors.surface,.12));tab.style.setProperty('--section-fill-selected',mixColor(color,theme.colors.surface,.23));});
+    }
     document.querySelectorAll('[data-preview-theme]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.previewTheme===id)));document.getElementById('native-theme').value=id;document.getElementById('theme-preview-name').textContent='Previewing: '+theme.name+' · '+theme.description;
   }
   const colorOptions=document.getElementById('theme-options'),colorPicker=document.getElementById('native-theme');
@@ -462,7 +483,8 @@
     const button=document.createElement('button');button.className='theme-option';button.dataset.previewTheme=id;button.type='button';button.setAttribute('aria-label','Preview theme '+(i+1)+': '+theme.name);button.setAttribute('aria-pressed','false');
     button.style.setProperty('--sample-surface',theme.colors.surface);button.style.setProperty('--sample-ink',theme.colors.ink);button.style.setProperty('--sample-title',theme.colors['title-bg']);button.style.setProperty('--sample-active',theme.colors.active);button.style.setProperty('--sample-line',theme.colors.line);
     button.style.setProperty('--sample-secondary',theme.colors.secondary||theme.colors.accent);
-    button.innerHTML='<span class="theme-sample" aria-hidden="true"><span class="theme-sample-bar"></span><span class="theme-sample-row"><span class="theme-sample-select"></span><span class="theme-sample-line"></span></span></span><span class="theme-option-name"></span><span class="theme-option-description"></span>';
+    button.innerHTML='<span class="theme-sample" aria-hidden="true"><span class="theme-sample-bar"></span><span class="theme-sample-row"><span class="theme-sample-select"></span><span class="theme-sample-line"></span></span><span class="theme-palette"></span></span><span class="theme-option-name"></span><span class="theme-option-description"></span>';
+    ['accent','secondary','tertiary','success','warning','danger','info'].forEach(role=>{const chip=document.createElement('span');chip.style.background=theme.colors[role];button.querySelector('.theme-palette').append(chip);});
     button.querySelector('.theme-option-name').textContent=(i+1)+'. '+theme.name;button.querySelector('.theme-option-description').textContent=theme.description;button.addEventListener('click',()=>applyColorTheme(id));colorOptions.append(button);
   });
   [['Cyberpunk themes',cyberThemeIds],['Earlier themes',Object.keys(colorThemes).filter(id=>!cyberThemeIds.includes(id))]].forEach(([label,ids])=>{const group=document.createElement('optgroup');group.label=label;ids.forEach(id=>group.append(new Option(colorThemes[id].name,id)));colorPicker.append(group);});
