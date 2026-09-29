@@ -6,7 +6,7 @@ Backend and click probe implemented. Actual CookieRun input is unconfirmed. Full
 
 ## Automated evidence (2026-09-29)
 
-Release verification: locked restore, zero-warning build, 40 tests passed (Core 2, Windows 34, App headless 4), no skips. Self-contained single-file probe published; read-only --list launched successfully on the current Windows desktop.
+Release verification including Screen mode: locked restore, zero-warning build, 48 tests passed (Core 2, Windows 40, App headless 6), no skips. Self-contained single-file probe published; read-only --list launched successfully on the current Windows desktop. The UI concept page was checked in the browser: all three layouts, mode changes, sample macro editing, guided steps, and no horizontal overflow at 320px and 1024px.
 
 - Core contracts: opaque GUID tokens and delivery/observation separation.
 - Windows native-seam tests: ambiguous/missing resolution; explicit selection; process restart; same-process and child destruction; DPI/resize/minimized geometry; permission denial; pointer capture bounds.
@@ -21,6 +21,8 @@ Release verification: locked restore, zero-warning build, 40 tests passed (Core 
 The controlled fixture logs raw received messages without TranslateMessage, so its receipt of Ctrl/A events is not proof a real application's keyboard-state-based shortcuts or holds work. Background/minimized and action capabilities require independent game observation.
 
 ## Actual game evidence
+
+Screen mode was added at the user's request on 2026-09-29. Automated tests use a native seam and never inject screen input into the user's desktop. They cover negative monitor coordinates, virtual-desktop normalization, ordered move/down/up batching, invalid points/monitor gaps, pre-cancellation, held physical button rejection, partial insertion cleanup, and read-only capture. Headless UI verifies default Screen routing without invoking window playback. Real SendInput response remains a manual user check. [Microsoft SendInput documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput) and [MOUSEINPUT coordinate documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-mouseinput) define the native delivery and coordinate behavior.
 
 Read-only discovery found title matching `*CookieRun: Crumble - Idle RPG*`, executable `C:\Program Files\Google\Play Games\current\emulator\crosvm.exe`, client geometry 696 × 1237 at DPI scale 1.25. This is executable/title evidence only, not input compatibility.
 

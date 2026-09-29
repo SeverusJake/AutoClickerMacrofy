@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Native execution is recommended for this plan because its platform contracts, recorder, and scheduler share tightly connected state. Execution method remains the user's choice.
 
-**Goal:** Deliver a portable Windows Macrofy app that records and edits target-window macros and replays them on a fixed interval without moving the user's cursor or taking foreground focus.
+**Goal:** Deliver a portable Windows Macrofy app that records and edits macros and replays them on a fixed interval. Window mode preserves the user's cursor and foreground focus; the user-added default Screen mode operates on the visible desktop.
+
+**2026-09-29 scope update:** User requested Screen as default with no chosen window and three UI previews. Implemented in the current probe: explicit default Screen option, desktop coordinate capture, one SendInput click after a three-second countdown, and mode-switch coordinate clearing. Window loss never triggers screen fallback. Recorder/scheduler/full UI work stays pending; UI choice is represented by `docs/ui/macrofy-ui-options.html`.
 
 **Architecture:** Avalonia presents a vertical Profiles/Settings/About UI. A platform-neutral core owns macros, editing, persistence, and scheduling; a separate Windows backend owns hooks, hotkeys, window discovery, and targeted message delivery. Actual Google Play Games compatibility is checked before building the full UI; future Mac support reuses contracts but is not part of this release.
 

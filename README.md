@@ -4,7 +4,7 @@ Windows-first macro recorder/editor project. Current authorized phase is foundat
 
 ## Scope
 
-Full macros are planned for future games. CookieRun currently requires clicks only. Minimized playback is preferred; non-minimized background clicks are the fallback. If neither works in the actual game, pause and review options before building the full application.
+Full macros are planned for future games. CookieRun currently requires clicks only. Minimized window playback is preferred; non-minimized background clicks are the fallback. If neither works in the actual game, pause and review options before building the full application. Screen mode is separately available as the default when no window is chosen.
 
 ## Build and verify
 
@@ -18,6 +18,16 @@ dotnet run --project tools/Macrofy.CompatibilityProbe -- --interactive
 ```
 
 Published self-contained probe: `artifacts/compatibility-probe/win-x64/Macrofy.CompatibilityProbe.exe --interactive`. This is a compatibility tool, not the final Macrofy release. Clean-machine Windows 10/11 verification remains pending.
+
+## Screen mode (default)
+
+Double-click the published executable. Leave **Screen (default — visible desktop)** selected, capture a harmless screen position, then click **Test one click**. A three-second countdown lets you uncover the intended app. Screen mode moves the real pointer and sends one left click through Windows SendInput. Coordinates use desktop pixels across connected monitors, including negative coordinates. Screen mode cannot reach minimized or covered content.
+
+Selecting a window switches to client coordinates and targeted messages; choose the position again. An unavailable selected window stops the test and never switches to screen input. Screen results are not saved as game background/minimized compatibility evidence.
+
+## UI concepts
+
+Open `docs/ui/macrofy-ui-options.html` in a browser to compare Compact clicker, Macro workspace and Guided setup. These are interactive design previews with sample data, not working macro playback. The chosen number is saved in browser storage; tell Codex the number to implement.
 
 ## Deliberate CookieRun click test
 
@@ -34,7 +44,7 @@ Confirmed observations are bounded and saved in `MacrofyData/compatibility-probe
 
 ## Implementation boundaries
 
-Only targeted window messages are used. Geometry is refreshed per pointer command, input is paced to 100 native posts/second, and concurrent sends are rejected. Stop cannot retract already-posted Windows messages. Target-only cleanup has a 500ms budget and may fail; its outcome is reported.
+Window mode uses targeted messages. Geometry is refreshed per pointer command, input is paced to 100 native posts/second, and concurrent sends are rejected. Stop cannot retract already-posted Windows messages. Target-only cleanup has a 500ms budget and may fail; its outcome is reported. Screen mode uses an explicit ordered move/down/up batch; cancellation before injection prevents the batch, and a partially inserted down triggers one release attempt. Already-inserted screen input cannot be withdrawn.
 
 Window/process and child-surface identities are checked before sends; destruction invalidates session tokens. Windows still has an unavoidable external check/send race and asynchronous destruction notifications. Controlled test success does not prove any game's compatibility.
 

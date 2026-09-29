@@ -22,10 +22,10 @@ public class ProbeUiTests
     {
         using var catalog=new WindowsWindowCatalog(new UiWindows());
         var window=new ProbeWindow(catalog,new UiPlayer(),true);window.Show();
-        var target=Find<ComboBox>(window,"TargetPicker");target.SelectedIndex=0;
+        var target=Find<ComboBox>(window,"TargetPicker");target.SelectedIndex=1;
         Find<TextBox>(window,"ClientX").Text="20";Find<TextBox>(window,"ClientY").Text="30";
         await UntilAsync(()=>Find<Button>(window,"TestClick").IsEnabled);
-        target.SelectedIndex=1;
+        target.SelectedIndex=2;
         Assert.True(string.IsNullOrEmpty(Find<TextBox>(window,"ClientX").Text));
         Assert.True(string.IsNullOrEmpty(Find<TextBox>(window,"ClientY").Text));
         Assert.False(Find<Button>(window,"TestClick").IsEnabled);
@@ -40,7 +40,7 @@ public class ProbeUiTests
         using var catalog=new WindowsWindowCatalog(new UiWindows());
         var started=new TaskCompletionSource();var saved=new TaskCompletionSource<string>();
         var window=new ProbeWindow(catalog,new UiPlayer(),true,_=>{started.SetResult();return saved.Task;});window.Show();
-        Find<ComboBox>(window,"TargetPicker").SelectedIndex=0;
+        Find<ComboBox>(window,"TargetPicker").SelectedIndex=1;
         Find<ComboBox>(window,"StatePicker").SelectedIndex=3;
         Find<TextBox>(window,"ClientX").Text="20";Find<TextBox>(window,"ClientY").Text="30";
         Find<Button>(window,"TestClick").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -57,13 +57,28 @@ public class ProbeUiTests
         await UntilAsync(()=>!window.IsVisible);
     }
     private static T Find<T>(Window window,string name) where T:Control=>window.GetVisualDescendants().OfType<T>().Single(c=>c.Name==name);
+    [AvaloniaFact]
+    public async Task LostSelectedWindowNeverFallsBackToScreen()
+    {
+        var native=new UiWindows();using var catalog=new WindowsWindowCatalog(native);var screen=new UiScreen();var player=new UiPlayer();
+        var window=new ProbeWindow(catalog,player,true,screen:screen);window.Show();
+        Find<ComboBox>(window,"TargetPicker").SelectedIndex=1;
+        Find<ComboBox>(window,"StatePicker").SelectedIndex=3;
+        Find<TextBox>(window,"ClientX").Text="20";Find<TextBox>(window,"ClientY").Text="30";
+        await UntilAsync(()=>Find<Button>(window,"TestClick").IsEnabled);
+        native.Alive=false;
+        Find<Button>(window,"TestClick").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.False(screen.Clicked.Task.IsCompleted);Assert.Equal(0,player.Sends);
+        Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),t=>t.Text?.Contains("Test stopped:")==true);
+        window.Close();
+    }
     private static async Task UntilAsync(Func<bool> condition)
     {
         using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(3));
         while(!condition())await Task.Delay(10,timeout.Token);
     }
     [AvaloniaFact]
-    public void ProbeRequiresExplicitTargetAndPositionBeforeSending()
+    public void ProbeDefaultsToScreenAndStillRequiresExplicitPositionBeforeSending()
     {
         using var catalog=new WindowsWindowCatalog();using var player=new WindowsInputPlayer(catalog);
         var window=new ProbeWindow(catalog,player,true);window.Show();
@@ -73,8 +88,22 @@ public class ProbeUiTests
         Assert.False(controls.OfType<Button>().Single(b=>b.Name=="ObservedIgnored").IsEnabled);
         Assert.Null(controls.OfType<TextBox>().Single(t=>t.Name=="ClientX").Text);
         Assert.Null(controls.OfType<TextBox>().Single(t=>t.Name=="ClientY").Text);
-        Assert.Equal(-1,controls.OfType<ComboBox>().Single(c=>c.Name=="TargetPicker").SelectedIndex);
+        Assert.Equal(0,controls.OfType<ComboBox>().Single(c=>c.Name=="TargetPicker").SelectedIndex);
+        Assert.False(Find<ComboBox>(window,"SurfacePicker").IsVisible);
+        Assert.False(Find<ComboBox>(window,"StatePicker").IsVisible);
         window.Close();
+    }
+    [AvaloniaFact]
+    public async Task NoWindowSelectionRoutesOnlyToScreenAndAcceptsNegativeMonitorCoordinates()
+    {
+        using var catalog=new WindowsWindowCatalog(new UiWindows());var screen=new UiScreen();var player=new UiPlayer();
+        var window=new ProbeWindow(catalog,player,true,screen:screen);window.Show();
+        Find<TextBox>(window,"ClientX").Text="-800";Find<TextBox>(window,"ClientY").Text="250";
+        await UntilAsync(()=>Find<Button>(window,"TestClick").IsEnabled);
+        Find<Button>(window,"TestClick").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await screen.Clicked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(new PointerPoint(-800,250),screen.Point);Assert.Equal(0,player.Sends);
+        Assert.False(Find<Button>(window,"ObservedWorking").IsEnabled);window.Close();
     }
     [AvaloniaFact]
     public void MissingEmergencyHotkeyBlocksTest()
@@ -88,16 +117,24 @@ public class ProbeUiTests
 }
 internal sealed class UiWindows : IWindowNative
 {
+    public bool Alive {get;set;}=true;
     private static NativeWindow Window(int top,int surface)=>new(top,surface,42,1,@"C:\test.exe","Test "+top,"Surface "+surface,new(800,600,1),false,false,"v1");
     public int CurrentProcessId=>999;
     public event Action<nint>? Destroyed {add{} remove{}}
     public IReadOnlyList<NativeWindow> EnumerateWindows()=>[Window(11,11),Window(12,12)];
-    public NativeWindow? ReadWindow(nint top,nint surface)=>Window((int)top,(int)surface);
+    public NativeWindow? ReadWindow(nint top,nint surface)=>Alive?Window((int)top,(int)surface):null;
     public IReadOnlyList<NativeWindow> ReadSurfaces(NativeWindow window)=>[window,Window((int)window.TopHandle,(int)window.TopHandle+100)];
     public void Dispose(){}
 }
 internal sealed class UiPlayer : IInputPlayer
 {
-    public ValueTask<DeliveryResult> SendAsync(TargetToken target,InputCommand command,CancellationToken cancellationToken=default)=>ValueTask.FromResult(new DeliveryResult(true));
+    public int Sends {get;private set;}
+    public ValueTask<DeliveryResult> SendAsync(TargetToken target,InputCommand command,CancellationToken cancellationToken=default){Sends++;return ValueTask.FromResult(new DeliveryResult(true));}
     public ValueTask<DeliveryResult> ReleaseHeldAsync(TargetToken target,CancellationToken cancellationToken=default)=>ValueTask.FromResult(new DeliveryResult(true));
+}
+internal sealed class UiScreen : IScreenClicker
+{
+    public TaskCompletionSource Clicked {get;}=new();public PointerPoint Point {get;private set;}
+    public PointerPositionResult ReadPointerPosition()=>new(new(-800,250));
+    public ValueTask<DeliveryResult> ClickAsync(PointerPoint point,CancellationToken cancellationToken=default){Point=point;Clicked.SetResult();return ValueTask.FromResult(new DeliveryResult(true));}
 }

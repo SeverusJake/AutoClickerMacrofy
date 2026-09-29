@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Macrofy — Choose a UI</title>
+<style>
+:root{color-scheme:light;--page:#f5f5f4;--surface:#fff;--subtle:#fafaf9;--ink:#222020;--muted:#615d59;--line:#d7d3cf;--accent:#65508a;--active:#f0ebf6;--error:#a53b38}
+*{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 Tahoma,sans-serif}button,input,select{font:inherit;color:inherit}button{cursor:pointer}button:disabled{cursor:default;opacity:.55}button,input,select{border:1px solid var(--line);border-radius:5px;background:var(--surface);min-height:36px}button{padding:6px 12px}input,select{padding:6px 9px;min-width:0;width:100%}button:hover:not(:disabled){background:var(--active)}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}button.primary{background:var(--accent);border-color:var(--accent);color:#fff}button.primary:hover{background:#554174}h1{font-size:23px;font-weight:500;margin:0}h2{font-size:20px;font-weight:500;margin:0}h3{font-size:16px;font-weight:500;margin:0 0 12px}p{margin:8px 0}small,.hint{font-size:13px;color:var(--muted)}label{display:block}label>span{display:block;margin-bottom:6px}input[type=radio],input[type=checkbox]{width:auto;min-height:0;accent-color:var(--accent)}[hidden]{display:none!important}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.spread{justify-content:space-between}.grow{flex:1}.fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}.fields.three{grid-template-columns:1fr 1fr 1fr}.stack{display:grid;gap:16px}.review{max-width:1120px;margin:auto;padding:24px 24px 16px}.review-head{display:flex;gap:16px;justify-content:space-between;align-items:start}.review-head p{color:var(--muted);max-width:690px}.choices{display:flex;gap:0;margin-top:20px;border-bottom:1px solid var(--line)}.choices button{border:0;border-radius:0;border-bottom:3px solid transparent;background:transparent;padding:10px 18px;min-height:48px}.choices button[aria-selected=true]{border-bottom-color:var(--accent);color:var(--accent);background:var(--active)}.decision{padding:14px 0;gap:20px}.decision p{margin:0}.decision strong{font-weight:500}.preview{max-width:1120px;margin:auto;padding:8px 24px 32px}.concept{margin:auto}.app{background:var(--surface);border:1px solid #bbb5af;border-radius:7px;overflow:hidden}.titlebar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--subtle)}.titlebar .window-actions{color:var(--muted);letter-spacing:9px;user-select:none}.toolbar{padding:12px 20px;border-bottom:1px solid var(--line)}.body{padding:24px}.footer{padding:12px 20px;background:var(--subtle);border-top:1px solid var(--line)}.separator{height:1px;background:var(--line);margin:20px 0}.mode-note{margin:6px 0 0}.inline-field{display:flex;align-items:center;gap:8px}.inline-field input{max-width:110px}.inline-label{display:flex;align-items:center;gap:8px}.inline-label span{margin:0}.status{color:var(--muted);min-height:22px}.compact{max-width:760px}.modebar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}.quick-summary{font-size:13px;color:var(--muted);display:flex;gap:24px;flex-wrap:wrap}.workspace{display:grid;grid-template-columns:200px minmax(0,1fr)}.profiles{border-right:1px solid var(--line);padding:20px 12px;background:var(--subtle)}.profiles h3{padding:0 8px}.profile{display:block;text-align:left;width:100%;border:0;border-radius:4px;padding:12px 10px;margin:4px 0;background:transparent}.profile[aria-pressed=true]{background:var(--active);color:var(--accent)}.profile small{display:block;margin-top:2px}.workspace-body{min-width:0}.workspace-target{padding:16px 20px;border-bottom:1px solid var(--line)}.workspace-target .fields{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}.editor{display:grid;grid-template-columns:minmax(0,1fr) 210px}.action-list{padding:20px;min-width:0}.action-table{width:100%;border-collapse:collapse;margin:16px 0}.action-table th{text-align:left;font-weight:500;color:var(--muted);padding:8px;border-bottom:1px solid var(--line);font-size:13px}.action-table td{padding:10px 8px;border-bottom:1px solid var(--line)}.action-table .step{width:32px;color:var(--muted)}.action-table .timing{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.action-table tbody tr.selected{background:var(--active)}.action-select{border:0;background:transparent;text-align:left;padding:0;min-height:24px;display:block;width:100%}.action-detail{border-left:1px solid var(--line);padding:20px 16px;background:var(--subtle)}.action-detail .fields{gap:8px}.action-detail label{margin-bottom:12px}.workspace-footer{padding:16px 20px}.run-settings{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;border-top:1px solid var(--line);padding-top:16px}.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);padding:0 20px}.tabs button{border:0;border-radius:0;background:none;padding:10px 0}.tabs button[aria-selected=true]{border-bottom:2px solid var(--accent)}.guided{max-width:900px}.step-nav{display:flex;gap:0;border-bottom:1px solid var(--line);padding:0 24px;background:var(--subtle)}.step-nav button{flex:1;border:0;background:none;padding:12px 8px;border-radius:0;border-bottom:2px solid transparent}.step-nav button[aria-current=step]{border-bottom-color:var(--accent);color:var(--accent)}.step-nav button span{display:inline-block;margin-right:6px;color:var(--muted)}.guide-layout{display:grid;grid-template-columns:minmax(0,1fr) 240px;min-height:345px}.guide-main{padding:28px}.guide-aside{border-left:1px solid var(--line);background:var(--subtle);padding:24px}.guide-aside dl{margin:0}.guide-aside dt{font-size:13px;color:var(--muted);margin-top:16px}.guide-aside dd{margin:2px 0;overflow-wrap:anywhere}.guide-aside dt:first-child{margin-top:0}.guide-main h2{margin-bottom:20px}.destination{display:flex;align-items:start;gap:12px;padding:16px 0;border-bottom:1px solid var(--line)}.destination input{margin-top:6px}.destination span{margin:0}.destination small{display:block;margin-top:4px}.point-demo{border:1px solid var(--line);background:var(--subtle);padding:18px;margin-top:16px}.point-demo button{margin-top:10px}.selection-result{color:var(--accent);font-weight:500}.small-action{min-height:32px;padding:4px 8px}.explainer{max-width:1120px;margin:0 auto;padding:0 24px 24px;display:flex;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:13px}.output{border-top:1px solid var(--line);padding-top:12px}.key{font-family:monospace;border:1px solid var(--line);padding:1px 5px;border-radius:3px;background:var(--surface)}
+@media(max-width:900px){.editor{grid-template-columns:minmax(0,1fr)}.action-detail{border-left:0;border-top:1px solid var(--line)}.action-detail .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.workspace{grid-template-columns:165px minmax(0,1fr)}.guide-layout{grid-template-columns:minmax(0,1fr) 200px}}
+@media(max-width:650px){.review,.preview{padding:16px 12px}.review-head{flex-direction:column}.choices{display:grid;grid-template-columns:1fr 1fr 1fr}.choices button{font-size:13px;padding:8px}.decision{align-items:start}.workspace{display:block}.profiles{border-right:0;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;padding:12px}.profiles h3{width:100%;margin:0}.profile{width:auto;flex:1}.body,.action-list,.guide-main{padding:20px 16px}.fields.three{grid-template-columns:1fr 1fr}.fields,.workspace-target .fields,.run-settings{grid-template-columns:1fr}.guide-layout{display:block}.guide-aside{border-left:0;border-top:1px solid var(--line);padding:16px}.guide-aside dl{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.guide-aside dt{margin-top:4px}.guide-aside dd{margin:4px 0}.step-nav{padding:0 6px}.step-nav button{font-size:13px;padding:12px 4px}.modebar{grid-template-columns:1fr}.quick-summary{gap:8px 16px}.action-table th,.action-table td{padding:8px 4px;font-size:13px}.window-actions{display:none}.titlebar{gap:8px}.explainer{padding:0 12px 20px}.action-detail .detail-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="review">
+  <div class="review-head"><div><h1>Choose Macrofy’s layout</h1><p>Three ways to organize clicks and future macros. Screen is the default in every design; choose a window for background or minimized playback.</p></div><span class="hint">Interactive previews · Sample data · No desktop input</span></div>
+  <nav class="choices" role="tablist" aria-label="UI design options">
+    <button id="tab-1" role="tab" aria-selected="false" aria-controls="concept-1" data-option="1">1. Compact clicker</button>
+    <button id="tab-2" role="tab" aria-selected="true" aria-controls="concept-2" data-option="2">2. Macro workspace</button>
+    <button id="tab-3" role="tab" aria-selected="false" aria-controls="concept-3" data-option="3">3. Guided setup</button>
+  </nav>
+  <div class="row spread decision"><p id="option-description"><strong>Recommended for full macros.</strong> Profiles, action list and settings stay together. More controls are visible.</p><button class="primary" id="choose">Choose design 2</button></div>
+  <p id="choice-status" class="selection-result" aria-live="polite"></p>
+</header>
+<main class="preview">
+  <section class="concept compact" id="concept-1" role="tabpanel" aria-labelledby="tab-1" hidden>
+    <div class="app" data-app="compact">
+      <div class="titlebar"><span>Macrofy</span><span class="window-actions" aria-hidden="true">— □ ×</span></div>
+      <div class="toolbar row spread"><h2>Auto clicker</h2><select aria-label="Compact profile" style="width:190px"><option>Quick click</option><option>CookieRun click</option></select></div>
+      <div class="body">
+        <div class="modebar"><label><span>Send clicks to</span><select data-target><option value="screen">Screen (default)</option><option value="window">CookieRun: Crumble — game window</option></select></label><button data-refresh>Refresh windows</button></div>
+        <p class="hint mode-note" data-mode-note>Uses your real pointer. Keep the intended app visible.</p>
+        <div class="fields" data-window-settings hidden style="margin-top:16px"><label><span>Window state</span><select><option>Minimized</option><option>Background</option></select></label><label><span>Click compatibility</span><select><option>Not tested</option><option>Observed working</option><option>Observed ignored</option></select></label></div>
+        <div class="separator"></div>
+        <h3>Click position</h3>
+        <div class="row"><label class="inline-label"><input type="radio" name="quick-position" value="pointer" checked><span>Current pointer</span></label><label class="inline-label"><input type="radio" name="quick-position" value="fixed"><span>Fixed point</span></label></div>
+        <div class="row" style="margin-top:12px"><label class="inline-field"><span>X</span><input type="number" value="480" aria-label="Compact X" data-x></label><label class="inline-field"><span>Y</span><input type="number" value="640" aria-label="Compact Y" data-y></label><button data-pick>Pick point</button></div>
+        <p class="hint" data-coordinate-label>Screen coordinates</p>
+        <div class="separator"></div>
+        <div class="fields three"><label><span>Mouse button</span><select><option>Left</option><option>Right</option><option>Middle</option></select></label><label><span>Click type</span><select><option>Single click</option><option>Double click</option></select></label><label><span>Interval (ms)</span><input type="number" min="10" value="250"></label></div>
+        <div class="row" style="margin-top:20px"><label class="inline-label"><input type="radio" name="quick-repeat" checked><span>Until stopped</span></label><label class="inline-label"><input type="radio" name="quick-repeat"><span>Repeat</span></label><input type="number" value="100" min="1" aria-label="Repeat count" style="width:95px"><span>times</span></div>
+        <div class="separator"></div>
+        <div class="row"><button class="primary" data-run>Start preview</button><button data-test>Test one click</button><button data-stop disabled>Stop</button></div>
+        <p class="status" data-status aria-live="polite">Ready · Screen selected</p>
+      </div>
+      <div class="footer row spread"><span class="hint">Start / stop <span class="key">F9</span> · Emergency stop <span class="key">F10</span></span><button data-advanced>Macro options</button></div>
+      <div class="body" data-advanced-panel hidden><h3>Later macro tools</h3><p class="hint">Recording and action editing open in a separate view. Quick clicks remain on this screen.</p></div>
+    </div>
+  </section>
+
+  <section class="concept" id="concept-2" role="tabpanel" aria-labelledby="tab-2">
+    <div class="app" data-app="workspace">
+      <div class="titlebar"><span>Macrofy</span><span class="hint">Profile: <span id="workspace-profile">CookieRun click</span></span><span class="window-actions" aria-hidden="true">— □ ×</span></div>
+      <div class="workspace">
+        <aside class="profiles"><h3>Profiles</h3><button class="profile" data-profile="click" aria-pressed="true">CookieRun click<small>One click · repeat</small></button><button class="profile" data-profile="combo" aria-pressed="false">Example combo<small>Keys · text · clicks</small></button><button class="profile" data-new>+ New profile</button></aside>
+        <div class="workspace-body">
+          <div class="workspace-target"><div class="fields"><label><span>Playback target</span><select data-target><option value="screen">Screen (default)</option><option value="window">CookieRun: Crumble — game window</option></select></label><label><span>Window state</span><select data-window-state disabled><option>Minimized</option><option>Background</option></select></label></div><p class="hint mode-note" data-mode-note>Uses your real pointer. Keep the intended app visible.</p></div>
+          <div class="tabs" role="tablist" aria-label="Workspace section"><button aria-selected="true" data-workspace-tab="actions">Actions</button><button aria-selected="false" data-workspace-tab="compatibility">Compatibility</button></div>
+          <div data-workspace-actions>
+            <div class="editor">
+              <section class="action-list">
+                <div class="row spread"><h3 style="margin:0">Action sequence</h3><button data-record>Record preview</button></div>
+                <table class="action-table"><thead><tr><th class="step">#</th><th>Action</th><th>Value</th><th class="timing">Wait after</th></tr></thead><tbody id="action-rows"></tbody></table>
+                <div class="row"><select id="add-type" aria-label="New action type" style="width:120px"><option>Click</option><option>Key</option><option>Text</option><option>Wait</option><option>Wheel</option></select><button id="add-action">Add action</button><button id="remove-action" class="small-action">Remove selected</button></div>
+              </section>
+              <aside class="action-detail"><h3 id="inspector-title">Edit click</h3><div class="detail-grid"><label><span>Action</span><select id="edit-kind"><option>Click</option><option>Key</option><option>Text</option><option>Wait</option><option>Wheel</option></select></label><label><span id="edit-value-label">Position / value</span><input id="edit-value" value="480, 640"></label><label><span>Wait after (ms)</span><input id="edit-delay" type="number" min="0" value="250"></label></div><button id="apply-action">Apply change</button><p class="hint" data-coordinate-label>Screen coordinates</p></aside>
+            </div>
+            <div class="workspace-footer"><div class="run-settings"><label><span>Repeat</span><select><option>Until stopped</option><option>100 times</option><option>Once</option></select></label><label><span>Interval between runs (ms)</span><input type="number" min="0" value="1000"></label></div><div class="row" style="margin-top:20px"><button class="primary" data-run>Run preview</button><button data-test>Test selected action</button><button data-stop disabled>Stop</button></div><p class="status" data-status aria-live="polite">Ready · 1 action · Screen selected</p></div>
+          </div>
+          <div class="body" data-workspace-compatibility hidden><h3>Window compatibility</h3><p>Screen clicks do not establish background or minimized support.</p><label><span>Window state to test</span><select id="compat-state"><option>Minimized</option><option>Background — visible</option><option>Background — covered</option></select></label><div class="row" style="margin-top:16px"><button id="compat-test">Preview one-click test</button><button id="compat-yes">Observed working</button><button id="compat-no">Observed ignored</button></div><p id="compat-result" class="status" aria-live="polite">CookieRun window · Unconfirmed sample state</p></div>
+          <div class="footer quick-summary"><span>Record <span class="key">F8</span></span><span>Play / stop <span class="key">F9</span></span><span>Emergency stop <span class="key">F10</span></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="concept guided" id="concept-3" role="tabpanel" aria-labelledby="tab-3" hidden>
+    <div class="app" data-app="guided">
+      <div class="titlebar"><span>Macrofy — New macro</span><span class="window-actions" aria-hidden="true">— □ ×</span></div>
+      <nav class="step-nav" aria-label="Setup steps"><button data-step="1" aria-current="step"><span>1</span>Destination</button><button data-step="2"><span>2</span>Actions</button><button data-step="3"><span>3</span>Run</button></nav>
+      <div class="guide-layout">
+        <div class="guide-main">
+          <section data-step-panel="1"><h2>Where should the macro run?</h2><label class="destination"><input type="radio" name="guide-destination" value="screen" checked><span>Screen (default)<small>Use the visible desktop and your real pointer.</small></span></label><label class="destination"><input type="radio" name="guide-destination" value="window"><span>A specific window<small>Try background or minimized playback.</small></span></label><div data-guide-window hidden style="margin-top:20px"><label><span>Choose window</span><select><option>CookieRun: Crumble — game window</option><option>Example application</option></select></label><p class="hint">Background and minimized support must be tested for each game.</p></div></section>
+          <section data-step-panel="2" hidden><h2>Add your first action</h2><label><span>Action type</span><select id="guide-action"><option>Click</option><option>Key shortcut</option><option>Type text</option><option>Wheel</option></select></label><div class="point-demo"><span id="guide-action-summary">Left click at (480, 640)</span><div class="row"><button data-pick>Pick point</button><button id="guide-record">Record actions instead</button></div></div><p class="hint" data-coordinate-label>Screen coordinates</p><label style="margin-top:20px"><span>Wait after action (ms)</span><input type="number" min="0" value="250"></label></section>
+          <section data-step-panel="3" hidden><h2>Test, then run</h2><div class="fields"><label><span>Repeat</span><select><option>Until stopped</option><option>Once</option><option>100 times</option></select></label><label><span>Interval (ms)</span><input type="number" min="10" value="1000"></label></div><p class="hint mode-note" data-mode-note>Uses your real pointer. Keep the intended app visible.</p><div class="row" style="margin-top:24px"><button data-test>Test one action</button><button class="primary" data-run>Run preview</button><button data-stop disabled>Stop</button></div><p class="status" data-status aria-live="polite">Ready · Screen selected</p></section>
+        </div>
+        <aside class="guide-aside"><h3>Your macro</h3><dl><dt>Destination</dt><dd id="guide-summary-target">Screen</dd><dt>Actions</dt><dd id="guide-summary-actions">1 click</dd><dt>Playback</dt><dd id="guide-summary-playback">Visible desktop</dd><dt>Emergency stop</dt><dd>F10</dd></dl></aside>
+      </div>
+      <div class="footer row spread"><button id="guide-back" disabled>Back</button><span id="guide-step-count" class="hint">Step 1 of 3</span><button id="guide-next" class="primary">Next: Actions</button></div>
+    </div>
+  </section>
+</main>
+<footer class="explainer"><span>All controls change sample previews only.</span><span id="selection-footer">Your choice will be saved in this browser. Tell Codex the design number to implement.</span></footer>
+<script>
+(() => {
+  const descriptions = {
+    1: '<strong>Fastest for everyday clicks.</strong> Small window and few controls. Full macro editing opens separately.',
+    2: '<strong>Recommended for full macros.</strong> Profiles, action list and settings stay together. More controls are visible.',
+    3: '<strong>Easiest for first-time setup.</strong> Destination, actions and run settings appear in three steps. More navigation for frequent edits.'
+  };
+  let current = 2;
+  const choose = document.getElementById('choose');
+  const choiceStatus = document.getElementById('choice-status');
+  function selectOption(number) {
+    current = number;
+    document.querySelectorAll('[data-option]').forEach(b => b.setAttribute('aria-selected', String(+b.dataset.option === number)));
+    [1,2,3].forEach(n => document.getElementById('concept-' + n).hidden = n !== number);
+    document.getElementById('option-description').innerHTML = descriptions[number];
+    choose.textContent = 'Choose design ' + number;
+  }
+  document.querySelectorAll('[data-option]').forEach(b => b.addEventListener('click', () => selectOption(+b.dataset.option)));
+  function rememberChoice(number) {
+    try { localStorage.setItem('macrofy-ui-choice', String(number)); } catch {}
+    choiceStatus.textContent = 'Selected: design ' + number + ' — ' + document.getElementById('tab-' + number).textContent.split('. ')[1] + '. Tell Codex “Use design ' + number + '”.';
+  }
+  choose.addEventListener('click', () => rememberChoice(current));
+  try { const saved = +localStorage.getItem('macrofy-ui-choice'); if ([1,2,3].includes(saved)) { selectOption(saved); rememberChoice(saved); } } catch {}
+
+  const modes = new WeakMap();
+  const timers = new WeakMap();
+  function applyMode(app, mode) {
+    modes.set(app, mode);
+    app.querySelectorAll('[data-mode-note]').forEach(n => n.textContent = mode === 'screen' ? 'Uses your real pointer. Keep the intended app visible.' : 'Clicks only the chosen window. Background / minimized support is unconfirmed.');
+    app.querySelectorAll('[data-coordinate-label]').forEach(n => n.textContent = mode === 'screen' ? 'Screen coordinates' : 'Window client coordinates');
+    app.querySelectorAll('[data-window-settings]').forEach(n => n.hidden = mode !== 'window');
+    app.querySelectorAll('[data-window-state]').forEach(n => n.disabled = mode !== 'window');
+    const pointer = app.querySelector('[name="quick-position"][value="pointer"]');
+    if (pointer) { pointer.disabled = mode === 'window'; if (mode === 'window') app.querySelector('[name="quick-position"][value="fixed"]').checked = true; }
+    const status = app.querySelector('[data-status]'); if (status) status.textContent = 'Ready · ' + (mode === 'screen' ? 'Screen' : 'CookieRun window') + ' selected';
+  }
+  document.querySelectorAll('[data-app]').forEach(app => {
+    applyMode(app, 'screen');
+    const target = app.querySelector('[data-target]');
+    if (target) target.addEventListener('change', () => applyMode(app, target.value));
+    app.querySelectorAll('[data-refresh]').forEach(b => b.addEventListener('click', () => app.querySelector('[data-status]').textContent = 'Sample window list refreshed. Screen remains available.'));
+    app.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
+      const x = app.querySelector('[data-x]'), y = app.querySelector('[data-y]');
+      if (x) x.value = '480'; if (y) y.value = '640';
+      const fixed = app.querySelector('[name="quick-position"][value="fixed"]'); if (fixed) fixed.checked = true;
+      const status = app.querySelector('[data-status]'); if (status) status.textContent = 'Sample point chosen: (480, 640). No real pointer was read.';
+      if (app.dataset.app === 'guided') { document.getElementById('guide-action-summary').textContent = 'Left click at (480, 640)'; document.getElementById('guide-summary-actions').textContent = '1 click'; }
+    }));
+    function finish(message) { clearTimeout(timers.get(app)); app.querySelectorAll('[data-run],[data-test]').forEach(b => b.disabled = false); app.querySelectorAll('[data-stop]').forEach(b => b.disabled = true); app.querySelector('[data-status]').textContent = message; }
+    app.querySelectorAll('[data-run],[data-test]').forEach(b => b.addEventListener('click', () => {
+      app.querySelectorAll('[data-run],[data-test]').forEach(c => c.disabled = true); app.querySelectorAll('[data-stop]').forEach(c => c.disabled = false);
+      app.querySelector('[data-status]').textContent = 'Preview running · ' + (modes.get(app) === 'screen' ? 'Screen' : 'CookieRun window') + ' · Stop available';
+      timers.set(app, setTimeout(() => finish('Preview finished. No desktop input was sent.'), 1800));
+    }));
+    app.querySelectorAll('[data-stop]').forEach(b => b.addEventListener('click', () => finish('Preview stopped.')));
+  });
+  document.querySelector('[data-advanced]').addEventListener('click', () => { const panel = document.querySelector('[data-advanced-panel]'); panel.hidden = !panel.hidden; });
+
+  let actions = [{kind:'Click',value:'480, 640',delay:250}];
+  let selected = 0;
+  const actionRows = document.getElementById('action-rows');
+  function editSelection() {
+    const action = actions[selected];
+    document.getElementById('inspector-title').textContent = action ? 'Edit ' + action.kind.toLowerCase() : 'No action selected';
+    document.getElementById('edit-kind').value = action?.kind || 'Click';
+    document.getElementById('edit-value').value = action?.value || '';
+    document.getElementById('edit-delay').value = action?.delay || 0;
+    document.getElementById('apply-action').disabled = !action;
+    document.getElementById('remove-action').disabled = !action;
+  }
+  function renderActions() {
+    actionRows.replaceChildren();
+    actions.forEach((action, i) => {
+      const row = document.createElement('tr'); row.classList.toggle('selected', i === selected);
+      const order = document.createElement('td'); order.className = 'step'; order.textContent = i + 1;
+      const type = document.createElement('td'); const button = document.createElement('button'); button.className = 'action-select'; button.textContent = action.kind; button.setAttribute('aria-label', 'Edit action ' + (i + 1) + ': ' + action.kind); button.addEventListener('click', () => { selected = i; renderActions(); }); type.append(button);
+      const value = document.createElement('td'); value.textContent = action.value;
+      const delay = document.createElement('td'); delay.className = 'timing'; delay.textContent = action.delay + ' ms';
+      row.append(order, type, value, delay); actionRows.append(row);
+    }); editSelection();
+    document.querySelector('[data-app="workspace"] [data-status]').textContent = 'Ready · ' + actions.length + ' action' + (actions.length === 1 ? '' : 's') + ' · ' + (modes.get(document.querySelector('[data-app="workspace"]')) === 'screen' ? 'Screen' : 'CookieRun window');
+  }
+  document.getElementById('add-action').addEventListener('click', () => { const kind = document.getElementById('add-type').value; actions.push({kind,value:kind === 'Click' ? '480, 640' : kind === 'Key' ? 'Ctrl + K' : kind === 'Text' ? 'Hello' : kind === 'Wheel' ? '120' : '1000 ms',delay:100}); selected = actions.length - 1; renderActions(); });
+  document.getElementById('remove-action').addEventListener('click', () => { if (selected < 0) return; actions.splice(selected, 1); selected = actions.length ? Math.min(selected, actions.length - 1) : -1; renderActions(); });
+  document.getElementById('apply-action').addEventListener('click', () => { if (!actions[selected]) return; actions[selected] = {kind:document.getElementById('edit-kind').value,value:document.getElementById('edit-value').value,delay:Math.max(0, +document.getElementById('edit-delay').value || 0)}; renderActions(); });
+  document.querySelectorAll('[data-profile]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-profile]').forEach(p => p.setAttribute('aria-pressed', String(p === b)));
+    actions = b.dataset.profile === 'click' ? [{kind:'Click',value:'480, 640',delay:250}] : [{kind:'Key',value:'Ctrl + K',delay:150},{kind:'Text',value:'Hello',delay:100},{kind:'Key',value:'Enter',delay:300},{kind:'Click',value:'480, 640',delay:250}];
+    document.getElementById('workspace-profile').textContent = b.dataset.profile === 'click' ? 'CookieRun click' : 'Example combo'; selected = 0; renderActions();
+  }));
+  document.querySelector('[data-new]').addEventListener('click', () => { actions = []; selected = -1; document.getElementById('workspace-profile').textContent = 'Untitled macro'; document.querySelectorAll('[data-profile]').forEach(p => p.setAttribute('aria-pressed','false')); renderActions(); });
+  document.querySelector('[data-record]').addEventListener('click', () => { actions.push({kind:'Click',value:'480, 640',delay:250},{kind:'Key',value:'Space',delay:100}); selected = actions.length - 1; renderActions(); document.querySelector('[data-app="workspace"] [data-status]').textContent = 'Added 2 sample recorded actions. No keys or mouse were captured.'; });
+  document.querySelectorAll('[data-workspace-tab]').forEach(b => b.addEventListener('click', () => { const isActions = b.dataset.workspaceTab === 'actions'; document.querySelector('[data-workspace-actions]').hidden = !isActions; document.querySelector('[data-workspace-compatibility]').hidden = isActions; document.querySelectorAll('[data-workspace-tab]').forEach(t => t.setAttribute('aria-selected',String(t === b))); }));
+  document.getElementById('compat-test').addEventListener('click', () => document.getElementById('compat-result').textContent = 'Sample test queued. Choose what you observed; no real input was sent.');
+  document.getElementById('compat-yes').addEventListener('click', () => document.getElementById('compat-result').textContent = 'Sample observation: working — ' + document.getElementById('compat-state').value);
+  document.getElementById('compat-no').addEventListener('click', () => document.getElementById('compat-result').textContent = 'Sample observation: ignored — ' + document.getElementById('compat-state').value);
+  renderActions();
+
+  let step = 1;
+  const guideApp = document.querySelector('[data-app="guided"]');
+  function setStep(next) {
+    step = Math.max(1,Math.min(3,next)); document.querySelectorAll('[data-step-panel]').forEach(p => p.hidden = +p.dataset.stepPanel !== step);
+    document.querySelectorAll('[data-step]').forEach(b => { if (+b.dataset.step === step) b.setAttribute('aria-current','step'); else b.removeAttribute('aria-current'); });
+    document.getElementById('guide-back').disabled = step === 1;
+    document.getElementById('guide-next').textContent = step === 1 ? 'Next: Actions' : step === 2 ? 'Next: Run' : 'Save sample macro';
+    document.getElementById('guide-step-count').textContent = 'Step ' + step + ' of 3';
+  }
+  document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => setStep(+b.dataset.step)));
+  document.getElementById('guide-back').addEventListener('click', () => setStep(step - 1));
+  document.getElementById('guide-next').addEventListener('click', () => { if (step < 3) setStep(step + 1); else document.querySelector('[data-app="guided"] [data-status]').textContent = 'Sample macro saved in this preview. No app profile was created.'; });
+  document.querySelectorAll('[name="guide-destination"]').forEach(r => r.addEventListener('change', () => { if (!r.checked) return; const mode = r.value; applyMode(guideApp, mode); document.querySelector('[data-guide-window]').hidden = mode !== 'window'; document.getElementById('guide-summary-target').textContent = mode === 'screen' ? 'Screen' : 'CookieRun window'; document.getElementById('guide-summary-playback').textContent = mode === 'screen' ? 'Visible desktop' : 'Minimized · unconfirmed'; }));
+  document.getElementById('guide-action').addEventListener('change', event => { const action = event.target.value; document.getElementById('guide-action-summary').textContent = action === 'Click' ? 'Left click at (480, 640)' : action === 'Key shortcut' ? 'Ctrl + K' : action === 'Type text' ? 'Type “Hello”' : 'Scroll 120'; document.getElementById('guide-summary-actions').textContent = '1 ' + action.toLowerCase(); });
+  document.getElementById('guide-record').addEventListener('click', () => { document.getElementById('guide-action-summary').textContent = 'Recorded sample: click → Space'; document.getElementById('guide-summary-actions').textContent = '2 recorded sample actions'; });
+  document.addEventListener('keydown', event => { if (event.key === 'F10') { event.preventDefault(); document.querySelectorAll('[data-stop]').forEach(b => { if (!b.disabled) b.click(); }); } });
+})();
+</script>
+</body>
+</html>

@@ -111,7 +111,9 @@ Keyboard shortcuts are editable down/up sequences. Type Text can be added manual
 
 ## 7. Background playback and compatibility
 
-Windows playback sends targeted mouse/keyboard/character messages to the selected input window. It does not use global `SendInput`, cursor movement, foreground activation, focus stealing, drivers, or injection as fallbacks.
+Windows window playback sends targeted mouse/keyboard/character messages to the selected input window. It does not use global `SendInput`, cursor movement, foreground activation, focus stealing, drivers, or injection as fallbacks.
+
+User scope update (2026-09-29): no chosen window means Screen mode by default. The early probe now offers an explicit Screen selection, screen pointer capture and one left click after a three-second countdown. This mode uses SendInput and moves the real pointer; the intended content must be visible. Selecting a window uses the existing targeted backend. A lost/unavailable selected window never falls back to Screen mode. Switching modes clears coordinates. Screen injection results do not establish minimized/background compatibility. Full screen macros/recording remain later work after the user chooses a UI concept.
 
 Background and minimized operation are attempted only for compatible targets. A target may ignore messages, use a different input path, or stop updating while minimized. These conditions cannot always be detected automatically.
 
