@@ -1,0 +1,75 @@
+using System.Collections.Concurrent;
+using Macrofy.Platform.Models;
+using Macrofy.Platform.Windows;
+using Macrofy.Platform.Windows.Interop;
+using Xunit;
+
+namespace Macrofy.Platform.Windows.Tests;
+public class GlobalHotkeyTests
+{
+    static HotkeySet Defaults => new(new("F9"), new("F8"), new("F10"));
+    [Fact] public void RegistersNoRepeatAndRoutesCommands()
+    {
+        var native = new FakeNative(); using var service = new WindowsGlobalHotkeys(native);
+        Assert.True(service.Configure(Defaults).Registered);
+        Assert.All(native.Keys.Values, k => Assert.Equal(0x4000u, k.Modifiers));
+        var commands = new ConcurrentQueue<HotkeyCommand>(); service.Triggered += commands.Enqueue;
+        foreach (var key in new uint[] { 120, 119, 121 }) native.Messages.Enqueue((0x312, (nuint)native.Keys.Single(x => x.Value.Key == key).Key));
+        Assert.True(SpinWait.SpinUntil(() => commands.Count == 3, 1000));
+        Assert.Equal(new[] { HotkeyCommand.Run, HotkeyCommand.Pause, HotkeyCommand.Stop }, commands.ToArray());
+    }
+    [Theory] [InlineData("F12")] [InlineData("F13")] [InlineData("A")] [InlineData("F8")]
+    public void InvalidSetKeepsOldStop(string key)
+    {
+        var native = new FakeNative(); using var service = new WindowsGlobalHotkeys(native); Assert.True(service.Configure(Defaults).Registered);
+        var result = service.Configure(Defaults with { Run = new(key) }); Assert.False(result.Registered);
+        Assert.Contains(key, result.Error!.Message); Assert.Contains(native.Keys.Values, k => k.Key == 121);
+        if (key == "F12") Assert.Contains("debugger", result.Error.Message);
+    }
+    [Fact] public void FailedAddedBindingRetainsEntireOldSet()
+    {
+        var native = new FakeNative(); using var service = new WindowsGlobalHotkeys(native); service.Configure(Defaults);
+        native.FailKey = 114; var result = service.Configure(new(new("F6"), new("F8"), new("F3")));
+        Assert.False(result.Registered); Assert.Contains("Stop", result.Error!.Message); Assert.Contains("F3", result.Error.Message);
+        Assert.Equal(new uint[] {119,120,121}, native.Keys.Values.Select(k => k.Key).Order().ToArray());
+    }
+    [Fact] public void SwapsReuseRegistrationsAndDisposeReleasesAll()
+    {
+        var native = new FakeNative(); var service = new WindowsGlobalHotkeys(native); service.Configure(Defaults);
+        native.FailKey = 120; Assert.True(service.Configure(new(new("F10"), new("F8"), new("F9"))).Registered);
+        service.Dispose(); service.Dispose(); Assert.Empty(native.Keys); Assert.True(native.Closed);
+    }
+    [Fact] public void SuspendDeduplicatesAndSubscriberFailureIsIsolated()
+    {
+        var native = new FakeNative(); using var service = new WindowsGlobalHotkeys(native); var count = 0;
+        service.Suspended += () => throw new Exception(); service.Suspended += () => Interlocked.Increment(ref count);
+        native.Messages.Enqueue((0x218,4)); native.Messages.Enqueue((0x218,4));
+        Assert.True(SpinWait.SpinUntil(() => count == 1,1000));
+        native.Messages.Enqueue((0x218,18)); native.Messages.Enqueue((0x218,4));
+        Assert.True(SpinWait.SpinUntil(() => count == 2,1000));
+    }
+    [Fact] public void StartupFailureAndDisposedConfigureReturnErrors()
+    {
+        using var service = new WindowsGlobalHotkeys(new FakeNative { StartupThrows = true });
+        Assert.False(service.Configure(Defaults).Registered); service.Dispose(); Assert.False(service.Configure(Defaults).Registered);
+    }
+    [Fact] public void HotkeySubscriberCanReconfigureWithoutDeadlock()
+    {
+        var native = new FakeNative(); using var service = new WindowsGlobalHotkeys(native); service.Configure(Defaults);
+        HotkeyRegistrationResult? result = null;
+        service.Triggered += _ => result = service.Configure(Defaults);
+        native.Messages.Enqueue((0x312,(nuint)native.Keys.Single(k => k.Value.Key == 121).Key));
+        Assert.True(SpinWait.SpinUntil(() => result is not null,3000)); Assert.True(result!.Registered);
+    }
+    sealed class FakeNative : IHotkeyNative
+    {
+        public ConcurrentDictionary<int,(uint Modifiers,uint Key)> Keys = new();
+        public ConcurrentQueue<(uint,nuint)> Messages = new(); public uint FailKey; public bool StartupThrows, Closed;
+        public void Initialize() { if(StartupThrows) throw new InvalidOperationException("startup failed"); }
+        public bool Register(int id,uint modifiers,uint key,out int error) { error=1409; if(key==FailKey) return false; return Keys.TryAdd(id,(modifiers,key)); }
+        public void Unregister(int id) => Keys.TryRemove(id,out _);
+        public void Pump(Action<uint,nuint> callback) { while(Messages.TryDequeue(out var m)) callback(m.Item1,m.Item2); }
+        public void Dispose() => Closed=true;
+    }
+}
+
