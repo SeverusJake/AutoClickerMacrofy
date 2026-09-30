@@ -11,6 +11,7 @@ public sealed class CompatibilityAttempt : IDisposable
     private readonly object sync = new();
     private bool confirming;
     private bool discarded;
+    private bool persistenceStarted;
     internal object Owner { get; }
     internal TargetContext Context { get; }
     internal bool BeginConfirmation()
@@ -19,7 +20,16 @@ public sealed class CompatibilityAttempt : IDisposable
     }
     internal void EndConfirmation(bool completed)
     {
-        lock (sync) { confirming = false; if (completed || discarded) Release(); }
+        lock (sync) { confirming = false; if (!completed) persistenceStarted = false; if (completed || discarded) Release(); }
+    }
+    internal bool TryBeginPersistence()
+    {
+        lock (sync)
+        {
+            if (!confirming || discarded || persistenceStarted) return false;
+            persistenceStarted = true;
+            return true;
+        }
     }
     public Guid SavedAppId { get; }
     public TargetToken Token => Context.Window.Token;

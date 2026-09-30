@@ -11,7 +11,12 @@ public class CompatibilityServiceTests
     private sealed class ContextSource : ITargetContext
     {
         public TargetContext? Context;
-        public ValueTask<TargetContextResult> GetAsync(TargetToken target, CancellationToken cancellationToken = default) => ValueTask.FromResult(new TargetContextResult(Context));
+        public TaskCompletionSource? LookupGate;
+        public async ValueTask<TargetContextResult> GetAsync(TargetToken target, CancellationToken cancellationToken = default)
+        {
+            if (LookupGate is not null) await LookupGate.Task.WaitAsync(cancellationToken);
+            return new TargetContextResult(Context);
+        }
     }
     private sealed class Lease(Action? release = null) : IDisposable { public void Dispose() => release?.Invoke(); }
     private sealed class Fixture
@@ -24,8 +29,113 @@ public class CompatibilityServiceTests
         public bool Busy;
         public bool SaveFails;
         public Fixture() => Source.Context = new(new(Token, new("CookieRun", Document.Profiles[0].Apps[0].Executable), "CookieRun: Crumble - Idle RPG", true, new(800, 600, 1)), false, "surface");
-        public CompatibilityService Service() => new(Document, Source, () => Busy ? null : new Lease(), (_, _, _) => ValueTask.FromResult(Result), (_, _) => SaveFails ? Task.FromException(new IOException("save conflict")) : Task.CompletedTask);
+        public CompatibilityService Service() => new(Document, Source, () => Busy ? null : new Lease(), (_, _, _) => ValueTask.FromResult(Result), (snapshot, publish, _) =>
+        {
+            if (SaveFails) return Task.FromException(new IOException("save conflict"));
+            snapshot(); publish(); return Task.CompletedTask;
+        });
         public CompiledAction Click = new CompiledAction.Click(new(20, 30), CoordinateMode.FixedPixels, 0);
+    }
+    [Fact]
+    public async Task PendingSuccessNeverAuthorizesOrLeaksThroughUnrelatedWorkspaceSave()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "macrofy-pending-" + Guid.NewGuid());
+        try
+        {
+            var f = new Fixture(); var store = new WorkspaceStore(folder);
+            var saving = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var service = new CompatibilityService(f.Document, f.Source, () => new Lease(),
+                (_, _, _) => ValueTask.FromResult(f.Result), async (snapshot, publish, _) => { await saving.Task; snapshot(); publish(); });
+            var attempt = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
+            var confirmation = service.ConfirmAsync(attempt, true, TestContext.Current.CancellationToken);
+            Assert.False(service.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+            f.Document.Mode = "dark";
+            store.Save(f.Document);
+            var saved = new WorkspaceStore(folder).Load();
+            Assert.Equal("dark", saved.Mode);
+            Assert.Empty(saved.CompatibilityEvidence);
+            saving.SetException(new IOException("save conflict"));
+            await Assert.ThrowsAsync<IOException>(() => confirmation);
+            Assert.Empty(f.Document.CompatibilityEvidence);
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+    [Fact]
+    public async Task DiscardDuringTargetLookupAbortsBeforePersistence()
+    {
+        var f = new Fixture(); var saves = 0;
+        var service = new CompatibilityService(f.Document, f.Source, () => new Lease(),
+            (_, _, _) => ValueTask.FromResult(f.Result), (snapshot, publish, _) => { saves++; snapshot(); publish(); return Task.CompletedTask; });
+        var attempt = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Source.LookupGate = gate;
+        var confirmation = service.ConfirmAsync(attempt, true, TestContext.Current.CancellationToken);
+        attempt.Dispose();
+        gate.SetResult();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => confirmation);
+        Assert.Equal(0, saves);
+        Assert.Empty(f.Document.CompatibilityEvidence);
+        Assert.False(service.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+    }
+    [Fact]
+    public async Task DelayedCandidateSaveKeepsUnrelatedWorkspaceEditsAndEvidence()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "macrofy-rebase-" + Guid.NewGuid());
+        try
+        {
+            var f = new Fixture(); var store = new WorkspaceStore(folder); store.Save(f.Document);
+            var saving = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var service = new CompatibilityService(f.Document, f.Source, () => new Lease(),
+                (_, _, _) => ValueTask.FromResult(f.Result), async (snapshot, publish, _) =>
+                {
+                    await saving.Task;
+                    store.Save(snapshot()); publish();
+                });
+            var attempt = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
+            var confirmation = service.ConfirmAsync(attempt, true, TestContext.Current.CancellationToken);
+            f.Document.Mode = "dark";
+            f.Document.Profiles[0].Name = "Updated profile";
+            store.Save(f.Document);
+            saving.SetResult();
+            await confirmation;
+            var reopened = new WorkspaceStore(folder).Load();
+            Assert.Equal("dark", reopened.Mode);
+            Assert.Equal("Updated profile", reopened.Profiles[0].Name);
+            Assert.True(Assert.Single(reopened.CompatibilityEvidence).ObservedSuccess);
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+    [Fact]
+    public async Task PendingNegativeObservationBlocksEarlierSuccessUntilFailedSaveRestoresIt()
+    {
+        var f = new Fixture(); var initial = f.Service();
+        var first = await initial.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
+        await initial.ConfirmAsync(first, true, TestContext.Current.CancellationToken);
+        var saving = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var service = new CompatibilityService(f.Document, f.Source, () => new Lease(),
+            (_, _, _) => ValueTask.FromResult(f.Result), async (snapshot, publish, _) => { await saving.Task; snapshot(); publish(); });
+        var second = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
+        var confirmation = service.ConfirmAsync(second, false, TestContext.Current.CancellationToken);
+        Assert.False(service.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+        saving.SetException(new IOException("save conflict"));
+        await Assert.ThrowsAsync<IOException>(() => confirmation);
+        Assert.True(service.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+    }
+    [Fact]
+    public async Task KeyAndShortcutEvidenceDoNotAuthorizeEachOther()
+    {
+        var key = new CompiledAction.Key([new("K")], 0);
+        var shortcut = new CompiledAction.Key([new("Ctrl"), new("K")], 0);
+        var keyFixture = new Fixture(); var keyService = keyFixture.Service();
+        var keyAttempt = await keyService.BeginAttemptAsync(keyFixture.AppId, keyFixture.Token, TargetState.Minimized, key, TestContext.Current.CancellationToken);
+        await keyService.ConfirmAsync(keyAttempt, true, TestContext.Current.CancellationToken);
+        Assert.True(keyService.IsConfirmed(keyFixture.AppId, keyFixture.Source.Context!, TargetState.Minimized, InputCapability.Key, true));
+        Assert.False(keyService.IsConfirmed(keyFixture.AppId, keyFixture.Source.Context!, TargetState.Minimized, InputCapability.Shortcut, true));
+        var shortcutFixture = new Fixture(); var shortcutService = shortcutFixture.Service();
+        var shortcutAttempt = await shortcutService.BeginAttemptAsync(shortcutFixture.AppId, shortcutFixture.Token, TargetState.Minimized, shortcut, TestContext.Current.CancellationToken);
+        await shortcutService.ConfirmAsync(shortcutAttempt, true, TestContext.Current.CancellationToken);
+        Assert.True(shortcutService.IsConfirmed(shortcutFixture.AppId, shortcutFixture.Source.Context!, TargetState.Minimized, InputCapability.Shortcut, true));
+        Assert.False(shortcutService.IsConfirmed(shortcutFixture.AppId, shortcutFixture.Source.Context!, TargetState.Minimized, InputCapability.Key, true));
     }
     [Fact]
     public async Task PendingObservationAndSaveKeepExclusiveLeaseUntilConfirmationOrDiscard()
@@ -34,7 +144,7 @@ public class CompatibilityServiceTests
         var saving = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var service = new CompatibilityService(f.Document, f.Source,
             () => { if (occupied) return null; occupied = true; return new Lease(() => occupied = false); },
-            (_, _, _) => ValueTask.FromResult(new GestureResult(new(true))), (_, _) => saving.Task);
+            (_, _, _) => ValueTask.FromResult(new GestureResult(new(true))), async (snapshot, publish, _) => { await saving.Task; snapshot(); publish(); });
         var attempt = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
         Assert.True(occupied);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken));
@@ -52,7 +162,7 @@ public class CompatibilityServiceTests
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         var service = new CompatibilityService(f.Document, f.Source,
             () => { occupied = true; return new Lease(() => occupied = false); },
-            (_, _, _) => { cancellation.Cancel(); return ValueTask.FromResult(new GestureResult(new(true))); }, (_, _) => Task.CompletedTask);
+            (_, _, _) => { cancellation.Cancel(); return ValueTask.FromResult(new GestureResult(new(true))); }, (snapshot, publish, _) => { snapshot(); publish(); return Task.CompletedTask; });
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, cancellation.Token));
         Assert.False(occupied); Assert.Empty(f.Document.CompatibilityEvidence);
     }
@@ -71,12 +181,12 @@ public class CompatibilityServiceTests
         {
             var f = new Fixture(); var store = new WorkspaceStore(folder);
             var service = new CompatibilityService(f.Document, f.Source, () => new Lease(), (_, _, _) => ValueTask.FromResult(new GestureResult(new(true))),
-                (document, _) => { store.Save(document); return Task.CompletedTask; });
+                (snapshot, publish, _) => { store.Save(snapshot()); publish(); return Task.CompletedTask; });
             var attempt = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
             await service.ConfirmAsync(attempt, true, TestContext.Current.CancellationToken);
             var reopened = new WorkspaceStore(folder).Load();
             var saved = Assert.Single(reopened.CompatibilityEvidence); Assert.True(saved.ObservedSuccess); Assert.Equal(InputCapability.Click, saved.Capability);
-            var restored = new CompatibilityService(reopened, f.Source, () => new Lease(), (_, _, _) => ValueTask.FromResult(f.Result), (_, _) => Task.CompletedTask);
+            var restored = new CompatibilityService(reopened, f.Source, () => new Lease(), (_, _, _) => ValueTask.FromResult(f.Result), (snapshot, publish, _) => { snapshot(); publish(); return Task.CompletedTask; });
             Assert.True(restored.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
         }
         finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }

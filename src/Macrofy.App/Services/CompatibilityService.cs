@@ -5,18 +5,30 @@ using Macrofy.Platform;
 using Macrofy.Platform.Models;
 using System.Text.RegularExpressions;
 namespace Macrofy.App.Services;
+// Task 7 integration contract: on the Avalonia dispatcher, call createSnapshot()
+// immediately before WorkspaceStore.Save(snapshot), then publish() immediately
+// after it succeeds. Do not await between these calls. Ordinary workspace edits
+// and saves must use the same dispatcher so the snapshot and publication stay
+// serialized with them. On save failure, do not publish; propagate the error.
+public delegate Task CompatibilityPersistence(Func<WorkspaceDocument> createSnapshot, Action publish, CancellationToken cancellationToken);
 public sealed class CompatibilityService(WorkspaceDocument document, ITargetContext targets,
     Func<IDisposable?> acquireTestLease,
     Func<PlaybackBinding, CompiledAction, CancellationToken, ValueTask<GestureResult>> sendGesture,
-    Func<WorkspaceDocument, CancellationToken, Task> persist)
+    CompatibilityPersistence persist)
 {
     private readonly SemaphoreSlim confirmationGate = new(1, 1);
+    private readonly object evidenceSync = new();
+    private readonly HashSet<(Guid AppId, TargetState State, InputCapability Capability)> pending = [];
     public bool IsConfirmed(Guid appId, TargetContext context, TargetState state, InputCapability capability, bool fixedCoordinates)
     {
         if (!ValidContext(appId, context, state, true)) return false;
-        var evidence = document.CompatibilityEvidence.LastOrDefault(e => e.SavedAppId == appId && e.State == state && e.Capability == capability);
-        return evidence is { ObservedSuccess: true } && evidence.App == context.Window.App && evidence.Title == context.Window.Title &&
-            evidence.SurfaceFingerprint == context.SurfaceFingerprint && (!fixedCoordinates || evidence.Geometry == context.Window.Geometry);
+        lock (evidenceSync)
+        {
+            if (pending.Contains((appId, state, capability))) return false;
+            var evidence = document.CompatibilityEvidence.LastOrDefault(e => e.SavedAppId == appId && e.State == state && e.Capability == capability);
+            return evidence is { ObservedSuccess: true } && evidence.App == context.Window.App && evidence.Title == context.Window.Title &&
+                evidence.SurfaceFingerprint == context.SurfaceFingerprint && (!fixedCoordinates || evidence.Geometry == context.Window.Geometry);
+        }
     }
     public async Task<CompatibilityAttempt> BeginAttemptAsync(Guid appId, TargetToken token, TargetState state, CompiledAction action, CancellationToken cancellationToken)
     {
@@ -42,21 +54,57 @@ public sealed class CompatibilityService(WorkspaceDocument document, ITargetCont
         await confirmationGate.WaitAsync(cancellationToken);
         var started = false;
         var completed = false;
+        var pendingKey = (attempt.SavedAppId, attempt.State, attempt.Capability);
         try
         {
             if (attempt.Owner != this || !Delivered(attempt.Result) || !(started = attempt.BeginConfirmation())) throw new InvalidOperationException("Only pending, delivered and cleaned tests can be confirmed.");
+            lock (evidenceSync) pending.Add(pendingKey);
             var context = (await targets.GetAsync(attempt.Token, cancellationToken)).Context;
             if (context is null || context.Window.Token != attempt.Token || !ValidContext(attempt.SavedAppId, context, attempt.State, false) || context.Window.App != attempt.Context.Window.App || context.Window.Title != attempt.Context.Window.Title || context.SurfaceFingerprint != attempt.Fingerprint || context.Window.Geometry != attempt.Geometry)
             { attempt.Dispose(); throw new InvalidOperationException("Test target closed or changed before confirmation."); }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!attempt.TryBeginPersistence()) throw new InvalidOperationException("Test observation was discarded before persistence.");
             var evidence = new CompatibilityEvidence(attempt.SavedAppId, context.Window.App, context.Window.Title, attempt.Fingerprint, attempt.State, attempt.Capability, attempt.Geometry!, DateTimeOffset.UtcNow, observedSuccess);
-            var previous = document.CompatibilityEvidence.ToList();
-            document.CompatibilityEvidence.RemoveAll(e => e.SavedAppId == attempt.SavedAppId && e.State == attempt.State && e.Capability == attempt.Capability);
-            document.CompatibilityEvidence.Add(evidence);
-            try { await persist(document, cancellationToken); }
-            catch { document.CompatibilityEvidence = previous; throw; }
+            WorkspaceDocument? candidate = null;
+            var published = false;
+            WorkspaceDocument CreateSnapshot()
+            {
+                if (candidate is not null) throw new InvalidOperationException("Compatibility snapshot already created.");
+                lock (evidenceSync)
+                {
+                    var next = document.CompatibilityEvidence.Where(e => e.SavedAppId != attempt.SavedAppId || e.State != attempt.State || e.Capability != attempt.Capability).ToList();
+                    next.Add(evidence);
+                    candidate = new WorkspaceDocument
+                    {
+                        Version = document.Version, Theme = document.Theme, Mode = document.Mode,
+                        Shortcuts = document.Shortcuts, ActiveProfileId = document.ActiveProfileId,
+                        Profiles = document.Profiles, CompatibilityEvidence = next
+                    };
+                    return candidate;
+                }
+            }
+            void Publish()
+            {
+                lock (evidenceSync)
+                {
+                    if (candidate is null || published) throw new InvalidOperationException("Compatibility snapshot must be saved exactly once before publication.");
+                    document.CompatibilityEvidence = candidate.CompatibilityEvidence;
+                    published = true;
+                }
+            }
+            await persist(CreateSnapshot, Publish, cancellationToken);
+            if (!published) throw new InvalidOperationException("Compatibility persistence returned without publishing saved evidence.");
             completed = true; return evidence;
         }
-        finally { if (started) attempt.EndConfirmation(completed); confirmationGate.Release(); }
+        finally
+        {
+            if (started)
+            {
+                lock (evidenceSync) pending.Remove(pendingKey);
+                attempt.EndConfirmation(completed);
+            }
+            confirmationGate.Release();
+        }
     }
     private static bool Delivered(GestureResult result) => result.Delivery.Queued && result.Delivery.Error is null && result.Delivery.CleanupError is null && result.CleanupError is null;
     private bool ValidContext(Guid appId, TargetContext context, TargetState state, bool requireState)
