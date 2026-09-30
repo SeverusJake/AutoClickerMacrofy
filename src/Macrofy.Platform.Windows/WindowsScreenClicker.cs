@@ -44,6 +44,7 @@ public sealed class WindowsScreenClicker : IScreenClicker
                     var released = inserted != 2 || native.Send([new(0, 0, 4)]) == 1;
                     result = Failure(released ? "DeliveryFailed" : "CleanupFailed",
                         $"Windows inserted {inserted} of 3 screen events. Input may be blocked by application permissions.{(released ? "" : " Left-button release also failed.")}");
+                    if (!released) result = result with { CleanupError = new("CleanupFailed", "Left-button release also failed.") };
                 }
             }
         }
@@ -51,3 +52,4 @@ public sealed class WindowsScreenClicker : IScreenClicker
     }
     private static DeliveryResult Failure(string code, string message) => new(false, new(code, message));
 }
+
