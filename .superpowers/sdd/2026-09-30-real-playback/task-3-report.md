@@ -73,3 +73,28 @@ Final suite command: `dotnet test Macrofy.sln -c Release`.
 Observed GREEN: Core 32/32 (29 ms), App 31/31 (5 s), Windows 74/74 (8 s), total 137 passed, zero failed/skipped. No build warnings/errors.
 
 Native declarations, storage schema, probe, and unrelated files unchanged. Physical keypress/suspend and app composition remain controller-owned evidence.
+
+## Review fix round 2
+
+Addressed new Important finding from task-3-rereview-1.md. Configuration distinguishes staging from committed state; once the new complete set/mapping commits, cleanup exceptions never roll back its replacement registrations. Completion publication is deferred until obsolete cleanup results are known, and final completion checks shutdown under the existing bounded state gate. Timeout or Dispose still suppresses callbacks and disables service.
+
+Exact result contract: successful full registration with obsolete-cleanup failure returns `HotkeyRegistrationResult(Registered: true, Error: new PlatformError("HotkeyCleanupFailed", diagnostic))`. New full set remains active, including replacement Stop. Diagnostic identifies obsolete function key and numeric native error/message. Obsolete failed registrations remain tracked for retry/disposal but do not route commands through the new map. Reconfiguring the same successful new set retries obsolete cleanup. Caller must display Error even when Registered is true and retain the newly committed configuration (controller explicitly accepted this contract).
+
+Native `HotkeyNative.Unregister` now checks UnregisterHotKey's BOOL; false throws Win32Exception(Marshal.GetLastWin32Error()). Diagnostic formatting preserves NativeErrorCode rather than flattening it to only localized Message. Primary docs read: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterhotkey (BOOL failure and GetLastError).
+
+Tests:
+- ObsoleteUnregisterFailurePreservesReplacementStopAndReportsNativeError injects Win32Exception(5) while removing obsolete F10 after replacing Stop with F6. Verifies Registered=true plus HotkeyCleanupFailed diagnostic containing F10/native code; replacement F6 routes Stop, obsolete F10 does not map; retry succeeds without warning after removing failure; final Dispose empties registrations.
+- NativeUnregisterFailurePreservesWin32ErrorWithoutRegisteringKeys creates/destroys a unique hidden native window and calls Unregister on never-registered ID1234. It registers no keys and asserts preserved nonzero Win32 error.
+
+RED command: `dotnet test tests/Macrofy.Platform.Windows.Tests -c Release --filter FullyQualifiedName~ObsoleteUnregisterFailure`.
+Observed 1 failed: Assert.NotNull failure, Error was null; duration 43 ms.
+
+Additional native RED: restored pre-change ignored-return implementation, then `dotnet test tests/Macrofy.Platform.Windows.Tests -c Release --filter FullyQualifiedName~NativeUnregisterFailure`.
+Observed 1 failed: Assert.Throws failure, no Win32Exception thrown; duration 17 ms. Reimplemented BOOL/error handling after RED.
+
+GREEN command: `dotnet test tests/Macrofy.Platform.Windows.Tests -c Release --filter FullyQualifiedName~GlobalHotkeyTests`.
+Observed Failed 0, Passed 16, Skipped 0, Total 16, duration 6 seconds.
+
+Full GREEN: `dotnet test Macrofy.sln -c Release`: Core 32/32 (29 ms), App 31/31 (5 s), Windows 76/76 (8 s); total 139 passed, zero failed/skipped, no build warnings/errors.
+
+No model/storage schema or probe changes. Remaining OS/user/game evidence unchanged.

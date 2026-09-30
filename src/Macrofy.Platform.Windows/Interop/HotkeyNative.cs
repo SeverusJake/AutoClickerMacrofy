@@ -36,7 +36,10 @@ internal sealed class HotkeyNative : IHotkeyNative
     }
     public bool Register(int id,uint modifiers,uint key,out int error)
     { var result=RegisterHotKey(window,id,modifiers,key); error=result ? 0 : Marshal.GetLastWin32Error(); return result; }
-    public void Unregister(int id) => UnregisterHotKey(window,id);
+    public void Unregister(int id)
+    {
+        if(!UnregisterHotKey(window,id)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+    }
     public void Pump(Action<uint,nuint> callback)
     {
         this.callback=callback;
@@ -57,3 +60,6 @@ internal sealed class HotkeyNative : IHotkeyNative
     [DllImport("user32.dll")] static extern bool DestroyWindow(nint window);
     [DllImport("user32.dll",EntryPoint="UnregisterClassW",CharSet=CharSet.Unicode)] static extern bool UnregisterClass(string name,nint instance);
 }
+
+
+

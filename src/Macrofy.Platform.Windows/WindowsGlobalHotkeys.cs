@@ -45,6 +45,7 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
             Action configure = () =>
             {
                 var added = new List<((uint,uint) Key,int Id)>();
+                var committed = false;
                 try
                 {
                     if(disposed) { completion.TrySetResult(Error("Hotkey service is disposed.")); return; }
@@ -68,16 +69,30 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
                         if(disposed) throw new ObjectDisposedException(nameof(WindowsGlobalHotkeys));
                         foreach(var addition in added) registrations.Add(addition.Key,addition.Id);
                         commands = parsed.ToDictionary(x => registrations[x.Key],x => x.Command);
-                        completion.TrySetResult(new(true));
+                        committed = true;
                     }
                     finally { Monitor.Exit(synchronization); }
+                    var cleanupErrors = new List<string>();
                     foreach(var old in registrations.Keys.Where(k => !parsed.Any(p => p.Key == k)).ToArray())
-                    { native.Unregister(registrations[old]); registrations.Remove(old); }
+                    {
+                        try { native.Unregister(registrations[old]); registrations.Remove(old); }
+                        catch(Exception ex) { cleanupErrors.Add($"F{old.Key - 111}: UnregisterHotKey failed, {Describe(ex)}"); }
+                    }
+                    if(!Monitor.TryEnter(synchronization,TimeSpan.FromSeconds(2))) throw new TimeoutException("Hotkey state completion timed out.");
+                    try
+                    {
+                        if(disposed) completion.TrySetResult(Error("Hotkey service was disabled during configuration."));
+                        else completion.TrySetResult(new(true,cleanupErrors.Count == 0 ? null : new("HotkeyCleanupFailed", "New hotkey set is active; obsolete registration cleanup failed: " + string.Join("; ",cleanupErrors))));
+                    }
+                    finally { Monitor.Exit(synchronization); }
                 }
                 catch(Exception ex)
                 {
-                    foreach(var addition in added) { try { native.Unregister(addition.Id); } catch { } registrations.Remove(addition.Key); }
-                    completion.TrySetResult(Error(ex.Message));
+                    if(!committed)
+                        foreach(var addition in added) { try { native.Unregister(addition.Id); } catch { } registrations.Remove(addition.Key); }
+                    completion.TrySetResult(committed && !disposed
+                        ? new(true,new("HotkeyCleanupFailed", "New hotkey set is active; cleanup failed: " + Describe(ex)))
+                        : Error(Describe(ex)));
                 }
             };
             if(Thread.CurrentThread == thread) configure(); else work.Enqueue(configure);
@@ -93,6 +108,7 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
             return completion.Task.Result;
         }
     }
+    static string Describe(Exception ex) => ex is System.ComponentModel.Win32Exception win32 ? $"Win32 error {win32.NativeErrorCode} ({win32.Message})" : ex.Message;
     static HotkeyRegistrationResult Error(string message) => new(false,new("HotkeyRegistrationFailed",message));
     void Loop()
     {
@@ -134,6 +150,7 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
         if(Thread.CurrentThread != thread) thread.Join(TimeSpan.FromSeconds(2));
     }
 }
+
 
 
 

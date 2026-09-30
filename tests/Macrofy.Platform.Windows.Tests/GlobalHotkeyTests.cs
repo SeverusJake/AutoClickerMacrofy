@@ -105,16 +105,41 @@ public class GlobalHotkeyTests
         Assert.Equal(0,count); Assert.Equal(pumpCount,native.PumpCount);
         Assert.Equal(new uint[] {120,119,121,117},native.RegisteredKeys.ToArray()); Assert.Empty(native.Keys);
     }
+    [Fact] public void ObsoleteUnregisterFailurePreservesReplacementStopAndReportsNativeError()
+    {
+        var native = new FakeNative(); using var service = new WindowsGlobalHotkeys(native); service.Configure(Defaults);
+        native.UnregisterHook = id => { if(id == 3) throw new System.ComponentModel.Win32Exception(5); };
+        var result = service.Configure(Defaults with { Stop = new("F6") });
+        Assert.True(result.Registered); Assert.NotNull(result.Error);
+        Assert.Equal("HotkeyCleanupFailed",result.Error.Code); Assert.Contains("F10",result.Error.Message); Assert.Contains("5",result.Error.Message);
+        var stops = 0; service.Triggered += command => { if(command == HotkeyCommand.Stop) Interlocked.Increment(ref stops); };
+        native.Messages.Enqueue((0x312,4)); native.Messages.Enqueue((0x312,3));
+        Assert.True(SpinWait.SpinUntil(() => stops == 1,1000));
+        Assert.Contains(native.Keys.Values,key => key.Key == 117);
+        native.UnregisterHook = null;
+        var retry = service.Configure(Defaults with { Stop = new("F6") });
+        Assert.True(retry.Registered); Assert.Null(retry.Error);
+        Assert.DoesNotContain(native.Keys.Values,key => key.Key == 121);
+        service.Dispose(); Assert.Empty(native.Keys);
+    }
+    [Fact] public void NativeUnregisterFailurePreservesWin32ErrorWithoutRegisteringKeys()
+    {
+        using var native = new HotkeyNative(); native.Initialize();
+        var error = Assert.Throws<System.ComponentModel.Win32Exception>(() => native.Unregister(1234));
+        Assert.NotEqual(0,error.NativeErrorCode);
+    }
     sealed class FakeNative : IHotkeyNative
     {
         public ConcurrentDictionary<int,(uint Modifiers,uint Key)> Keys = new();
-        public ConcurrentQueue<(uint,nuint)> Messages = new(); public uint FailKey; public bool StartupThrows; public volatile bool Closed; public Action<uint>? RegisterHook; public Action<Action<uint,nuint>>? PumpHook; public int PumpCount; public ConcurrentQueue<uint> RegisteredKeys = new();
+        public ConcurrentQueue<(uint,nuint)> Messages = new(); public uint FailKey; public bool StartupThrows; public volatile bool Closed; public Action<int>? UnregisterHook; public Action<uint>? RegisterHook; public Action<Action<uint,nuint>>? PumpHook; public int PumpCount; public ConcurrentQueue<uint> RegisteredKeys = new();
         public void Initialize() { if(StartupThrows) throw new InvalidOperationException("startup failed"); }
         public bool Register(int id,uint modifiers,uint key,out int error) { RegisterHook?.Invoke(key); RegisteredKeys.Enqueue(key); error=1409; if(key==FailKey) return false; return Keys.TryAdd(id,(modifiers,key)); }
-        public void Unregister(int id) => Keys.TryRemove(id,out _);
+        public void Unregister(int id) { UnregisterHook?.Invoke(id); Keys.TryRemove(id,out _); }
         public void Pump(Action<uint,nuint> callback) { Interlocked.Increment(ref PumpCount); Interlocked.Exchange(ref PumpHook,null)?.Invoke(callback); while(Messages.TryDequeue(out var m)) callback(m.Item1,m.Item2); }
         public void Dispose() => Closed=true;
     }
 }
+
+
 
 
