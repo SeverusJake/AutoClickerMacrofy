@@ -1,6 +1,6 @@
 namespace Macrofy.App.Models;
 
-// UI workspace only. Native input models and compatibility evidence remain separate.
+// Persistent workspace never includes live target tokens.
 public sealed class WorkspaceDocument
 {
     public int Version { get; set; } = 1;
@@ -9,6 +9,7 @@ public sealed class WorkspaceDocument
     public ShortcutSettings Shortcuts { get; set; } = new();
     public Guid ActiveProfileId { get; set; }
     public List<Profile> Profiles { get; set; } = [];
+    public List<CompatibilityEvidence> CompatibilityEvidence { get; set; } = [];
 
     public static WorkspaceDocument CreateDefault()
     {

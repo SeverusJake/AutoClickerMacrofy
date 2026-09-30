@@ -7,6 +7,46 @@ namespace Macrofy.App.Tests;
 public class WorkspaceStateTests
 {
     [Theory]
+    [InlineData("{\"CompatibilityEvidence\":null}")]
+    [InlineData("{\"CompatibilityEvidence\":[null]}")]
+    [InlineData("{\"Profiles\":null}")]
+    public void StructurallyInvalidDocumentsRemainPreserved(string invalidProperties)
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "macrofy-malformed-" + Guid.NewGuid());
+        try
+        {
+            Directory.CreateDirectory(folder);
+            var json = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(WorkspaceDocument.CreateDefault()))!;
+            foreach (var property in System.Text.Json.Nodes.JsonNode.Parse(invalidProperties)!.AsObject()) json[property.Key] = property.Value?.DeepClone();
+            var path = Path.Combine(folder, "ui-workspace.json"); File.WriteAllText(path, json.ToJsonString());
+            var original = File.ReadAllText(path); var store = new WorkspaceStore(folder); store.Load();
+            Assert.NotNull(store.LoadError); Assert.Throws<InvalidOperationException>(() => store.Save(WorkspaceDocument.CreateDefault())); Assert.Equal(original, File.ReadAllText(path));
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+    [Fact]
+    public void LegacyUnsupportedActionSurvivesLoadAndCannotRun()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "macrofy-legacy-" + Guid.NewGuid());
+        try
+        {
+            var store = new WorkspaceStore(folder); var document = WorkspaceDocument.CreateDefault();
+            document.Profiles[0].Macros[0].Steps = [new("Key", "LegacyUnsupported", 0)]; store.Save(document);
+            var loaded = new WorkspaceStore(folder); var state = new WorkspaceState(loaded.Load());
+            Assert.Null(loaded.LoadError); Assert.Equal("LegacyUnsupported", state.Macro.Steps[0].Value);
+            Assert.False(WorkspaceState.ValidateStep(state.Macro.Steps[0], out _)); Assert.False(state.StartPreview(state.Macro));
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+    [Fact]
+    public void VersionOneWithoutEvidenceLoadsEmpty()
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(WorkspaceDocument.CreateDefault()))!;
+        json.AsObject().Remove("CompatibilityEvidence");
+        var document = System.Text.Json.JsonSerializer.Deserialize<WorkspaceDocument>(json.ToJsonString())!;
+        Assert.Empty(document.CompatibilityEvidence);
+    }
+    [Theory]
     [InlineData("Key", "Unknown")]
     [InlineData("Key", "Ctrl +")]
     [InlineData("Wheel", "0")]

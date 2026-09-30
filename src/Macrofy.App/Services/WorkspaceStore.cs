@@ -20,6 +20,11 @@ public sealed class WorkspaceStore(string folder)
             var bytes = File.ReadAllBytes(path);
             var result = JsonSerializer.Deserialize<WorkspaceDocument>(bytes) ?? throw new InvalidDataException("Empty workspace.");
             if (result.Version != 1) throw new InvalidDataException("Unsupported workspace version.");
+            if (result.CompatibilityEvidence is null || result.CompatibilityEvidence.Any(e => e is null || e.SavedAppId == Guid.Empty ||
+                e.App is null || string.IsNullOrWhiteSpace(e.App.Name) || string.IsNullOrWhiteSpace(e.App.ExecutablePath) ||
+                e.Title is null || string.IsNullOrWhiteSpace(e.SurfaceFingerprint) || !Enum.IsDefined(e.State) || !Enum.IsDefined(e.Capability) ||
+                e.Geometry is not { Width: > 0, Height: > 0, DpiScale: > 0 } || !double.IsFinite(e.Geometry.DpiScale)))
+                throw new InvalidDataException("Invalid compatibility evidence.");
             if (result.Mode is not ("light" or "dark") || ThemePalette.Choices.All(t => t.Id != result.Theme)) throw new InvalidDataException("Invalid appearance settings.");
             if (result.Shortcuts is null || new[] { result.Shortcuts.Run, result.Shortcuts.Pause, result.Shortcuts.Stop }
                 .Any(key => key is null || !System.Text.RegularExpressions.Regex.IsMatch(key, "^F(?:[1-9]|1[0-2])$")) ||
@@ -30,7 +35,7 @@ public sealed class WorkspaceStore(string folder)
                     p.Apps.Any(a => a is null || string.IsNullOrWhiteSpace(a.Name) || a.Executable is null || a.TitleRule is null) ||
                     p.Macros.Any(m => m is null || string.IsNullOrWhiteSpace(m.Name) || m.Repeat < 0 || m.IntervalMs is < 0 or > 600000 ||
                         m.Coordinates is not ("Fixed pixels" or "Percentage") || m.WindowState is not ("Minimized" or "Background") ||
-                        m.Steps is null || m.Steps.Any(s => s is null || !WorkspaceState.ValidateStep(s, out _)))))
+                        m.Steps is null || m.Steps.Any(s => s is null || string.IsNullOrWhiteSpace(s.Kind) || s.Value is null || s.DelayMs is < 0 or > 600000))))
                 throw new InvalidDataException("Invalid workspace data.");
             var ids = result.Profiles.SelectMany(p => p.Macros.Select(m => m.Id).Concat(p.Apps.Select(a => a.Id)).Append(p.Id)).ToArray();
             if (ids.Any(id => id == Guid.Empty) || ids.Distinct().Count() != ids.Length) throw new InvalidDataException("Invalid workspace identities.");
