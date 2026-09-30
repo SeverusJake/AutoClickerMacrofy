@@ -49,3 +49,27 @@ Read Microsoft official docs during implementation:
 ## Limits / integration requirements
 
 Native callbacks execute on native thread. App must marshal UI-sensitive Run/Pause commands; initiate Stop cancellation promptly. Subscriber work must return promptly. Disposal returns boundedly even if arbitrary subscriber/native seam stalls; OS/native resource cleanup then occurs when that work returns. No live key press or physical OS suspend performed. Fake seam validates registration/lifecycle behavior without occupying actual user keys. Controller owns production composition, UI error gating, suspend-to-StopAll wiring, and final real native/manual evidence.
+
+## Review fix round 1
+
+Addressed both Important findings in task-3-review.md. This supersedes the initial report's bounded-lock assertion: reviewed f554738 actually retained an unbounded monitor across Configure completion waits. The review reproduced a case absent from the original tests.
+
+Configure now validates/enqueues without holding any caller monitor. Native thread serializes transactions, including inline callback reconfiguration. A short state gate covers only commit versus shutdown (no native calls, event callbacks, or completion waits inside it); every gate acquisition uses Monitor.TryEnter with a 2-second bound. External completion waits remain 2 seconds; timeout gate acquisition can add at most 2 seconds. Dispose uses the same bounded state gate then bounded 2-second join (maximum combined bound 4 seconds).
+
+Transactions check disabled/disposed state on entry, after each successful native Register, and under state gate before committing mappings. Shutdown during a stalled native call rolls back that addition when native returns; no later bindings register. Loop checks shutdown before each queued action and before Pump. OnMessage checks shutdown on entry and between subscribers, suppressing both hotkey and suspend events after shutdown. Already executing external/native code cannot be forcibly interrupted; cleanup resumes when it returns, while synchronous caller/disposal waits remain bounded.
+
+Deterministic tests use native Pump/Register gates and explicit caller Thread state/join observations. Fake seam still registers no actual user keys.
+
+RED command: `dotnet test tests/Macrofy.Platform.Windows.Tests -c Release --filter FullyQualifiedName~GlobalHotkeyTests`.
+Observed: Failed 4, Passed 10, Skipped 0, Total 14, duration 9 seconds.
+- ExternalConfigureDoesNotBlockReentrantNativeCallback: Assert.True failed (external configuration timed out).
+- ConcurrentConfigureReturnsBoundedlyWhileNativeOwnerIsStalled: Assert.True failed (concurrent caller did not finish within 3 seconds).
+- ShutdownDuringRegistrationRollsBackWithoutPumpingOrDispatch(dispose: False): callbacks expected 0, actual 2 after timeout.
+- ShutdownDuringRegistrationRollsBackWithoutPumpingOrDispatch(dispose: True): callbacks expected 0, actual 2 after Dispose.
+
+Intermediate rerun while editing remained RED (4 failures); callback suppression worked but extra Pump and monitor failures remained. Final targeted GREEN: Failed 0, Passed 14, Skipped 0, Total 14, duration 6 seconds.
+
+Final suite command: `dotnet test Macrofy.sln -c Release`.
+Observed GREEN: Core 32/32 (29 ms), App 31/31 (5 s), Windows 74/74 (8 s), total 137 passed, zero failed/skipped. No build warnings/errors.
+
+Native declarations, storage schema, probe, and unrelated files unchanged. Physical keypress/suspend and app composition remain controller-owned evidence.

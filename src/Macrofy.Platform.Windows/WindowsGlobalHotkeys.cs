@@ -28,7 +28,6 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
     }
     public HotkeyRegistrationResult Configure(HotkeySet hotkeys)
     {
-        lock(synchronization)
         {
             if(disposed || failure is not null) return Error(failure?.Message ?? "Hotkey service is disposed.");
             var parsed = new List<((uint Modifiers,uint Key) Key,HotkeyCommand Command,HotkeyBinding Binding)>();
@@ -48,6 +47,7 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
                 var added = new List<((uint,uint) Key,int Id)>();
                 try
                 {
+                    if(disposed) { completion.TrySetResult(Error("Hotkey service is disposed.")); return; }
                     foreach(var entry in parsed)
                     {
                         if(registrations.ContainsKey(entry.Key)) continue;
@@ -60,21 +60,36 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
                             completion.TrySetResult(Error($"{entry.Command} binding {entry.Binding.Key}: RegisterHotKey failed, Win32 error {error} ({new System.ComponentModel.Win32Exception(error).Message}).")); return;
                         }
                         added.Add((entry.Key,id));
+                        if(disposed) throw new ObjectDisposedException(nameof(WindowsGlobalHotkeys));
                     }
-                    foreach(var addition in added) registrations.Add(addition.Key,addition.Id);
-                    commands = parsed.ToDictionary(x => registrations[x.Key],x => x.Command);
+                    if(!Monitor.TryEnter(synchronization,TimeSpan.FromSeconds(2))) throw new TimeoutException("Hotkey state commit timed out.");
+                    try
+                    {
+                        if(disposed) throw new ObjectDisposedException(nameof(WindowsGlobalHotkeys));
+                        foreach(var addition in added) registrations.Add(addition.Key,addition.Id);
+                        commands = parsed.ToDictionary(x => registrations[x.Key],x => x.Command);
+                        completion.TrySetResult(new(true));
+                    }
+                    finally { Monitor.Exit(synchronization); }
                     foreach(var old in registrations.Keys.Where(k => !parsed.Any(p => p.Key == k)).ToArray())
                     { native.Unregister(registrations[old]); registrations.Remove(old); }
-                    completion.TrySetResult(new(true));
                 }
                 catch(Exception ex)
                 {
-                    foreach(var addition in added) { native.Unregister(addition.Id); registrations.Remove(addition.Key); }
+                    foreach(var addition in added) { try { native.Unregister(addition.Id); } catch { } registrations.Remove(addition.Key); }
                     completion.TrySetResult(Error(ex.Message));
                 }
             };
             if(Thread.CurrentThread == thread) configure(); else work.Enqueue(configure);
-            if(!completion.Task.Wait(TimeSpan.FromSeconds(2))) { disposed = true; return Error("Hotkey configuration timed out; service disabled."); }
+            if(!completion.Task.Wait(TimeSpan.FromSeconds(2)))
+            {
+                if(!Monitor.TryEnter(synchronization,TimeSpan.FromSeconds(2))) { disposed = true; return Error("Hotkey state shutdown timed out; service disabled."); }
+                try
+                {
+                    if(!completion.Task.IsCompleted) { disposed = true; return Error("Hotkey configuration timed out; service disabled."); }
+                }
+                finally { Monitor.Exit(synchronization); }
+            }
             return completion.Task.Result;
         }
     }
@@ -86,7 +101,8 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
             native.Initialize(); ready.Set();
             while(!disposed)
             {
-                while(work.TryDequeue(out var action)) action();
+                while(!disposed && work.TryDequeue(out var action)) action();
+                if(disposed) break;
                 native.Pump(OnMessage); Thread.Sleep(5);
             }
         }
@@ -101,19 +117,25 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
     }
     void OnMessage(uint message,nuint value)
     {
+        if(disposed) return;
         if(message == 0x312 && commands.TryGetValue((int)value,out var command))
-            foreach(var handler in Triggered?.GetInvocationList() ?? []) { try { ((Action<HotkeyCommand>)handler)(command); } catch { } }
+            foreach(var handler in Triggered?.GetInvocationList() ?? []) { if(disposed) return; try { ((Action<HotkeyCommand>)handler)(command); } catch { } }
         if(message != 0x218) return;
         if(value is 7 or 18) suspended = false;
         if(value != 4 || suspended) return;
         suspended = true;
-        foreach(var handler in Suspended?.GetInvocationList() ?? []) { try { ((Action)handler)(); } catch { } }
+        foreach(var handler in Suspended?.GetInvocationList() ?? []) { if(disposed) return; try { ((Action)handler)(); } catch { } }
     }
     public void Dispose()
     {
-        disposed = true;
+        var entered = Monitor.TryEnter(synchronization,TimeSpan.FromSeconds(2));
+        try { disposed = true; }
+        finally { if(entered) Monitor.Exit(synchronization); }
         if(Thread.CurrentThread != thread) thread.Join(TimeSpan.FromSeconds(2));
     }
 }
+
+
+
 
 
