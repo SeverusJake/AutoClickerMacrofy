@@ -64,13 +64,18 @@ public sealed class WindowsWindowCatalog : IWindowCatalog, ITargetContext, IDisp
     private TargetWindow ToWindow(TargetToken token, NativeWindow window) => new(token,
         new(Path.GetFileNameWithoutExtension(window.ExecutablePath), window.ExecutablePath), window.Title, window.IsMinimized, geometry.Get(token, window));
 
-    public PointerPositionResult ReadPointerPosition(TargetToken target)
+    /// <summary>Reads the current physical pointer in the original surface's client coordinates; never substitutes a captured point.</summary>
+    public PointerPositionResult ReadPlaybackPointerPosition(TargetToken target) => ReadPointerPosition(target, requireRestored: false);
+
+    public PointerPositionResult ReadPointerPosition(TargetToken target) => ReadPointerPosition(target, requireRestored: true);
+
+    private PointerPositionResult ReadPointerPosition(TargetToken target, bool requireRestored)
     {
         if (!Registry.TryResolve(target, out var window)) return new(null, new("TargetLost", "Original target disappeared."));
-        if (window.IsMinimized) return new(null, new("Minimized", "Restore game to choose a visible point, then minimize it for the test."));
+        if (requireRestored && window.IsMinimized) return new(null, new("Minimized", "Restore game to choose a visible point, then minimize it for the test."));
         var g = geometry.Get(target, window);
         if (g is null || !native.TryReadPointer(window.SurfaceHandle, out var point) || point.X < 0 || point.Y < 0 || point.X >= g.Width || point.Y >= g.Height)
-            return new(null, new("OutsideClient", "Hover inside the selected game input surface before capture finishes."));
+            return new(null, new("OutsideClient", requireRestored ? "Hover inside the selected game input surface before capture finishes." : "Current pointer must map inside the selected input surface's valid client geometry."));
         return new(point);
     }
 

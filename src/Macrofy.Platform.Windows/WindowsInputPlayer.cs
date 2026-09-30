@@ -32,17 +32,25 @@ public sealed class WindowsInputPlayer : IInputPlayer, IDisposable
     internal WindowsInputPlayer(WindowsWindowCatalog catalog, IInputNative native, IInputClock clock, IPermissionService permission)
     { this.catalog = catalog; this.native = native; this.clock = clock; this.permission = permission; }
 
-    public async ValueTask<DeliveryResult> SendAsync(TargetToken target, InputCommand command, CancellationToken cancellationToken = default)
+    /// <summary>Callers serialize whole gestures. Validation runs under this player's lock after pacing, immediately before every native post.</summary>
+    public ValueTask<DeliveryResult> SendValidatedAsync(TargetToken target, InputCommand command, Func<CancellationToken, ValueTask<DeliveryResult>> validateBeforePost, CancellationToken cancellationToken = default) =>
+        SendCoreAsync(target, command, validateBeforePost, cancellationToken);
+
+    public ValueTask<DeliveryResult> SendAsync(TargetToken target, InputCommand command, CancellationToken cancellationToken = default) =>
+        SendCoreAsync(target, command, null, cancellationToken);
+
+    private async ValueTask<DeliveryResult> SendCoreAsync(TargetToken target, InputCommand command, Func<CancellationToken, ValueTask<DeliveryResult>>? validateBeforePost, CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested) return Failure("Cancelled", "Input was cancelled before posting.");
         // Reject concurrent callers instead of building an application send-ahead queue.
         if (!await sender.WaitAsync(0, cancellationToken)) return Failure("Busy", "Another input operation is active.");
-        try { return await SendLockedAsync(target, command, cancellationToken); }
+        try { return await SendLockedAsync(target, command, cancellationToken, validateBeforePost); }
         catch (OperationCanceledException) { return Failure("Cancelled", "Future input cancelled; already-posted Windows messages cannot be withdrawn."); }
         finally { sender.Release(); }
     }
 
-    private async ValueTask<DeliveryResult> SendLockedAsync(TargetToken target, InputCommand command, CancellationToken cancellationToken)
+    private async ValueTask<DeliveryResult> SendLockedAsync(TargetToken target, InputCommand command, CancellationToken cancellationToken,
+        Func<CancellationToken, ValueTask<DeliveryResult>>? validateBeforePost = null)
     {
         var context = await catalog.GetAsync(target, cancellationToken);
         if (context.Context is null) return new(false, context.Error);
@@ -66,6 +74,12 @@ public sealed class WindowsInputPlayer : IInputPlayer, IDisposable
                 if (fresh.Context is null || fresh.Context.Window.Geometry != window.Geometry || fresh.Context.Window.IsMinimized != window.IsMinimized)
                     return Failure("GeometryChanged", "Target geometry/state changed while preparing input. Restart after checking coordinates and compatibility.");
             }
+            if (validateBeforePost is not null)
+            {
+                var validation = await validateBeforePost(cancellationToken);
+                if (!validation.Queued || validation.Error is not null || validation.CleanupError is not null) return validation;
+            }
+            cancellationToken.ThrowIfCancellationRequested();
             var result = native.Post(live.SurfaceHandle, message);
             nextPost = clock.Elapsed + TimeSpan.FromMilliseconds(10);
             if (!result.Queued) return Failure(result.Error == 5 ? "PermissionDenied" : result.Error == 1816 ? "QueueFull" : "DeliveryFailed", $"Windows rejected input (error {result.Error}).");
