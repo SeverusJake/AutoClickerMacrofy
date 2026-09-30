@@ -27,6 +27,10 @@
 
 Snapshot fields: MacroId, MacroName, ProfileName, State, Actions, CurrentStep, CompletedSteps, CompletedLoops, ActiveElapsed, RemainingWait, DeliveryError, CleanupError. `TotalSteps` and `IsActive` are convenience properties. CurrentStep is 1-based (0 before first action); CompletedSteps is cumulative across loops; TotalSteps is per-loop action count. A completed action counts before its Wait-after finishes.
 
+Starting, Running, Pausing, Paused, and Waiting snapshots are active. Stop requests keep the prior active state until the session finishes executor cleanup; only then does the snapshot become Stopped (or Error for cleanup failure). No separate Stopping enum value is introduced. A paused gesture stays Pausing until executor returns balanced. Errors are retained in terminal snapshots.
+
+The package-free internal `PlaybackTestClock : TimeProvider` exposes `Advance(int milliseconds)` and `PendingTimers`, overrides monotonic timestamp/frequency and UTC time, and implements `CreateTimer` using disposable controllable timers. Advancing fires due callbacks; asynchronous scheduler continuations are allowed to settle before the next independent clock advance. Timestamp frequency is TimeSpan ticks per second. It is test-only and does not introduce runtime dependencies.
+
 Target/binding/request/preparation/gesture contracts and IPlaybackExecutor match the task brief. Preparation Error defaults to null. Screen requests require null saved app, rule, target state, and surface. Invalid timings or empty action lists are rejected without launching.
 
 ## TDD evidence
