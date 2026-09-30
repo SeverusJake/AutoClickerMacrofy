@@ -64,26 +64,8 @@ public sealed class WorkspaceState(WorkspaceDocument document)
         if (index < 0 || index >= macro.Steps.Count) { error = "Select a step."; return false; }
         macro.Steps[index] = draft; return true;
     }
-    public static bool ValidateStep(MacroStep step, out string error)
-    {
-        error = "";
-        if (step.Value is null) { error = "Enter a value."; return false; }
-        if (step.DelayMs is < 0 or > 600000) { error = "Wait after must be 0–600000 ms."; return false; }
-        switch (step.Kind)
-        {
-            case "Click":
-                var parts = step.Value.Split(',');
-                if (parts.Length != 2 || parts.Any(p => !double.TryParse(p.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) || !double.IsFinite(v))) error = "Enter X, Y (for example 480, 640).";
-                break;
-            case "Wait":
-                if (!int.TryParse(step.Value, out var wait) || wait is < 0 or > 600000) error = "Wait must be 0–600000 ms.";
-                break;
-            case "Wheel": if (!int.TryParse(step.Value, out _)) error = "Enter a whole number for wheel movement."; break;
-            case "Key": case "Text": if (string.IsNullOrWhiteSpace(step.Value)) error = "Enter a value."; break;
-            default: error = "Unknown action type."; break;
-        }
-        return error.Length == 0;
-    }
+    public static bool ValidateStep(MacroStep step, out string error) =>
+        Macrofy.Core.Actions.ActionCompiler.TryValidateEditor(new(step.Kind, step.Value, step.DelayMs), out error);
 }
 
 // Deliberately has no input-player dependency: this executable first delivers the approved UI.

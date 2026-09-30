@@ -6,6 +6,21 @@ namespace Macrofy.App.Tests;
 
 public class WorkspaceStateTests
 {
+    [Theory]
+    [InlineData("Key", "Unknown")]
+    [InlineData("Key", "Ctrl +")]
+    [InlineData("Wheel", "0")]
+    [InlineData("Wheel", "32768")]
+    public void EditorUsesStrictSharedActionValidation(string kind, string value)
+    {
+        Assert.False(WorkspaceState.ValidateStep(new(kind, value, 0), out var error));
+        Assert.NotEmpty(error);
+    }
+    [Fact]
+    public void EditorCoordinatesDoNotAssumePercentageMode()
+    {
+        Assert.True(WorkspaceState.ValidateStep(new("Click", "-50, 1000", 0), out _));
+    }
     [Fact]
     public void ExistingWorkspaceWithoutEnabledFlagDefaultsToEnabled()
     {
