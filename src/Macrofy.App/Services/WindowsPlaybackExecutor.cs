@@ -1,5 +1,4 @@
 #if WINDOWS
-using System.Text.RegularExpressions;
 using Macrofy.Core.Actions;
 using Macrofy.Core.Playback;
 using Macrofy.Platform;
@@ -111,8 +110,7 @@ public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetConte
         var appMatches = rule.App.ExecutablePath is { Length: > 0 } executable
             ? string.Equals(executable, window.App.ExecutablePath, StringComparison.OrdinalIgnoreCase)
             : string.Equals(rule.App.Name, window.App.Name, StringComparison.OrdinalIgnoreCase);
-        return appMatches && Regex.IsMatch(window.Title, "\\A" + Regex.Escape(rule.TitlePattern).Replace("\\*", ".*").Replace("\\?", ".") + "\\z",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline, TimeSpan.FromMilliseconds(100));
+        return appMatches && TitleRule.Matches(rule.TitlePattern, window.Title);
     }
     private static PlaybackPreparation Failed(string code, string message) => new(null, new(code, message));
 }

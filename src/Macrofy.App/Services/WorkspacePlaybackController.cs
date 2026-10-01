@@ -3,7 +3,6 @@ using Macrofy.Core.Actions;
 using Macrofy.Core.Playback;
 using Macrofy.Platform;
 using Macrofy.Platform.Models;
-using System.Text.RegularExpressions;
 namespace Macrofy.App.Services;
 
 public interface IWorkspacePlaybackController : IAsyncDisposable
@@ -127,7 +126,7 @@ public sealed class WorkspacePlaybackController : IWorkspacePlaybackController
                 if (capability is null) continue;
                 var evidence = document.CompatibilityEvidence.LastOrDefault(e => e.SavedAppId == appId && e.State == target.State && e.Capability == capability);
                 if (evidence is not { ObservedSuccess: true } || !string.Equals(evidence.App.ExecutablePath, app.Executable, StringComparison.OrdinalIgnoreCase) ||
-                    !Regex.IsMatch(evidence.Title, "\\A" + Regex.Escape(app.TitleRule).Replace("\\*", ".*").Replace("\\?", ".") + "\\z", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline, TimeSpan.FromMilliseconds(100)))
+                    !TitleRule.Matches(app.TitleRule, evidence.Title))
                 { reason = $"Confirm {capability} / {target.State} in Compatibility for this saved app first."; return false; }
             }
         }

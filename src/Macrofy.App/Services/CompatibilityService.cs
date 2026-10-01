@@ -3,7 +3,6 @@ using Macrofy.Core.Actions;
 using Macrofy.Core.Playback;
 using Macrofy.Platform;
 using Macrofy.Platform.Models;
-using System.Text.RegularExpressions;
 namespace Macrofy.App.Services;
 // Task 7 integration contract: on the Avalonia dispatcher, call createSnapshot()
 // immediately before WorkspaceStore.Save(snapshot), then publish() immediately
@@ -121,7 +120,7 @@ public sealed class CompatibilityService(WorkspaceDocument document, ITargetCont
     {
         var app = document.Profiles.SelectMany(p => p.Apps).SingleOrDefault(a => a.Id == appId);
         return app is not null && Enum.IsDefined(state) && context.Window.Token.Id != Guid.Empty && !string.IsNullOrWhiteSpace(context.SurfaceFingerprint) && context.Window.Geometry is { Width: > 0, Height: > 0, DpiScale: > 0 } geometry && double.IsFinite(geometry.DpiScale) &&
-            string.Equals(app.Executable, context.Window.App.ExecutablePath, StringComparison.OrdinalIgnoreCase) && Regex.IsMatch(context.Window.Title, "^" + Regex.Escape(app.TitleRule).Replace("\\*", ".*").Replace("\\?", ".") + "$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) &&
+            TitleRule.MatchesWindow(app.Executable, app.TitleRule, context.Window) &&
             (!requireState || (state == TargetState.Minimized ? context.Window.IsMinimized : !context.Window.IsMinimized && !context.IsForeground));
     }
 }

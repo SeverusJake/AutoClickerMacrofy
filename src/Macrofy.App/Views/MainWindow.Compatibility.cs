@@ -1,7 +1,7 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using Macrofy.App.Models;
+using Macrofy.App.Services;
 using Macrofy.Core.Actions;
 using Macrofy.Platform.Models;
 namespace Macrofy.App.Views;
@@ -92,8 +92,7 @@ public sealed partial class MainWindow
             {
                 var windows = await compatibility.Catalog.ListAsync();
                 if (version != generation) return;
-                window.ItemsSource = windows.Where(w => string.Equals(w.App.ExecutablePath, selected.Executable, StringComparison.OrdinalIgnoreCase) &&
-                    Regex.IsMatch(w.Title, "^" + Regex.Escape(selected.TitleRule).Replace("\\*", ".*").Replace("\\?", ".") + "$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Select(w => new WindowOption(w)).ToArray();
+                window.ItemsSource = windows.Where(w => TitleRule.MatchesWindow(selected.Executable, selected.TitleRule, w)).Select(w => new WindowOption(w)).ToArray();
             }
             catch (Exception error) { status.Text = "Cannot list windows: " + error.Message; }
             UpdateControls();
