@@ -12,10 +12,10 @@ internal static class Program
     private static readonly ConcurrentQueue<(string Command, TaskCompletionSource Completion)> commands = new();
     private static readonly Native.WndProc callback = WindowProcedure;
     private static string pipeName = "";
-    private static nint first, second;
+    private static nint first, second, screen;
     private static volatile bool stalled;
     private static readonly CancellationTokenSource shutdown = new();
-    private sealed record Receipt(uint Message, ulong WParam, long LParam);
+    private sealed record Receipt(uint Message, ulong WParam, long LParam, long Hwnd, long Timestamp);
 
     public static void Main(string[] args)
     {
@@ -25,17 +25,24 @@ internal static class Program
         if (Native.RegisterClassEx(ref cls) == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
         first = Create(" A"); second = Create(" B");
         var server = Task.Run(ServeAsync);
-        while (Native.GetMessage(out var message, 0, 0, 0) > 0) { Native.DispatchMessage(ref message); }
+        while (Native.GetMessage(out var message, 0, 0, 0) > 0)
+        {
+            // SendInput Unicode is VK_PACKET. Translate only those packets on the dedicated
+            // Screen surface, preserving the legacy raw-key window-message receipt protocol.
+            if (screen != 0 && message.Hwnd == Native.GetWindow(screen, 5) && message.WParam == 0xE7 && message.Id is 0x100 or 0x101)
+                Native.TranslateMessage(ref message);
+            Native.DispatchMessage(ref message);
+        }
         shutdown.Cancel();
-        Native.DestroyWindow(first); Native.DestroyWindow(second);
+        Native.DestroyWindow(first); Native.DestroyWindow(second); if (screen != 0) Native.DestroyWindow(screen);
         try { server.GetAwaiter().GetResult(); } catch (OperationCanceledException) { }
         GC.KeepAlive(callback);
     }
 
-    private static nint Create(string suffix)
+    private static nint Create(string suffix, bool forScreen = false)
     {
         // Offscreen, non-activating fixtures cannot steal focus or receive physical pointer input.
-        var top = Native.CreateWindowEx(0x08000080, "MacrofyControlledSurface", pipeName + suffix, 0x00CF0000, -10000, 0, 640, 480, 0, 0, Native.GetModuleHandle(null), 0);
+        var top = Native.CreateWindowEx(forScreen ? 0x88u : 0x08000080u, "MacrofyControlledSurface", pipeName + suffix, 0x00CF0000, -10000, 0, 640, 480, 0, 0, Native.GetModuleHandle(null), 0);
         if (top == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
         var child = Native.CreateWindowEx(0, "MacrofyControlledSurface", "input surface", 0x50000000, 0, 0, 500, 350, top, 0, Native.GetModuleHandle(null), 0);
         if (child == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -47,7 +54,7 @@ internal static class Program
     {
         if (message is >= 0x100 and <= 0x109 or >= 0x200 and <= 0x20E)
         {
-            receipts.Enqueue(new(message, (ulong)wParam, (long)lParam));
+            receipts.Enqueue(new(message, (ulong)wParam, (long)lParam, (long)hwnd, System.Diagnostics.Stopwatch.GetTimestamp()));
             return 0;
         }
         if (message == 0x8001)
@@ -61,6 +68,20 @@ internal static class Program
                         case "minimize": Native.ShowWindow(first, 7); break;
                         case "restore": Native.ShowWindow(first, 4); break;
                         case "recreate": Native.DestroyWindow(first); first = Create(" A"); break;
+                        case "place-background":
+                            Native.GetCursorPos(out var cursor);
+                            Native.SetWindowPos(first, 0, cursor.X - 100, cursor.Y - 100, 640, 480, 0x14);
+                            break;
+                        case "screen":
+                            if (screen == 0) screen = Create(" Screen - harmless input receiver", true);
+                            Native.GetCursorPos(out var pointer);
+                            var monitor = new Native.MonitorInfo { Size = (uint)Marshal.SizeOf<Native.MonitorInfo>() };
+                            if (!Native.GetMonitorInfo(Native.MonitorFromPoint(pointer, 2), ref monitor)) throw new Win32Exception();
+                            Native.SetWindowPos(screen, -1, monitor.Work.Left + 32, monitor.Work.Top + 32, 640, 480, 0x40);
+                            Native.ShowWindow(screen, 5);
+                            Native.SetForegroundWindow(screen);
+                            Native.SetFocus(Native.GetWindow(screen, 5));
+                            break;
                         case "clear": while (receipts.TryDequeue(out _)) { } break;
                         case "stall": stalled = true; Thread.Sleep(500); stalled = false; break;
                         case "quit": Native.PostQuitMessage(0); break;
@@ -91,13 +112,52 @@ internal static class Program
                 Native.PostMessage(first, 0x8001, 0, 0);
                 if (command != "stall-async") await completion.Task.WaitAsync(shutdown.Token);
             }
-            await writer.WriteLineAsync(JsonSerializer.Serialize(new { Events = receipts.ToArray(), Stalled = stalled }));
+            await writer.WriteLineAsync(JsonSerializer.Serialize(new { Events = receipts.ToArray(), Stalled = stalled, Surface = DescribeSurface() }));
         }
+    }
+
+    private static object DescribeSurface()
+    {
+        var priorDpi = Native.SetThreadDpiAwarenessContext(-4);
+        try
+        {
+            var hwnd = screen != 0 ? screen : first;
+            var child = Native.GetWindow(hwnd, 5);
+            Native.GetClientRect(child, out var rect);
+            var point = new Native.Point { X = 80, Y = 80 };
+            Native.ClientToScreen(child, ref point);
+            var gui = new Native.GuiThreadInfo { Size = (uint)Marshal.SizeOf<Native.GuiThreadInfo>() };
+            Native.GetGUIThreadInfo(Native.GetWindowThreadProcessId(hwnd, out _), ref gui);
+            return new { Hwnd = (long)hwnd, Child = (long)child, Width = rect.Right, Height = rect.Bottom,
+                SafeX = point.X, SafeY = point.Y, Foreground = (long)Native.GetForegroundWindow(),
+                Focused = Native.GetForegroundWindow() == hwnd && gui.Focus == child,
+                Exposed = Native.IsWindowVisible(hwnd) && !Native.IsIconic(hwnd) && Native.WindowFromPoint(point) == child };
+        }
+        finally { Native.SetThreadDpiAwarenessContext(priorDpi); }
     }
 }
 
 internal static class Native
 {
+    [StructLayout(LayoutKind.Sequential)] internal struct Point { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] internal struct Rect { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] internal struct MonitorInfo { public uint Size; public Rect Monitor, Work; public uint Flags; }
+    [StructLayout(LayoutKind.Sequential)] internal struct GuiThreadInfo { public uint Size, Flags; public nint Active, Focus, Capture, MenuOwner, MoveSize, Caret; public Rect CaretRect; }
+    [DllImport("user32.dll")] internal static extern bool GetCursorPos(out Point point);
+    [DllImport("user32.dll")] internal static extern nint GetWindow(nint hwnd, uint command);
+    [DllImport("user32.dll")] internal static extern nint GetForegroundWindow();
+    [DllImport("user32.dll")] internal static extern bool SetForegroundWindow(nint hwnd);
+    [DllImport("user32.dll")] internal static extern nint SetFocus(nint hwnd);
+    [DllImport("user32.dll")] internal static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int width, int height, uint flags);
+    [DllImport("user32.dll")] internal static extern bool GetClientRect(nint hwnd, out Rect rect);
+    [DllImport("user32.dll")] internal static extern bool ClientToScreen(nint hwnd, ref Point point);
+    [DllImport("user32.dll")] internal static extern bool GetGUIThreadInfo(uint thread, ref GuiThreadInfo info);
+    [DllImport("user32.dll")] internal static extern uint GetWindowThreadProcessId(nint hwnd, out uint process);
+    [DllImport("user32.dll")] internal static extern bool IsWindowVisible(nint hwnd);
+    [DllImport("user32.dll")] internal static extern bool IsIconic(nint hwnd);
+    [DllImport("user32.dll")] internal static extern nint WindowFromPoint(Point point);
+    [DllImport("user32.dll")] internal static extern nint MonitorFromPoint(Point point, uint flags);
+    [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW")] internal static extern bool GetMonitorInfo(nint monitor, ref MonitorInfo info);
     internal delegate nint WndProc(nint hwnd, uint message, nuint wParam, nint lParam);
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] internal struct WindowClass
     {

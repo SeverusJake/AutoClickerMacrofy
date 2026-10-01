@@ -1,3 +1,4 @@
+using Macrofy.IntegrationTests;
 using System.Runtime.InteropServices;
 using Macrofy.Platform.Models;
 using Macrofy.Platform.Windows.Interop;
@@ -5,6 +6,18 @@ using Xunit;
 namespace Macrofy.Platform.Windows.Tests;
 public class InputIntegrationTests
 {
+    [Fact]
+    public async Task ControlledReceiverReportsOriginalSurfaceIdentityAndSafeClientGeometry()
+    {
+        using var target = await TargetFixture.StartAsync();
+        var snapshot = await target.RequestAsync("snapshot");
+        Assert.True(snapshot.TryGetProperty("Surface", out var surface), "Controlled receiver must report its own HWND and client geometry before exposure.");
+        Assert.True(surface.GetProperty("Hwnd").GetInt64() != 0);
+        Assert.True(surface.GetProperty("Width").GetInt32() >= 100);
+        Assert.True(surface.GetProperty("Height").GetInt32() >= 100);
+        Assert.False(surface.GetProperty("Focused").GetBoolean());
+        Assert.False(surface.GetProperty("Exposed").GetBoolean());
+    }
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out WindowNative.Point point);
     [Theory]
     [InlineData(false)]

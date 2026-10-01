@@ -1,3 +1,4 @@
+using Macrofy.IntegrationTests;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text.Json;
@@ -46,34 +47,4 @@ public class WindowIntegrationTests
         var timer = Stopwatch.StartNew();
         while (!await condition()) { if (timer.Elapsed > TimeSpan.FromSeconds(5)) throw new TimeoutException("Controlled target did not reach expected state."); await Task.Delay(20); }
     }
-}
-internal sealed class TargetFixture : IDisposable
-{
-    private readonly Process process;
-    public string PipeName { get; }
-    public string ExecutablePath { get; }
-    private TargetFixture(Process process, string pipe, string executable) { this.process = process; PipeName = pipe; ExecutablePath = executable; }
-    public static async Task<TargetFixture> StartAsync()
-    {
-        var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName,"Macrofy.sln"))) root = root.Parent;
-        var configuration = AppContext.BaseDirectory.Contains("Release",StringComparison.Ordinal) ? "Release" : "Debug";
-        var executable = Path.Combine(root!.FullName,"tools","Macrofy.TestTarget","bin",configuration,"net10.0-windows","Macrofy.TestTarget.exe");
-        var pipe = "MacrofyTest-" + Guid.NewGuid().ToString("N");
-        var process = Process.Start(new ProcessStartInfo(executable, "--pipe " + pipe) { UseShellExecute = false, CreateNoWindow = true })!;
-        var result = new TargetFixture(process,pipe,executable);
-        try { await result.RequestAsync("snapshot"); return result; } catch { result.Dispose(); throw; }
-    }
-    public async Task<JsonElement> RequestAsync(string command)
-    {
-        using var client = new NamedPipeClientStream(".",PipeName,PipeDirection.InOut,PipeOptions.Asynchronous);
-        await client.ConnectAsync(5000);
-        using var writer = new StreamWriter(client,leaveOpen:true) { AutoFlush = true };
-        using var reader = new StreamReader(client,leaveOpen:true);
-        await writer.WriteLineAsync(command);
-        var response = await reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5));
-        using var document = JsonDocument.Parse(response!);
-        return document.RootElement.Clone();
-    }
-    public void Dispose() { if (!process.HasExited) process.Kill(true); process.Dispose(); }
 }
