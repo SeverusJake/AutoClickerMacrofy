@@ -1,71 +1,46 @@
 # Macrofy
 
-Windows-first macro recorder/editor project. Foundation, window discovery and the CookieRun compatibility probe are implemented. The approved design is now also available as a native UI preview executable. Real recording, macro scheduling and game-compatible playback remain pending.
+Macrofy is a Windows desktop macro editor and player. Saved macros send real Click, Key, Text, Wait, and Wheel actions through the selected Screen or window target. Recording remains unavailable. Controlled Windows delivery is verified; response from CookieRun or any other game is unconfirmed.
 
-## Open the native UI
+## Run the Windows app
 
-Double-click `artifacts/win-x64/Macrofy.exe`. It uses the approved desktop tabs, profile macro overview, macro workspace, icons and multicolor Light/Dark themes. Profiles, saved app rules, macro assignments, valid action edits and appearance choices are remembered beside the executable in `MacrofyData/ui-workspace.json`.
+Double-click `artifacts/win-x64/Macrofy.exe` after publishing. Opening the app does not start input. The self-contained `win-x64` build needs no separate .NET installation. Clean Windows 10/11 launch remains a manual check. A companion compatibility probe is copied to `artifacts/win-x64/CompatibilityProbe/` when its separately published EXE exists.
 
-**This build is a UI preview.** Run/Pause/Resume/Stop simulate independent macro sequences without desktop input. Recording is disabled. The Compatibility tab can capture a visible screen position and send one explicit left-click test after a countdown; it does not confirm app response or test background/minimized delivery. Closing Macrofy stops preview sessions; active/paused sessions are not restored after restart. Function-key shortcuts work while this window has focus; global hotkeys remain pending.
+The seven tabs are Profiles, Apps, Macros, Compatibility, Settings, Log, and About. Profiles holds multiple saved app rules and macros. Each macro can use one assigned app or **Screen (default)**. Run, Pause/Resume, and Stop work per macro. Run all starts enabled, valid macros in the current profile. Global Pause/Resume all and Stop all cover active macros across profiles. Multiple macros can run concurrently, including on one target; each macro keeps its step order, and complete input gestures are serialized.
 
-Rebuild the self-contained Windows executable with `powershell -NoProfile -File scripts/publish-ui.ps1`. No .NET installation is required to run the published EXE. Clean-machine verification remains pending.
+Default global shortcuts are **F9 Run all**, **F8 Pause/Resume all**, and **F10 Stop all**, including while another app has focus. Settings accepts distinct F1–F11 bindings; Windows reserves F12 for debugger use. A registration conflict is shown in the app. Playback and compatibility input require an operational global Stop shortcut. Shortcut changes are available while input is idle. System suspend and app shutdown stop sessions; they do not resume automatically.
 
-## Scope
+## Edit and play a macro
 
-Full macros are planned for future games. CookieRun currently requires clicks only. Minimized window playback is preferred; non-minimized background clicks are the fallback. If neither works in the actual game, pause and review options before building the full application. Screen mode is separately available as the default when no window is chosen.
+Select a macro on the Macros tab. Add or edit actions, then apply valid edits:
 
-## Build and verify
+| Action | Value | Behavior |
+| --- | --- | --- |
+| Click | `X, Y` | Left click at fixed desktop pixels or window client pixels; Percentage mode uses `0–100, 0–100`. |
+| Key | `Space`, `Enter`, `Ctrl + K` | One supported key or modifier chord. Control shortcut keys are reserved. |
+| Text | Text up to 4096 UTF-16 units | Sends Unicode text. |
+| Wait | Integer `0–600000` ms | Delays without native input. |
+| Wheel | Nonzero signed 16-bit integer, such as `120` or `-120` | Vertical scroll at current pointer; window mode requires pointer inside current client area. |
 
-Requires .NET SDK 10.0.302; `global.json` allows later patches in that feature band. The App headless test project uses xUnit v3 because Avalonia 12.1.3 requires it; Core/Windows tests use v2. Packages are pinned with lock files.
+Each step has **Wait after** (`0–600000` ms). Repeat can be Once, 100 times, or Until stopped. **Interval between runs** (`0–600000` ms) starts after the last action and its Wait after finish; the next run starts after that interval. The first run starts immediately apart from the Screen countdown. Waits use a monotonic clock; pause preserves remaining wait time. The UI shows current/total step, completed loops, active elapsed time, remaining wait/countdown, and delivery or cleanup errors. Sent/queued input is not an observed game response.
+
+Percentage `0` maps to the first pixel and `100` to the last pixel. Screen percentages span the virtual desktop rectangle, then validate that the point belongs to a connected monitor; gaps are invalid. Fixed Screen coordinates can be negative on monitors left or above the primary screen. Screen Click moves the physical pointer and needs visible intended content. Screen Run and Test selected action start after a cancellable three-second countdown. Screen mode cannot reach minimized or covered content.
+
+Window playback targets a saved executable/title rule and one matching live input surface; ambiguous matches require explicit selection. It never brings the target forward, minimizes it, or falls back to Screen on failure. Background and minimized states require separate user-observed evidence for each action capability: Click, Key, Shortcut, Text, or Wheel. Use Compatibility to select a saved app, live window and surface, target state, and one harmless test action. After successful delivery and cleanup, mark **Observed working** or **Observed ignored** based on visible response. Click evidence does not authorize other capabilities. Changed executable/title/surface/state or geometry can invalidate playback or require coordinates to be checked again. Window Wheel uses the current pointer in the target client area; this can be unavailable for minimized windows.
+
+Stop cancels future actions and waits promptly. Native input already sent cannot be withdrawn. Cleanup releases input owned by the current gesture using an independent 500 ms budget; errors are reported separately. Native synchronous delivery can delay a Stop boundary. Recording and independent hold/drag editing are unavailable.
+
+## Data and build
+
+Profiles, saved app rules, macro assignments/actions, appearance, shortcuts, and confirmed compatibility evidence live beside the EXE in `MacrofyData/ui-workspace.json`. Live HWNDs/PIDs and active sessions are not saved. Older structurally valid workspaces remain visible even if a saved action now fails validation; correct the action before running. Corrupt or newer workspace files are preserved with saving blocked, and edits from another app instance are detected. The browser UI concepts in `docs/ui/macrofy-ui-options.html` use separate browser storage.
+
+Build requires .NET SDK 10.0.302; `global.json` allows later patches in that feature band. NuGet packages are pinned with lock files. App headless tests use xUnit v3 for Avalonia 12.1.3; Core and Windows tests use xUnit v2.
 
 ```powershell
-powershell -File scripts/verify-probe.ps1
-powershell -File scripts/publish-probe.ps1
-dotnet run --project tools/Macrofy.CompatibilityProbe -- --list
-dotnet run --project tools/Macrofy.CompatibilityProbe -- --interactive
+powershell -NoProfile -File scripts/verify-probe.ps1
+powershell -NoProfile -File scripts/publish-ui.ps1
 ```
 
-Published self-contained probe: `artifacts/compatibility-probe/win-x64/Macrofy.CompatibilityProbe.exe --interactive`. This is a compatibility tool, not the final Macrofy release. Clean-machine Windows 10/11 verification remains pending.
+The 2026-09-30 locked Release verification passed **236 tests** (Core 44, App 110, Windows 82), with zero failures, skips, build warnings, or build errors. Controlled receiver tests covered real background/minimized window messages and a bounded Screen sequence on a dedicated harmless surface. See [native playback verification](docs/verification/native-ui-preview.md) and [Windows input compatibility](docs/verification/windows-input-compatibility.md). Physical global-key behavior outside Macrofy, suspend behavior, clean Windows 10/11 launch, and actual game response remain manual checks.
 
-## Screen mode (default)
-
-Double-click the published executable. Leave **Screen (default — visible desktop)** selected, capture a harmless screen position, then click **Test one click**. A three-second countdown lets you uncover the intended app. Screen mode moves the real pointer and sends one left click through Windows SendInput. Coordinates use desktop pixels across connected monitors, including negative coordinates. Screen mode cannot reach minimized or covered content.
-
-Selecting a window switches to client coordinates and targeted messages; choose the position again. An unavailable selected window stops the test and never switches to screen input. Screen results are not saved as game background/minimized compatibility evidence.
-
-## UI concepts
-
-Open `docs/ui/macrofy-ui-options.html` in a browser to try the desktop tab layout requested in the user's DS4Windows reference: Profiles, Apps, Macros, Compatibility, Settings, Log and About. Profiles shows its macros with individual Run, Pause/Resume, Stop and Edit controls. Multiple preview macros can run together, including on the same app. Shared Pause all/Resume all, Stop all and aggregate status remain visible across tabs and include other profiles. Macros uses Design 2's workspace. Earlier compact/guided concepts remain in the source. The native EXE now follows this design; real concurrent macro playback is still planned.
-
-Updated profile design: each profile has many saved app rules and many macros. Each macro remembers one assigned app from that profile; no assignment means Screen. The browser preview's **Manage apps** control persists sample app identities/title rules and per-macro assignments in browser storage. The native UI uses its own versioned workspace file; it does not import browser storage. Live window handles/process IDs are never saved.
-
-The Profiles count column is **Steps**: sequence length for one run, independent of repeats. Five new cyberpunk theme candidates appear above the preview: Neon District (yellow/cyan), Synthwave (pink/purple), Matrix (green/black), Tron (cyan/orange) and Redline (red/amber). Click one to preview it throughout the app; **Use this theme** remembers the confirmed choice in this browser. The earlier Windows Blue, Graphite, Emerald, Violet and Warm Amber themes remain available through Settings. The native palette is pending selection.
-
-Each cyberpunk theme now uses seven accent colors across tabs, macro/app labels, Run/Pause/Stop/Edit controls and status text, with related tints in the workspace panels. The palette strips show all seven colors; status labels remain readable without relying on color alone.
-
-Light/Dark mode is separate from the palette and works with all ten candidate themes. The top switch and Settings selector stay synchronized, and mode persists in browser storage. The preview uses concise labels and feedback instead of explanatory paragraphs.
-
-Navigation tabs and common controls now use icons with tooltips and accessible names. Pause changes to Resume while a macro is paused. Profile/macro names, form labels and status remain text.
-
-User approved the current UI design on 2026-09-29: desktop tabs, profile macro controls, Design 2 workspace, multicolor Light/Dark modes and icon controls. Native implementation still follows the actual-game compatibility gate.
-
-## Deliberate CookieRun click test
-
-1. Choose a harmless button with an obvious visible response.
-2. Open the probe with `--interactive`. Select CookieRun while restored. The picker shows actual executable identity; nicknames, PIDs and HWNDs are not saved as profile identity.
-3. Keep the selected input surface, or choose the main window/another child surface deliberately. Read its client dimensions.
-4. Click **Capture pointer position in 5 seconds**. Hover over the chosen button in the restored game until capture completes. This reads the physical cursor; it does not move it or send a click. Coordinates can also be entered manually.
-5. Minimize the game yourself. Choose **Minimized**, then **Test one click**. F10 or Stop cancels future posts. The test sends only a left-button down/up pair at your chosen point.
-6. Restore the game if necessary to observe the result. Choose **Observed working** or **Observed ignored**. Windows accepting a message is not proof the game reacted.
-7. If minimized is ignored, test background visible, partly covered and fully covered separately. Changing surfaces requires choosing the point again.
-8. If both minimized and background clicks fail, pause and review options. Do not switch to cursor movement, foreground activation, global input, drivers or injection automatically.
-
-Confirmed observations are bounded and saved in `MacrofyData/compatibility-probe-results.json` beside the probe executable. Storage errors are shown; no fallback data folder is used. These probe observations will feed the later full compatibility workflow.
-
-## Implementation boundaries
-
-Window mode uses targeted messages. Geometry is refreshed per pointer command, input is paced to 100 native posts/second, and concurrent sends are rejected. Stop cannot retract already-posted Windows messages. Target-only cleanup has a 500ms budget and may fail; its outcome is reported. Screen mode uses an explicit ordered move/down/up batch; cancellation before injection prevents the batch, and a partially inserted down triggers one release attempt. Already-inserted screen input cannot be withdrawn.
-
-Window/process and child-surface identities are checked before sends; destruction invalidates session tokens. Windows still has an unavoidable external check/send race and asynchronous destruction notifications. Controlled test success does not prove any game's compatibility.
-
-See `docs/verification/windows-input-compatibility.md` for evidence and pending checks; see `docs/superpowers/plans/2026-09-28-macrofy-implementation.md` for the revised plan.
+The standalone compatibility probe can also be built and run with `powershell -NoProfile -File scripts/publish-probe.ps1` and `dotnet run --project tools/Macrofy.CompatibilityProbe -- --interactive`. Its separate results file is `MacrofyData/compatibility-probe-results.json` beside the probe EXE. Probe observations do not replace the native app's per-capability confirmation workflow.

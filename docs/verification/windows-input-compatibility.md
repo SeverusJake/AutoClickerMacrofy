@@ -1,46 +1,38 @@
-# Windows input verification — phase 1
+# Windows input compatibility — 2026-09-30
 
-## Status
+Macrofy sends real Screen and window macro actions. Controlled Windows receiver tests verify delivery; actual CookieRun and other game response remains unconfirmed. A queued Windows message or inserted input does not prove the app acted on it.
 
-Backend and click probe implemented. Actual CookieRun input is unconfirmed. Full application work is gated on the user's observed click result.
+## Automated evidence
 
-## Automated evidence (2026-09-29)
+Locked Release verification on 2026-09-30: **236 passed** (Core 44, App 110, Windows 82), **0 failed, 0 skipped**, and build **0 warnings, 0 errors**. Earlier 2026-09-29 probe/UI-preview counts are historical. Full output is in the ignored `.superpowers/sdd/2026-09-30-real-playback/task-8-verify.log` development log.
 
-Release verification including Screen mode: locked restore, zero-warning build, 48 tests passed (Core 2, Windows 40, App headless 6), no skips. Self-contained single-file probe published; read-only --list launched successfully on the current Windows desktop. The UI concept page was checked in the browser: all three layouts, mode changes, sample macro editing, guided steps, and no horizontal overflow at 320px and 1024px.
+- Core tests cover action compilation, key chords, timing, repeats, pause/stop, cleanup, immutable runs, and concurrent gesture dispatch. Click and Key gestures stay balanced under cancellation; other sessions are not released by another macro's Stop.
+- Windows seam tests cover target identity/destruction, geometry/DPI, signed screen coordinates, virtual-desktop normalization, physical-input ownership, partial insertion, paced window posts, hotkey registration rollback/lifecycle, and cleanup failure reporting.
+- Real controlled background/minimized receiver tests received ordered Click, Key, Unicode Text, Wait-separated delivery, and Wheel messages. Concurrent same-target macros kept each key chord and text action contiguous. Native posts left foreground and pointer unchanged at immediate before/after samples. A stalled receiver demonstrates already queued input can arrive after Stop.
+- A dedicated, harmless exposed/focused receiver received one finite Screen Click/Key/Text/Wait/Wheel sequence. Exact Unicode/emoji and wheel receipts were verified, then cursor and foreground restored. The test checks receiver identity, focus, and exposure before each injection. It never targets a game. The minimized Wheel coordinator test reported `InvalidInput` with no sends when the current pointer was outside the client; low-level message encoding with a supplied valid point is a separate result.
+- Headless app tests exercise explicit selection, per-state/per-capability evidence, no automatic observed confirmation, cross-profile controls, and input exclusivity. Native hotkey tests use fakes; physical out-of-app keys and OS suspend remain manual.
 
-- Core contracts: opaque GUID tokens and delivery/observation separation.
-- Windows native-seam tests: ambiguous/missing resolution; explicit selection; process restart; same-process and child destruction; DPI/resize/minimized geometry; permission denial; pointer capture bounds.
-- Real external two-window fixture: discovery preserves foreground; real minimized geometry cache; real integrity check; WinEvent destruction invalidates original token; main/child surfaces can be selected explicitly.
-- Input encoder/player: signed coordinates, held-button/modifier masks, wheel screen conversion, key repeat/scan/extended/Alt bits, UTF-16 surrogate pairs, pre-cancellation, invalid geometry, access-denied partial send, 100-posts/second pacing, target-only cleanup and no cleanup to recreated targets.
-- Real receiving fixture: ordered mouse down/move/up, shortcut key sequence, Unicode/emoji, vertical/horizontal wheel, both non-minimized background and minimized. Cursor and foreground remain unchanged immediately around each native post; ordinary physical mouse use between posts is allowed. Current desktop reports DPI scale 1.25.
-- Stalled fixture: stopped future input is absent; previously queued down/up arrives after receiver resumes. Cleanup is ordered behind input, not an acknowledgement of target processing.
-- Click probe: foreground/wrong state blocked; cancellation releases with an independent token; rejected delivery is not confirmable; changed fingerprint invalidates confirmation; minimized observation can be confirmed after restoring the same target; cleanup errors are retained.
-- Headless probe UI: no automatic target/position selection or observed confirmation; unavailable F10 disables testing; changing target/surface clears coordinates; confirmation disables new input and closing waits for saving.
-- Cleanup regression checks: target loss between lifetime and context reads returns a failure; unexpected release exceptions are reported without leaving the probe session busy.
+The controlled receiver records raw messages. Its Key and Shortcut receipts do not establish that another application's keyboard-state-based commands work. Screen Unicode receipt uses the fixture's limited `VK_PACKET` translation. These tests do not create confirmed game evidence.
 
-The controlled fixture logs raw received messages without TranslateMessage, so its receipt of Ctrl/A events is not proof a real application's keyboard-state-based shortcuts or holds work. Background/minimized and action capabilities require independent game observation.
+## Target rules and deliberate game observation
 
-## Actual game evidence
+Screen mode is the default without an assigned app. It uses real [SendInput](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput) and may move the desktop pointer; visible content must be intended. Fixed pixels can be negative across monitors. Percentage 0 maps to the first pixel, 100 to the last pixel of the virtual desktop rectangle, and points in monitor gaps fail validation. Screen cannot reach minimized or covered content. A three-second cancellable countdown precedes Screen Run/Test.
 
-Screen mode was added at the user's request on 2026-09-29. Automated tests use a native seam and never inject screen input into the user's desktop. They cover negative monitor coordinates, virtual-desktop normalization, ordered move/down/up batching, invalid points/monitor gaps, pre-cancellation, held physical button rejection, partial insertion cleanup, and read-only capture. Headless UI verifies default Screen routing without invoking window playback. Real SendInput response remains a manual user check. [Microsoft SendInput documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput) and [MOUSEINPUT coordinate documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-mouseinput) define the native delivery and coordinate behavior.
+Window mode requires a saved executable/title rule, one matching live input surface, target state, and a successful user-observed test for each needed capability: Click, Key, Shortcut, Text, or Wheel. Ambiguous live matches require explicit surface selection. Background and minimized evidence are separate. Compatibility sends one chosen harmless action; only successful delivery and cleanup can be marked Observed working or Observed ignored. Observations persist with app/title/surface fingerprint, state, capability, geometry and timestamp, without HWND/PID. Current identity/surface/state is rechecked before sends. Fixed-pixel geometry changes invalidate coordinates; percentage coordinates recalculate against current client dimensions. Window Wheel uses the current pointer within the client area, which can make minimized Wheel unavailable. A failed window target never switches to Screen.
 
-Read-only discovery found title matching `*CookieRun: Crumble - Idle RPG*`, executable `C:\Program Files\Google\Play Games\current\emulator\crosvm.exe`, client geometry 696 × 1237 at DPI scale 1.25. This is executable/title evidence only, not input compatibility.
+Read-only discovery on 2026-09-29 found a title matching `*CookieRun: Crumble - Idle RPG*`, executable `C:\Program Files\Google\Play Games\current\emulator\crosvm.exe`, and client geometry 696 × 1237 at DPI scale 1.25. This identifies a candidate only. No arbitrary game input was sent during automated tests.
 
-| Target state | Click delivery | User observed result | Gate |
-| --- | --- | --- | --- |
-| Minimized | Not tested | Unconfirmed | Preferred |
-| Background visible | Not tested | Unconfirmed | Fallback |
-| Background partly covered | Not tested | Unconfirmed | Fallback |
-| Background fully covered | Not tested | Unconfirmed | Fallback |
+| CookieRun target state | Input delivery | User-observed response |
+| --- | --- | --- |
+| Minimized | Untested | Unconfirmed |
+| Background visible | Untested | Unconfirmed |
+| Background partly covered | Untested | Unconfirmed |
+| Background fully covered | Untested | Unconfirmed |
 
-A user-selected harmless button/position is required before game input. Actual test confirmation is stored by the probe beside its executable. No game-compatible release is claimed.
+For a deliberate check, choose a harmless control with obvious response, select the live game window/surface in Compatibility, choose its state and one action, then send that single test. Mark the result only after seeing whether the game reacted. Repeat separately for each capability and state needed by a macro. The standalone probe offers a separate explicit click-only workflow and results file; its records do not grant the native app's playback capability evidence.
 
-## Limits and pending checks
+## Boundaries and remaining checks
 
-- Native lifecycle notifications and check-before-send cannot make HWND identity checking atomic with posting. Original tokens are never intentionally rebound; the residual external race is documented.
-- Minimized geometry needs a valid cache from the restored bound surface. Unknown geometry fails; restore and refresh before testing.
-- All controlled Windows tests run serially. Non-100% DPI is exercised on this desktop; other monitor arrangements, runtime DPI switches and Windows 10 clean-machine launch remain manual checks.
-- Native quota exhaustion and cancellation-before-next-action are exercised through seams; OS messages already in a receiver queue cannot be cancelled.
-- F10 registration and physical F10 response need a manual interactive check. Headless tests verify blocked testing when registration is unavailable.
-- Clean machine portability, read-only folder behavior and full profile/settings atomic persistence belong to later release/storage tasks.
-- Hidden/tray and locked-screen operation are outside initial scope. No functional Mac backend is implemented.
+Window delivery uses targeted messages, refreshed geometry/identity checks, and pacing of 100 native posts per second. Windows still has an external check/send race and asynchronous receiver queues. Stop prevents future actions and waits; it cannot retract already posted messages. Owned release uses an independent 500 ms budget and may fail, with separate cleanup error. A synchronous native send can defer a Stop boundary. System suspend and app close request Stop rather than resume input automatically.
+
+Global F9/F8/F10 registration uses Windows [RegisterHotKey](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey) with repeat suppression. A conflicting binding is reported; F12 is reserved by Windows for debugger use. Test actual physical shortcuts outside the app and suspend/resume manually. Clean Windows 10/11 launch, alternate monitor/DPI layouts, accessibility interaction, and actual game behavior also remain manual evidence. No functional Mac playback, hidden/tray or locked-screen operation is claimed.
