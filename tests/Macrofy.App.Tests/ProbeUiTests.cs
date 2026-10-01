@@ -25,7 +25,7 @@ public class ProbeUiTests
     public async Task ChangingTargetOrSurfaceRequiresFreshCoordinates()
     {
         using var catalog=new WindowsWindowCatalog(new UiWindows());
-        var window=new ProbeWindow(catalog,new UiPlayer(),true);window.Show();
+        var window=new ProbeWindow(catalog,new UiPlayer(),true,screen:new UiScreen());window.Show();
         var target=Find<ComboBox>(window,"TargetPicker");target.SelectedIndex=1;
         Find<TextBox>(window,"ClientX").Text="20";Find<TextBox>(window,"ClientY").Text="30";
         await UntilAsync(()=>Find<Button>(window,"TestClick").IsEnabled);
@@ -43,12 +43,19 @@ public class ProbeUiTests
     {
         using var catalog=new WindowsWindowCatalog(new UiWindows());
         var started=new TaskCompletionSource();var saved=new TaskCompletionSource<string>();
-        var window=new ProbeWindow(catalog,new UiPlayer(),true,_=>{started.SetResult();return saved.Task;});window.Show();
+        var player=new UiPlayer();var screen=new UiScreen();
+        var window=new ProbeWindow(catalog,player,true,_=>{started.SetResult();return saved.Task;},screen:screen);window.Show();
         Find<ComboBox>(window,"TargetPicker").SelectedIndex=1;
         Find<ComboBox>(window,"StatePicker").SelectedIndex=3;
         Find<TextBox>(window,"ClientX").Text="20";Find<TextBox>(window,"ClientY").Text="30";
         Find<Button>(window,"TestClick").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await UntilAsync(()=>Find<Button>(window,"ObservedWorking").IsEnabled);
+        var selectedToken=(await catalog.ListAsync())[0].Token;
+        Assert.Collection(player.Commands,
+            down=>{Assert.Equal(selectedToken,down.Target);Assert.Equal(new PointerCommand(PointerKind.Down,new(20,30),Macrofy.Platform.Models.MouseButton.Left),down.Command);},
+            up=>{Assert.Equal(selectedToken,up.Target);Assert.Equal(new PointerCommand(PointerKind.Up,new(20,30),Macrofy.Platform.Models.MouseButton.Left),up.Command);});
+        Assert.Equal(1,player.Releases);
+        Assert.False(screen.Clicked.Task.IsCompleted);
         Find<Button>(window,"ObservedWorking").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
         try
@@ -84,8 +91,8 @@ public class ProbeUiTests
     [AvaloniaFact]
     public void ProbeDefaultsToScreenAndStillRequiresExplicitPositionBeforeSending()
     {
-        using var catalog=new WindowsWindowCatalog();using var player=new WindowsInputPlayer(catalog);
-        var window=new ProbeWindow(catalog,player,true);window.Show();
+        using var catalog=new WindowsWindowCatalog(new UiWindows());var player=new UiPlayer();
+        var window=new ProbeWindow(catalog,player,true,screen:new UiScreen());window.Show();
         var controls=window.GetVisualDescendants().ToArray();
         Assert.False(controls.OfType<Button>().Single(b=>b.Name=="TestClick").IsEnabled);
         Assert.False(controls.OfType<Button>().Single(b=>b.Name=="ObservedWorking").IsEnabled);
@@ -112,8 +119,8 @@ public class ProbeUiTests
     [AvaloniaFact]
     public void MissingEmergencyHotkeyBlocksTest()
     {
-        using var catalog=new WindowsWindowCatalog();using var player=new WindowsInputPlayer(catalog);
-        var window=new ProbeWindow(catalog,player,false);window.Show();
+        using var catalog=new WindowsWindowCatalog(new UiWindows());var player=new UiPlayer();
+        var window=new ProbeWindow(catalog,player,false,screen:new UiScreen());window.Show();
         Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),t=>t.Text!=null && t.Text.Contains("F10"));
         Assert.False(window.GetVisualDescendants().OfType<Button>().Single(b=>b.Name=="TestClick").IsEnabled);
         window.Close();
@@ -132,9 +139,11 @@ internal sealed class UiWindows : IWindowNative
 }
 internal sealed class UiPlayer : IInputPlayer
 {
-    public int Sends {get;private set;}
-    public ValueTask<DeliveryResult> SendAsync(TargetToken target,InputCommand command,CancellationToken cancellationToken=default){Sends++;return ValueTask.FromResult(new DeliveryResult(true));}
-    public ValueTask<DeliveryResult> ReleaseHeldAsync(TargetToken target,CancellationToken cancellationToken=default)=>ValueTask.FromResult(new DeliveryResult(true));
+    public List<(TargetToken Target,InputCommand Command)> Commands {get;}=[];
+    public int Sends=>Commands.Count;
+    public int Releases {get;private set;}
+    public ValueTask<DeliveryResult> SendAsync(TargetToken target,InputCommand command,CancellationToken cancellationToken=default){Commands.Add((target,command));return ValueTask.FromResult(new DeliveryResult(true));}
+    public ValueTask<DeliveryResult> ReleaseHeldAsync(TargetToken target,CancellationToken cancellationToken=default){Releases++;return ValueTask.FromResult(new DeliveryResult(true));}
 }
 internal sealed class UiScreen : IScreenClicker
 {
