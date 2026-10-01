@@ -4,7 +4,7 @@ Macrofy sends real Screen and window macro actions. Controlled Windows receiver 
 
 ## Automated evidence
 
-Locked Release verification on 2026-09-30: **236 passed** (Core 44, App 110, Windows 82), **0 failed, 0 skipped**, and build **0 warnings, 0 errors**. Earlier 2026-09-29 probe/UI-preview counts are historical. Full output is in the ignored `.superpowers/sdd/2026-09-30-real-playback/task-8-verify.log` development log.
+Locked Release verification on 2026-09-30: **236 passed** (Core 44, App 110, Windows 82), **0 failed, 0 skipped**, and build **0 warnings, 0 errors**. This is dated Task 8 evidence before the final review fixes; it is not a current full-suite pass. Earlier 2026-09-29 probe/UI-preview counts are historical. Full output is in the ignored `.superpowers/sdd/2026-09-30-real-playback/task-8-verify.log` development log.
 
 - Core tests cover action compilation, key chords, timing, repeats, pause/stop, cleanup, immutable runs, and concurrent gesture dispatch. Click and Key gestures stay balanced under cancellation; other sessions are not released by another macro's Stop.
 - Windows seam tests cover target identity/destruction, geometry/DPI, signed screen coordinates, virtual-desktop normalization, physical-input ownership, partial insertion, paced window posts, hotkey registration rollback/lifecycle, and cleanup failure reporting.
@@ -15,6 +15,14 @@ Locked Release verification on 2026-09-30: **236 passed** (Core 44, App 110, Win
 The controlled receiver records raw messages. Its Key and Shortcut receipts do not establish that another application's keyboard-state-based commands work. Screen Unicode receipt uses the fixture's limited `VK_PACKET` translation. These tests do not create confirmed game evidence.
 
 The final review fixes add fake-clock regressions for original-token loss while paused, waiting, and preparing, unrelated-target survival, cleanup ownership, and subscription disposal. Headless regressions cover selected-action eligibility, action-specific help, and asynchronous workspace-owner reads while unrelated profile/app collections change. Production compatibility reads run on the UI dispatcher with cancellation; candidate/save/publish remains one dispatcher transaction. These focused checks supplement the dated Task 8 count above; fresh whole-solution verification is reported separately.
+
+## Latest run evidence — 2026-10-01
+
+The fresh locked Release build after final fixes at `7aa086b` had **0 warnings and 0 errors**, but its full `scripts/verify-probe.ps1` run failed one native Screen test: Core 51/51 and Windows 82/82 passed; App 116/117 passed. The dedicated Screen receiver was exposed but not focused at the send boundary. The follow-up readiness test at `74fa9c3` waited five seconds for focus and exposure, then reported a blocked environment **before injection** and restored cursor/foreground exactly. See ignored `final-verify.log` and `task-8-readiness-fix.log`.
+
+An explicit run excluding that Screen test passed Core 51/51 and Windows 82/82, while App passed 115/116. The remaining background-window integration case failed at loop 2 Wheel with `InvalidInput`: the live pointer no longer mapped inside the selected client geometry. The log does not establish its cause (`final-available-tests.log`). Thus current physical Screen and full native integration verification remain open; these failures do not establish game behavior.
+
+The latest portable EXE publish and launch-only smoke succeeded (`final-publish.log`, `final-smoke.log`): **102,077,060 bytes**, SHA-256 `3FDD10706E4B9702FD07DBDDD3AD2DA5CD4EA38DC824B72BDBC1B3525FA01C52`, main window created, graceful close, exit code 0. No macro input was started by smoke. The branch remains unmerged while a reliable full suite and manual observations are pending.
 
 ## Target rules and deliberate game observation
 
