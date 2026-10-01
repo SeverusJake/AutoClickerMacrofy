@@ -7,6 +7,19 @@ using Xunit;
 namespace Macrofy.Platform.Windows.Tests;
 public class GlobalHotkeyTests
 {
+    [Fact] public void FatalPumpFailurePublishesLostStopHealth()
+    {
+        var native = new FakeNative(); using var service = new WindowsGlobalHotkeys(native);
+        var health = Assert.IsAssignableFrom<Macrofy.Platform.IHotkeyHealth>(service);
+        Assert.False(health.IsOperational);
+        Assert.True(service.Configure(Defaults).Registered); Assert.True(health.IsOperational);
+        using var lost = new ManualResetEventSlim();
+        health.HealthChanged += () => { if (!health.IsOperational) lost.Set(); };
+        native.PumpHook = _ => throw new InvalidOperationException("native loop lost");
+        Assert.True(lost.Wait(1000)); Assert.False(health.IsOperational);
+        Assert.Contains("native loop lost", health.OperationalError!.Message);
+        Assert.False(service.Configure(Defaults).Registered);
+    }
     static HotkeySet Defaults => new(new("F9"), new("F8"), new("F10"));
     [Fact] public void RegistersNoRepeatAndRoutesCommands()
     {

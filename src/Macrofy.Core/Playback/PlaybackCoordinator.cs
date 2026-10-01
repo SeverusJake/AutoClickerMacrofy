@@ -68,6 +68,14 @@ public sealed class PlaybackCoordinator : IAsyncDisposable
     public Task WaitForIdleAsync(CancellationToken cancellationToken = default) =>
         Task.WhenAll(ActiveSessions().Select(s => s.Completion)).WaitAsync(cancellationToken);
 
+    /// <summary>Waits for the current lifetime of one macro, including cleanup; a later restart is not followed.</summary>
+    public Task WaitForCompletionAsync(Guid macroId, CancellationToken cancellationToken = default)
+    {
+        Task completion;
+        lock (sync) completion = sessions.TryGetValue(macroId, out var session) ? session.Completion : Task.CompletedTask;
+        return completion.WaitAsync(cancellationToken);
+    }
+
     public async ValueTask DisposeAsync()
     {
         PlaybackSession[] active;

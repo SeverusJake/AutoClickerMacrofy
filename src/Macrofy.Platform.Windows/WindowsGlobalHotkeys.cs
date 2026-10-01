@@ -3,7 +3,7 @@ using Macrofy.Platform.Models;
 using Macrofy.Platform.Windows.Interop;
 namespace Macrofy.Platform.Windows;
 
-public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDisposable
+public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IHotkeyHealth, IDisposable
 {
     readonly IHotkeyNative native;
     readonly Thread thread;
@@ -16,6 +16,18 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
     Exception? failure;
     int nextId;
     bool suspended;
+    volatile bool operational;
+    PlatformError? operationalError;
+    public bool IsOperational => operational && !disposed && failure is null;
+    public PlatformError? OperationalError => Volatile.Read(ref operationalError);
+    public event Action? HealthChanged;
+    void PublishHealth(bool available, string? error = null)
+    {
+        operational = available;
+        Volatile.Write(ref operationalError, error is null ? null : new PlatformError("HotkeyUnavailable", error));
+        foreach (var handler in HealthChanged?.GetInvocationList() ?? [])
+            try { ((Action)handler)(); } catch { }
+    }
     public event Action<HotkeyCommand>? Triggered;
     public event Action? Suspended;
     public WindowsGlobalHotkeys() : this(new HotkeyNative()) { }
@@ -24,7 +36,7 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
         this.native = native;
         thread = new Thread(Loop) { IsBackground = true, Name = "Macrofy global controls" };
         thread.Start();
-        if (!ready.Wait(TimeSpan.FromSeconds(2))) { failure = new TimeoutException("Hotkey window startup timed out."); disposed = true; }
+        if (!ready.Wait(TimeSpan.FromSeconds(2))) { failure = new TimeoutException("Hotkey window startup timed out."); disposed = true; PublishHealth(false, failure.Message); }
     }
     public HotkeyRegistrationResult Configure(HotkeySet hotkeys)
     {
@@ -69,7 +81,7 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
                         if(disposed) throw new ObjectDisposedException(nameof(WindowsGlobalHotkeys));
                         foreach(var addition in added) registrations.Add(addition.Key,addition.Id);
                         commands = parsed.ToDictionary(x => registrations[x.Key],x => x.Command);
-                        committed = true;
+                        committed = true; operational = true;
                     }
                     finally { Monitor.Exit(synchronization); }
                     var cleanupErrors = new List<string>();
@@ -98,14 +110,14 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
             if(Thread.CurrentThread == thread) configure(); else work.Enqueue(configure);
             if(!completion.Task.Wait(TimeSpan.FromSeconds(2)))
             {
-                if(!Monitor.TryEnter(synchronization,TimeSpan.FromSeconds(2))) { disposed = true; return Error("Hotkey state shutdown timed out; service disabled."); }
+                if(!Monitor.TryEnter(synchronization,TimeSpan.FromSeconds(2))) { disposed = true; PublishHealth(false, "Hotkey state shutdown timed out; service disabled."); return Error("Hotkey state shutdown timed out; service disabled."); }
                 try
                 {
-                    if(!completion.Task.IsCompleted) { disposed = true; return Error("Hotkey configuration timed out; service disabled."); }
+                    if(!completion.Task.IsCompleted) { disposed = true; PublishHealth(false, "Hotkey configuration timed out; service disabled."); return Error("Hotkey configuration timed out; service disabled."); }
                 }
                 finally { Monitor.Exit(synchronization); }
             }
-            return completion.Task.Result;
+            var result = completion.Task.Result; if (result.Registered) PublishHealth(IsOperational); return result;
         }
     }
     static string Describe(Exception ex) => ex is System.ComponentModel.Win32Exception win32 ? $"Win32 error {win32.NativeErrorCode} ({win32.Message})" : ex.Message;
@@ -125,6 +137,7 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
         catch(Exception ex) { failure = ex; }
         finally
         {
+            PublishHealth(false, failure?.Message ?? "Hotkey service stopped.");
             ready.Set();
             foreach(var id in registrations.Values) { try { native.Unregister(id); } catch { } }
             registrations.Clear();
@@ -145,14 +158,8 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IDispo
     public void Dispose()
     {
         var entered = Monitor.TryEnter(synchronization,TimeSpan.FromSeconds(2));
-        try { disposed = true; }
+        try { disposed = true; PublishHealth(false, "Hotkey service disposed."); }
         finally { if(entered) Monitor.Exit(synchronization); }
         if(Thread.CurrentThread != thread) thread.Join(TimeSpan.FromSeconds(2));
     }
 }
-
-
-
-
-
-

@@ -34,7 +34,7 @@ public class WorkspaceStateTests
             document.Profiles[0].Macros[0].Steps = [new("Key", "LegacyUnsupported", 0)]; store.Save(document);
             var loaded = new WorkspaceStore(folder); var state = new WorkspaceState(loaded.Load());
             Assert.Null(loaded.LoadError); Assert.Equal("LegacyUnsupported", state.Macro.Steps[0].Value);
-            Assert.False(WorkspaceState.ValidateStep(state.Macro.Steps[0], out _)); Assert.False(state.StartPreview(state.Macro));
+            Assert.False(WorkspaceState.ValidateStep(state.Macro.Steps[0], out _)); Assert.False(new UiPlayback(state.Document).CanStart(state.Profile, state.Macro, out _));
         }
         finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
     }
@@ -86,31 +86,22 @@ public class WorkspaceStateTests
         Assert.Equal("Screen", state.TargetName(state.Macro));
         state.Macro.AppId = Guid.NewGuid();
         Assert.Equal("Missing app", state.TargetName(state.Macro));
-        Assert.False(state.StartPreview(state.Macro));
+        Assert.False(new UiPlayback(state.Document).CanStart(state.Profile, state.Macro, out _));
     }
 
     [Fact]
-    public void PreviewSessionsAreIndependentAndStopAllIncludesOtherProfiles()
+    public async Task ControllerSnapshotsLockEditingAcrossProfileBrowsing()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
-        var first = state.Profile.Macros[0];
-        var second = state.Profile.Macros[1];
-        second.AppId = first.AppId;
-        Assert.True(state.StartPreview(first));
-        Assert.True(state.StartPreview(second));
-        Assert.False(state.StartPreview(first));
-        state.TogglePause(first.Id);
-        state.Tick();
-        Assert.Equal("Paused", state.Status(first));
-        Assert.Equal(0, state.Sessions[first.Id].CompletedSteps);
-        Assert.Equal(1, state.Sessions[second.Id].CompletedSteps);
-        Assert.False(state.ApplyStep(first, 0, new MacroStep("Click", "10, 20", 100), out _));
+        var playback = new UiPlayback(state.Document); state.Playback = playback;
+        var first = state.Macro;
+        await playback.StartAsync(state.Profile, first); playback.TogglePause(first.Id);
         state.SelectProfile(state.Document.Profiles[1].Id);
-        Assert.True(state.StartPreview(state.Macro));
-        state.StopAll();
-        Assert.All(state.Sessions.Values, session => Assert.Equal("Stopped", session.State));
+        Assert.Equal("Paused", state.Status(first));
+        Assert.False(state.ApplyStep(first, 0, new("Click", "10, 20", 0), out _));
+        Assert.Equal("Example game", state.TargetName(first));
+        state.StopAll(); Assert.False(state.IsActive(first));
     }
-
     [Theory]
     [InlineData("Click", "bad", 100)]
     [InlineData("Wait", "-10", 100)]
@@ -166,20 +157,6 @@ public class WorkspaceStateTests
             Assert.Contains("999", File.ReadAllText(path));
         }
         finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
-    }
-
-    [Fact]
-    public void OnceWaitRemainsRunningUntilItsDurationEnds()
-    {
-        var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
-        state.Macro.Steps = [new("Wait", "5000", 0)]; state.Macro.Repeat = 1;
-        Assert.True(state.StartPreview(state.Macro));
-        state.Tick(600);
-        Assert.Equal("Running", state.Status(state.Macro));
-        Assert.Equal(0, state.Sessions[state.Macro.Id].CompletedSteps);
-        state.Tick(4400);
-        Assert.Equal("Stopped", state.Status(state.Macro));
-        Assert.Equal(1, state.Sessions[state.Macro.Id].CompletedSteps);
     }
 
     [Fact]

@@ -17,8 +17,8 @@ public sealed partial class MainWindow
     private void RenameProfile(Profile profile) => NameDialog("Profile name", profile.Name, value => { profile.Name = value; Save(); Render(); });
     private void RenameMacro(Macro macro)
     {
-        if (Workspace.IsActive(macro)) return;
-        NameDialog("Macro name", macro.Name, value => { macro.Name = value; Save(); Render(); });
+        if (Workspace.IsActive(macro) || CompatibilityLocked) return;
+        NameDialog("Macro name", macro.Name, value => { if (Workspace.IsActive(macro) || CompatibilityLocked) return; macro.Name = value; Save(); Render(); });
     }
     private void NameDialog(string title, string current, Action<string> changed)
     {
@@ -40,6 +40,7 @@ public sealed partial class MainWindow
     }
     private void AppDialog(SavedApp? app)
     {
+        if (CompatibilityLocked) return;
         if (app is not null && Workspace.Profile.Macros.Any(m => m.AppId == app.Id && Workspace.IsActive(m))) return;
         var profile = Workspace.Profile;
         var name = new TextBox { Text = app?.Name ?? "", MinHeight = 34 };
@@ -51,14 +52,17 @@ public sealed partial class MainWindow
         body.Children.Add(Row(IconButton("check", "Save app", () =>
         {
             if (string.IsNullOrWhiteSpace(name.Text) || string.IsNullOrWhiteSpace(executable.Text) || string.IsNullOrWhiteSpace(title.Text)) { error.Text = "Enter an app name, executable path and title rule."; return; }
-            var item = app ?? new SavedApp(); item.Name = name.Text.Trim(); item.Executable = executable.Text.Trim(); item.TitleRule = title.Text.Trim();
+            if (CompatibilityLocked || (app is not null && profile.Macros.Any(m => m.AppId == app.Id && Workspace.IsActive(m)))) return;
+            var item = app ?? new SavedApp(); playback.SelectSurface(item.Id, null); item.Name = name.Text.Trim(); item.Executable = executable.Text.Trim(); item.TitleRule = title.Text.Trim();
             if (app is null) profile.Apps.Add(item);
+            ResetCompatibilityContext();
             Save(); Render(); dialog.Close();
         }, "success"), IconButton("close", "Cancel", dialog.Close)));
         _ = dialog.ShowDialog(this);
     }
     private void DuplicateProfile()
     {
+        if (CompatibilityLocked) return;
         var copy = JsonSerializer.Deserialize<Profile>(JsonSerializer.Serialize(Workspace.Profile))!;
         copy.Id = Guid.NewGuid(); copy.Name += " copy"; var apps = new Dictionary<Guid, Guid>();
         foreach (var app in copy.Apps) { var old = app.Id; app.Id = Guid.NewGuid(); apps[old] = app.Id; }
@@ -74,9 +78,11 @@ public sealed partial class MainWindow
     private void DeleteProfile()
     {
         var profile = Workspace.Profile;
-        if (Workspace.Document.Profiles.Count < 2 || profile.Macros.Any(Workspace.IsActive)) return;
+        if (CompatibilityLocked || Workspace.Document.Profiles.Count < 2 || profile.Macros.Any(Workspace.IsActive)) return;
         Confirm("Delete profile “" + profile.Name + "” and its macros?", () =>
         {
+            if (CompatibilityLocked || profile.Macros.Any(Workspace.IsActive)) return;
+            foreach (var app in profile.Apps) playback.SelectSurface(app.Id, null);
             foreach (var item in profile.Macros) ClearDrafts(item);
             Workspace.Document.Profiles.Remove(profile); Workspace.SelectProfile(Workspace.Document.Profiles[0].Id); selectedStep = 0; Save(); Render();
         });
@@ -84,9 +90,10 @@ public sealed partial class MainWindow
     private void DeleteMacro(Macro macro)
     {
         var profile = Workspace.Profile;
-        if (profile.Macros.Count < 2 || Workspace.IsActive(macro)) return;
+        if (CompatibilityLocked || profile.Macros.Count < 2 || Workspace.IsActive(macro)) return;
         Confirm("Delete macro “" + macro.Name + "”?", () =>
         {
+            if (CompatibilityLocked || Workspace.IsActive(macro)) return;
             ClearDrafts(macro); profile.Macros.Remove(macro); Workspace.SelectMacro(profile.Macros[0].Id); selectedStep = 0; Save(); Render();
         });
     }

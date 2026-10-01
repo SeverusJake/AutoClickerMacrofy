@@ -31,11 +31,11 @@ public sealed partial class MainWindow
         var targets = Workspace.Profile.Apps.Select(a => new TargetChoice(a.Id, a.Name)).Prepend(new TargetChoice(null, "Screen (default)")).ToList();
         if (macro.AppId is { } missing && targets.All(t => t.Id != missing)) targets.Add(new(missing, "Missing app"));
         var target = new ComboBox { Name = "MacroTarget", ItemsSource = targets, SelectedItem = targets.Single(t => t.Id == macro.AppId), HorizontalAlignment = HorizontalAlignment.Stretch, MinHeight = 32 };
-        target.SelectionChanged += (_, _) => { if (target.SelectedItem is TargetChoice choice && !Workspace.IsActive(macro)) { macro.AppId = choice.Id; Save(); Render(); } };
+        target.SelectionChanged += (_, _) => { if (target.SelectedItem is TargetChoice choice && !Workspace.IsActive(macro) && !CompatibilityLocked) { macro.AppId = choice.Id; Save(); Render(); } };
         var state = Choice(["Minimized", "Background"], macro.WindowState, value => { macro.WindowState = value; Save(); }); state.Name = "WindowState"; state.IsVisible = macro.AppId is not null;
         var targetGrid = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 };
         targetGrid.Children.Add(Field("Playback target", target)); Add(targetGrid, Field("Window state", state), 0, 1);
-        var modeNote = Text(macro.AppId is null ? "Visible desktop" : "Background / minimized · Unconfirmed", "muted", 12);
+        var modeNote = Text(macro.AppId is null ? "Visible desktop" : "Background / minimized · Capability confirmation required", "muted", 12);
         Add(main, new Border { Background = palette.Tint("secondary", .07), BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 1, 0, 1), Padding = new Thickness(20, 12), Child = Stack(targetGrid, modeNote) }, 1);
 
         var sequence = new StackPanel { Spacing = 12 };
@@ -69,10 +69,11 @@ public sealed partial class MainWindow
         {
             var step = macro.Steps[selectedStep]; var key = (macro.Id, selectedStep);
             if (!drafts.TryGetValue(key, out var draft)) drafts[key] = draft = new(step);
+            Workspace.ValidateStep(macro, new(draft.Kind, draft.Value, draft.Delay), out var initialError); draft.Error = initialError;
             var error = Wrap(draft.Error, "danger", 12); error.Name = "ActionError";
             void DraftChanged()
             {
-                Services.WorkspaceState.ValidateStep(new(draft.Kind, draft.Value, draft.Delay), out var problem);
+                Workspace.ValidateStep(macro, new(draft.Kind, draft.Value, draft.Delay), out var problem);
                 draft.Error = problem; error.Text = problem; RefreshPlayback();
             }
             var kindPicker = Choice(["Click", "Key", "Text", "Wait", "Wheel"], draft.Kind, value => { draft.Kind = value; DraftChanged(); }); kindPicker.Name = "ActionKind";
@@ -90,7 +91,7 @@ public sealed partial class MainWindow
             inspector.Children.Add(Field("Action", kindPicker)); inspector.Children.Add(Field("Position / value", valueInput)); inspector.Children.Add(Field("Wait after (ms)", delayInput)); inspector.Children.Add(error); inspector.Children.Add(Row(apply, discard));
             editable.AddRange([kindPicker, valueInput, delayInput, apply]);
         }
-        var coordinate = Choice(["Fixed pixels", "Percentage"], macro.Coordinates, value => { macro.Coordinates = value; Save(); }); coordinate.Name = "CoordinateMode";
+        var coordinate = Choice(["Fixed pixels", "Percentage"], macro.Coordinates, value => { macro.Coordinates = value; Save(); Render(); }); coordinate.Name = "CoordinateMode";
         inspector.Children.Add(Field("Coordinates", coordinate)); editable.Add(coordinate);
         inspector.Children.Add(Text(macro.AppId is null ? "Desktop coordinates" : "Window client coordinates", "muted", 12));
         responsiveEditor = new Grid { ColumnDefinitions = new("*,230"), RowDefinitions = new("Auto") };
@@ -103,8 +104,8 @@ public sealed partial class MainWindow
         interval.ValueChanged += (_, _) => { macro.IntervalMs = (int)(interval.Value ?? 0); Save(); };
         var settings = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 };
         settings.Children.Add(Field("Repeat", repeat)); Add(settings, Field("Interval between runs (ms)", interval), 0, 1); editable.AddRange([repeat, interval]);
-        var run = IconButton("play", "Run preview: " + macro.Name, () => Start(macro), "success"); run.Name = "RunSelected";
-        var test = IconButton("test", "Preview selected action", () => { AddLog("Action preview: " + macro.Name + " / Step " + (selectedStep + 1)); messageText.Text = "Preview only · No desktop input"; }); test.Name = "TestSelected";
+        var run = IconButton("play", "Run: " + macro.Name, () => Start(macro), "success"); run.Name = "RunSelected";
+        var test = IconButton("test", "Test selected action once", async () => await StartMacroAsync(macro, true)); test.Name = "TestSelected";
         var pause = IconButton("pause", "Pause macro", () => { Workspace.TogglePause(macro.Id); RefreshPlayback(); }, "warning"); pause.Name = "PauseSelected";
         var stop = IconButton("stop", "Stop macro", () => { Workspace.Stop(macro.Id); RefreshPlayback(); }, "danger"); stop.Name = "StopSelected";
         var progress = Text("Ready · " + macro.Steps.Count + " steps · " + Workspace.TargetName(macro), "muted", 12); progress.Name = "MacroProgress";
@@ -112,17 +113,18 @@ public sealed partial class MainWindow
         refreshPlayback.Add(() =>
         {
             var active = Workspace.IsActive(macro);
-            foreach (var control in editable) control.IsEnabled = !active;
+            foreach (var control in editable) control.IsEnabled = !active && !CompatibilityLocked;
             var pending = HasDraft(macro);
-            add.IsEnabled = addType.IsEnabled = !active && !pending;
-            delete.IsEnabled = !active && Workspace.Profile.Macros.Count > 1;
-            remove.IsEnabled = !active && !pending && selectedStep >= 0; up.IsEnabled = !active && !pending && selectedStep > 0; down.IsEnabled = !active && !pending && selectedStep >= 0 && selectedStep < macro.Steps.Count - 1;
-            test.IsEnabled = Workspace.ActiveCount == 0 && !pending && selectedStep >= 0;
-            run.IsEnabled = !active && !pending && macro.Steps.Count > 0 && Workspace.HasTarget(macro);
-            ToolTip.SetTip(run, pending ? "Apply or discard action edits before previewing" : "Run preview: " + macro.Name);
+            add.IsEnabled = addType.IsEnabled = !active && !CompatibilityLocked && !pending;
+            delete.IsEnabled = !active && !CompatibilityLocked && Workspace.Profile.Macros.Count > 1;
+            remove.IsEnabled = !active && !CompatibilityLocked && !pending && selectedStep >= 0; up.IsEnabled = !active && !CompatibilityLocked && !pending && selectedStep > 0; down.IsEnabled = !active && !CompatibilityLocked && !pending && selectedStep >= 0 && selectedStep < macro.Steps.Count - 1;
+            test.IsEnabled = CanRun(macro, out var testReason) && !pending && selectedStep >= 0;
+            ToolTip.SetTip(test, test.IsEnabled ? "Send selected action once; Screen starts after 3 seconds" : testReason);
+            run.IsEnabled = CanRun(macro, out _);
+            ToolTip.SetTip(run, CanRun(macro, out var runReason) ? "Run: " + macro.Name : runReason);
             pause.IsEnabled = stop.IsEnabled = active;
             var paused = Workspace.Status(macro) == "Paused"; SetIcon(pause, paused ? "play" : "pause", paused ? "Resume macro" : "Pause macro", "warning");
-            if (Workspace.Sessions.TryGetValue(macro.Id, out var session)) progress.Text = $"{session.State} · {session.CompletedSteps} steps previewed · {session.Target}";
+            if (Workspace.Sessions.TryGetValue(macro.Id, out var session)) progress.Text = $"{session.State} · Step {session.CurrentStep}/{session.TotalSteps} · {session.CompletedLoops} loops · {session.ActiveElapsed.TotalSeconds:F1}s elapsed · {session.RemainingWait.TotalSeconds:F1}s wait · {session.DeliveryError?.Message} {session.CleanupError?.Message}";
         });
         Add(layout, main, 0, 1); return layout;
     }

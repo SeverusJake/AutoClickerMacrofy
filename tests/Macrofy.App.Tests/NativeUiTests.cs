@@ -19,7 +19,7 @@ public class NativeUiTests
     {
         var folder = Path.Combine(Path.GetTempPath(), "macrofy-ui-tests-" + Guid.NewGuid());
         var store = new WorkspaceStore(folder); var document = store.Load(); store.Save(document);
-        var state = new WorkspaceState(document); var window = new MainWindow(state, store); window.Show();
+        var state = new WorkspaceState(document); var window = HarmlessUi.Create(state, store); window.Show();
         try
         {
             var other = new WorkspaceStore(folder); var external = other.Load(); external.Mode = "dark"; other.Save(external);
@@ -42,7 +42,7 @@ public class NativeUiTests
         var state = new WorkspaceState(store.Load());
         var first = state.Macro;
         var second = state.Profile.Macros[1];
-        var window = new MainWindow(state, store); window.Show();
+        var window = HarmlessUi.Create(state, store); window.Show();
         try
         {
             var toggle = Find<ToggleSwitch>(window, "Enable_" + first.Id.ToString("N"));
@@ -84,9 +84,10 @@ public class NativeUiTests
         var invalid = new Macro { Steps = [new("Click", "bad", 0)] };
         var draft = new Macro { Steps = [new("Click", "10, 20", 0)] };
         state.Profile.Macros.AddRange([missing, invalid, draft]);
-        Assert.True(state.StartPreview(first)); state.TogglePause(first.Id);
+        var playback = new UiPlayback(state.Document); state.Playback = playback;
+        Assert.True(playback.StartAsync(state.Profile, first).GetAwaiter().GetResult().Queued); state.TogglePause(first.Id);
         var existing = state.Sessions[first.Id];
-        var window = new MainWindow(state); window.Show();
+        var window = new MainWindow(state, playback, new HarmlessHotkeys()); window.Show();
         try
         {
             Click(window, "Edit_" + draft.Id.ToString("N"));
@@ -110,7 +111,7 @@ public class NativeUiTests
     [AvaloniaFact]
     public void NativeShellProvidesApprovedTabsAndProfiles()
     {
-        var window = new MainWindow(new WorkspaceState(WorkspaceDocument.CreateDefault()));
+        var window = HarmlessUi.Create(new WorkspaceState(WorkspaceDocument.CreateDefault()));
         try
         {
             window.Show();
@@ -127,7 +128,7 @@ public class NativeUiTests
     public void OpeningMacroRestoresTargetAndInvalidDraftDoesNotReplaceSavedStep()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
-        var window = new MainWindow(state); window.Show();
+        var window = HarmlessUi.Create(state); window.Show();
         try
         {
             var macro = state.Profile.Macros[1];
@@ -155,7 +156,7 @@ public class NativeUiTests
     public void ProfileAndAppearanceSwitchesPreserveWorkspaceContext()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
-        var window = new MainWindow(state); window.Show();
+        var window = HarmlessUi.Create(state); window.Show();
         try
         {
             Find<ComboBox>(window, "ActiveProfile").SelectedItem = state.Document.Profiles[1];
@@ -177,7 +178,7 @@ public class NativeUiTests
     public void NativeViewsRenderWithVisibleFooterAndEditor()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
-        var window = new MainWindow(state); window.Show();
+        var window = HarmlessUi.Create(state); window.Show();
         try
         {
             var capture = Environment.GetEnvironmentVariable("MACROFY_UI_CAPTURE_DIR");
@@ -198,7 +199,7 @@ public class NativeUiTests
     [AvaloniaFact]
     public void InvalidDraftSurvivesAppearanceAndTabChangesAndCannotRun()
     {
-        var state = new WorkspaceState(WorkspaceDocument.CreateDefault()); var window = new MainWindow(state); window.Show();
+        var state = new WorkspaceState(WorkspaceDocument.CreateDefault()); var window = HarmlessUi.Create(state); window.Show();
         try
         {
             Click(window, "Tab_Macros"); Find<TextBox>(window, "ActionValue").Text = "not a point"; Click(window, "ApplyAction");
@@ -219,7 +220,7 @@ public class NativeUiTests
     public void RemovingStepShowsNewSelectedStepsValueInsteadOfOldDraft()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault()); state.Macro.Steps.Add(new("Click", "10, 20", 50));
-        var window = new MainWindow(state); window.Show();
+        var window = HarmlessUi.Create(state); window.Show();
         try
         {
             Click(window, "Tab_Macros"); Assert.Equal("480, 640", Find<TextBox>(window, "ActionValue").Text);

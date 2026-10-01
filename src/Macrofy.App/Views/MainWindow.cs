@@ -12,10 +12,10 @@ using Avalonia.VisualTree;
 using Avalonia.Interactivity;
 using Macrofy.App.Models;
 using Macrofy.App.Services;
-#if WINDOWS
+using Macrofy.Platform;
 using Macrofy.Platform.Models;
-using Macrofy.Platform.Windows;
-#endif
+using Macrofy.Core.Playback;
+
 
 namespace Macrofy.App.Views;
 
@@ -36,44 +36,41 @@ public sealed partial class MainWindow : Window
     private bool dirty;
     private Button runAllButton = new(), pauseAll = new(), stopAll = new();
     private TextBox? shortcutCapture;
-    private readonly HashSet<Key> pressedShortcuts = [];
-    private CancellationTokenSource? screenTestCancellation;
-    private bool screenTestActive;
-#if WINDOWS
-    private readonly IScreenClicker screenClicker;
-#endif
     private ComboBox? commonProfile;
     private Grid? responsiveEditor;
     private Control? responsiveSequence, responsiveInspector;
     public WorkspaceState Workspace { get; }
 
     public MainWindow() : this(new WorkspaceStore(System.IO.Path.Combine(AppContext.BaseDirectory, "MacrofyData"))) { }
-    private MainWindow(WorkspaceStore store) : this(new WorkspaceState(store.Load()), store) { message = store.LoadError ?? ""; Render(); }
-#if WINDOWS
-    public MainWindow(WorkspaceState workspace, WorkspaceStore? store = null, IScreenClicker? screenClicker = null)
-#else
-    public MainWindow(WorkspaceState workspace, WorkspaceStore? store = null)
-#endif
+    private MainWindow(WorkspaceStore store) : this(new WorkspaceState(store.Load()), store) { message = store.LoadError ?? message; Render(); }
+    private MainWindow(WorkspaceState workspace, WorkspaceStore store) : this(workspace, WorkspaceRuntime.Create(workspace.Document, store), store) { }
+    private MainWindow(WorkspaceState workspace, WorkspaceRuntime runtime, WorkspaceStore store)
+        : this(workspace, runtime.Playback, runtime.Hotkeys, store, runtime.Compatibility, runtime) { }
+    public MainWindow(WorkspaceState workspace, IWorkspacePlaybackController playback, IGlobalHotkeys hotkeys,
+        WorkspaceStore? store = null, CompatibilityUiServices? compatibility = null, IAsyncDisposable? ownedServices = null)
     {
-        Workspace = workspace; this.store = store;
-#if WINDOWS
-        this.screenClicker = screenClicker ?? new WindowsScreenClicker();
-#endif
+        Workspace = workspace; this.store = store; this.playback = playback; this.hotkeys = hotkeys;
+        this.compatibility = compatibility; this.ownedServices = ownedServices;
+        Workspace.Playback = playback;
+        playback.Changed += PlaybackChanged;
+        hotkeys.Triggered += GlobalCommand;
+        if (hotkeys is ISystemEvents systemEvents) systemEvents.Suspended += Suspend;
+        ConfigureHotkeys(Workspace.Document.Shortcuts);
         palette = new(workspace.Document.Theme, workspace.Document.Mode);
-        Title = "Macrofy — UI preview"; Width = 1100; Height = 760; MinWidth = 780; MinHeight = 580;
+        Title = "Macrofy"; Width = 1100; Height = 760; MinWidth = 780; MinHeight = 580;
         FontFamily = new FontFamily("Tahoma"); FontSize = 14;
-        timer.Tick += (_, _) => { Workspace.Tick(); RefreshPlayback(); };
+        timer.Tick += (_, _) => RefreshPlayback();
         Opened += (_, _) => timer.Start();
-        Closed += (_, _) => { CancelCompatibilityTest(); timer.Stop(); Workspace.StopAll(); };
+        Closing += OnClosing;
         AddHandler(InputElement.KeyDownEvent, HandleShortcutKeyDown, RoutingStrategies.Tunnel);
-        AddHandler(InputElement.KeyUpEvent, (_, e) => pressedShortcuts.Remove(e.Key), RoutingStrategies.Tunnel);
         SizeChanged += (_, _) => ReflowEditor();
         Render();
     }
 
     private void Render()
     {
-        refreshPlayback.Clear(); shortcutCapture = null; responsiveEditor = null; responsiveSequence = responsiveInspector = null;
+        if (compatibilityProfile != Guid.Empty && compatibilityProfile != Workspace.Profile.Id) ResetCompatibilityContext();
+        refreshPlayback.Clear(); shortcutCapture = null; capturingShortcut = false; responsiveEditor = null; responsiveSequence = responsiveInspector = null;
         palette = new(Workspace.Document.Theme, Workspace.Document.Mode);
         RequestedThemeVariant = palette.Dark ? ThemeVariant.Dark : ThemeVariant.Light;
         Background = palette.Brush("page"); Foreground = palette.Brush("ink");
@@ -89,7 +86,7 @@ public sealed partial class MainWindow : Window
         var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto") };
         var brand = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new Thickness(12, 6) };
         brand.Children.Add(Text("Macrofy", "title-ink", 16));
-        var topRight = Row(Text("UI preview", "title-ink", 12), Text("Profile: " + Workspace.Profile.Name, "title-ink", 12));
+        var topRight = Row(Text("Macro workspace", "title-ink", 12), Text("Profile: " + Workspace.Profile.Name, "title-ink", 12));
         Grid.SetColumn(topRight, 1); brand.Children.Add(topRight);
         Add(root, new Border { Background = palette.Brush("title"), Child = brand }, 0);
 
@@ -119,7 +116,7 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetName(commonProfile, "Active profile");
         commonProfile.SelectionChanged += (_, _) =>
         {
-            if (commonProfile.SelectedItem is Profile profile && profile.Id != Workspace.Profile.Id) { Workspace.SelectProfile(profile.Id); selectedStep = 0; Save(); Render(); }
+            if (!CompatibilityLocked && commonProfile.SelectedItem is Profile profile && profile.Id != Workspace.Profile.Id) { Workspace.SelectProfile(profile.Id); selectedStep = 0; Save(); Render(); }
         };
         var appearance = Row(IconButton("sun", "Light mode", () => SetAppearance("light")), IconButton("moon", "Dark mode", () => SetAppearance("dark")));
         var context = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new Thickness(16, 10) };
@@ -136,10 +133,10 @@ public sealed partial class MainWindow : Window
         runAllButton = TextButton("Run all", RunAllEnabled); runAllButton.Name = "RunAllEnabled";
         runAllButton.Content = Row(UiIcons.Create("play", palette.Brush("success")), Text("Run all", "success"));
         runAllButton.BorderBrush = palette.Brush("success"); runAllButton.Background = palette.Tint("success");
-        ToolTip.SetTip(runAllButton, $"Run enabled macros in this profile ({Workspace.Document.Shortcuts.Run}) · preview");
+        ToolTip.SetTip(runAllButton, $"Run enabled macros in this profile ({Workspace.Document.Shortcuts.Run})");
         AutomationProperties.SetName(runAllButton, $"Run all enabled macros in this profile ({Workspace.Document.Shortcuts.Run})");
-        pauseAll = IconButton("pause", "Pause all preview macros", () => TogglePauseAll(), "warning"); pauseAll.Name = "PauseAll";
-        stopAll = IconButton("stop", "Stop all or cancel screen test", () => StopAll(), "danger"); stopAll.Name = "StopAll";
+        pauseAll = IconButton("pause", "Pause all macros", () => TogglePauseAll(), "warning"); pauseAll.Name = "PauseAll";
+        stopAll = IconButton("stop", "Stop all input", () => StopAll(), "danger"); stopAll.Name = "StopAll";
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new Thickness(16, 8) };
         footer.Children.Add(Stack(footerStatus, messageText)); var globalControls = Row(runAllButton, pauseAll, stopAll); Grid.SetColumn(globalControls, 1); footer.Children.Add(globalControls);
         Add(root, new Border { Background = palette.Tint("info", .06), BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 1, 0, 0), Child = footer }, 4);
@@ -155,11 +152,12 @@ public sealed partial class MainWindow : Window
     }
     private void Save()
     {
+        Dispatcher.UIThread.VerifyAccess();
         if (store is null) return;
         try { store.Save(Workspace.Document); dirty = false; message = ""; }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException)
         { dirty = true; message = "Changes not saved: " + error.Message; }
-        messageText.Text = message; Title = "Macrofy — UI preview" + (dirty ? " · Unsaved" : "");
+        messageText.Text = message; Title = "Macrofy" + (dirty ? " · Unsaved" : "");
     }
     private void SetAppearance(string mode) { Workspace.Document.Mode = mode; Save(); Render(); }
     private void AddLog(string entry)
@@ -167,95 +165,16 @@ public sealed partial class MainWindow : Window
         log.Insert(0, (DateTime.Now.ToString("HH:mm:ss"), entry));
         if (log.Count > 200) log.RemoveAt(log.Count - 1);
     }
-    private void RefreshPlayback()
-    {
-        footerStatus.Text = Workspace.AggregateStatus;
-        pauseAll.IsEnabled = Workspace.ActiveCount > 0;
-        stopAll.IsEnabled = Workspace.ActiveCount > 0 || screenTestActive;
-        runAllButton.IsEnabled = Workspace.Profile.Macros.Any(CanRunAll);
-        var paused = Workspace.ActiveCount > 0 && Workspace.Sessions.Values.All(s => s.State != "Running");
-        SetIcon(pauseAll, paused ? "play" : "pause", $"{(paused ? "Resume" : "Pause")} all ({Workspace.Document.Shortcuts.Pause})", "warning");
-        ToolTip.SetTip(runAllButton, $"Run enabled macros in this profile ({Workspace.Document.Shortcuts.Run}) · preview");
-        AutomationProperties.SetName(runAllButton, $"Run all enabled macros in this profile ({Workspace.Document.Shortcuts.Run})");
-        SetIcon(stopAll, "stop", $"{(screenTestActive ? "Cancel screen action / stop all" : "Stop all")} ({Workspace.Document.Shortcuts.Stop})", "danger");
-        foreach (var refresh in refreshPlayback) refresh();
-    }
-    private void Start(Macro macro)
-    {
-        if (screenTestActive) { messageText.Text = "Stop the screen test before previewing a macro."; return; }
-        if (HasDraft(macro)) { messageText.Text = "Apply action edits before previewing."; return; }
-        if (Workspace.StartPreview(macro)) { AddLog("Preview started: " + Workspace.Profile.Name + " / " + macro.Name); RefreshPlayback(); }
-        else { message = "Cannot preview: add valid steps and a saved target, or choose Screen."; messageText.Text = message; }
-    }
-    private bool CanRunAll(Macro macro) => !screenTestActive && macro.Enabled && !HasDraft(macro) && Workspace.CanStartPreview(macro);
-    private void RunAllEnabled()
-    {
-        if (screenTestActive) return;
-        var skipped = 0;
-        foreach (var macro in Workspace.Profile.Macros.Where(m => m.Enabled && !Workspace.IsActive(m)))
-        {
-            if (CanRunAll(macro)) Start(macro);
-            else { skipped++; AddLog("Preview skipped: " + macro.Name + " — unapplied edits, invalid steps or missing target"); }
-        }
-        // Playback cannot resolve a blocked load or failed save; keep that diagnostic visible.
-        if (!dirty && store?.LoadError is null)
-        {
-            message = skipped == 0 ? "" : $"Skipped {skipped}: check edits, steps and targets.";
-            messageText.Text = message;
-        }
-        RefreshPlayback();
-    }
-    private void TogglePauseAll()
-    {
-        Workspace.TogglePauseAll(); AddLog("Toggled pause for all preview macros"); RefreshPlayback();
-    }
-    private void StopAll()
-    {
-        var wasTesting = screenTestActive;
-        CancelCompatibilityTest();
-        Workspace.StopAll(); AddLog(wasTesting ? "Cancelled screen test and stopped all preview macros" : "Stopped all preview macros"); RefreshPlayback();
-    }
-    private void CancelCompatibilityTest() => screenTestCancellation?.Cancel();
-    private void HandleShortcutKeyDown(object? sender, KeyEventArgs e)
-    {
-        var key = e.Key.ToString();
-        if (!key.StartsWith('F') || !int.TryParse(key.AsSpan(1), out var number) || number is < 1 or > 12) return;
-        e.Handled = true;
-        if (shortcutCapture is not null)
-        {
-            var action = shortcutCapture.Tag as string;
-            var shortcuts = Workspace.Document.Shortcuts;
-            var duplicate = action switch
-            {
-                "Run" when key == shortcuts.Pause => "Pause",
-                "Run" when key == shortcuts.Stop => "Stop",
-                "Pause" when key == shortcuts.Run => "Run",
-                "Pause" when key == shortcuts.Stop => "Stop",
-                "Stop" when key == shortcuts.Run => "Run",
-                "Stop" when key == shortcuts.Pause => "Pause",
-                _ => null
-            };
-            if (duplicate is not null) { message = $"{key} is already assigned to {duplicate}."; messageText.Text = message; return; }
-            if (action == "Run") shortcuts.Run = key;
-            else if (action == "Pause") shortcuts.Pause = key;
-            else shortcuts.Stop = key;
-            shortcutCapture.Text = key; Save(); RefreshPlayback(); return;
-        }
-        if (!pressedShortcuts.Add(e.Key)) return;
-        if (key == Workspace.Document.Shortcuts.Run) RunAllEnabled();
-        else if (key == Workspace.Document.Shortcuts.Pause && Workspace.ActiveCount > 0) TogglePauseAll();
-        else if (key == Workspace.Document.Shortcuts.Stop) StopAll();
-        else pressedShortcuts.Remove(e.Key);
-    }
     private TextBox ShortcutInput(string action, string key)
     {
         var input = new TextBox { Name = "Shortcut_" + action, Text = key, Width = 100, MinHeight = 32, IsReadOnly = true, Tag = action };
-        ToolTip.SetTip(input, "Click, then press F1–F12");
+        ToolTip.SetTip(input, "While idle, click then press F1–F11 (Windows reserves F12).");
+        refreshPlayback.Add(() => input.IsEnabled = Workspace.ActiveCount == 0 && !CompatibilityLocked);
         AutomationProperties.SetName(input, action + " function-key shortcut");
-        input.GotFocus += (_, _) => { shortcutCapture = input; input.Text = "Press a key"; };
+        input.GotFocus += (_, _) => { shortcutCapture = input; capturingShortcut = true; input.Text = "Press a key"; };
         input.LostFocus += (_, _) =>
         {
-            if (shortcutCapture == input) shortcutCapture = null;
+            if (shortcutCapture == input) { shortcutCapture = null; capturingShortcut = false; }
             input.Text = action switch { "Run" => Workspace.Document.Shortcuts.Run, "Pause" => Workspace.Document.Shortcuts.Pause, _ => Workspace.Document.Shortcuts.Stop };
         };
         return input;
@@ -296,6 +215,7 @@ public sealed partial class MainWindow : Window
     }
     private void NewProfile()
     {
+        if (CompatibilityLocked) return;
         var macro = new Macro(); var profile = new Profile { Name = "New profile", Macros = [macro], SelectedMacroId = macro.Id };
         Workspace.Document.Profiles.Add(profile); Workspace.SelectProfile(profile.Id); selectedStep = 0; Save(); Render(); RenameProfile(profile);
     }
