@@ -33,9 +33,9 @@ public sealed class WorkspaceRuntime : IAsyncDisposable
         var sender = new WindowsGestureSender(catalog, window, screen, () => hotkeys.IsOperational);
         var compatibility = new CompatibilityService(document, catalog,
             () => activity.TryEnterTest(out var lease) ? lease : null, sender.SendGestureAsync,
-            (snapshot, publish, ct) => PersistAsync(store, snapshot, publish, ct));
+            (snapshot, publish, ct) => PersistAsync(store, snapshot, publish, ct), ReadAsync);
         var playback = new WorkspacePlaybackController(document,
-            new PlaybackCoordinator(new WindowsPlaybackExecutor(catalog, sender, compatibility), TimeProvider.System), activity, hotkeys, hotkeys);
+            new PlaybackCoordinator(new WindowsPlaybackExecutor(catalog, sender, compatibility), TimeProvider.System, catalog), activity, hotkeys, hotkeys);
         return new(playback, hotkeys, new(compatibility, catalog,
             async (token, ct) => (await catalog.ListInputSurfacesAsync(token, ct)).Select(s => s.Window).ToArray(),
             token => { var result = catalog.ReadPointerPosition(token); return new(result.Point, result.Error); }), window, catalog, hotkeys);
@@ -44,6 +44,9 @@ public sealed class WorkspaceRuntime : IAsyncDisposable
         return new(new WorkspacePlaybackController(document, new(new UnavailableExecutor(), TimeProvider.System), new(), unavailable, unavailable), unavailable, null);
 #endif
     }
+    public static async Task<bool> ReadAsync(Func<bool> read, CancellationToken ct) =>
+        await Dispatcher.UIThread.InvokeAsync(() => { ct.ThrowIfCancellationRequested(); return read(); }, DispatcherPriority.Normal, ct);
+
     public static async Task PersistAsync(WorkspaceStore store, Func<WorkspaceDocument> snapshot, Action publish, CancellationToken ct)
     {
         await Dispatcher.UIThread.InvokeAsync(() =>

@@ -11,15 +11,20 @@ namespace Macrofy.App.Services;
 // and saves must use the same dispatcher so the snapshot and publication stay
 // serialized with them. On save failure, do not publish; propagate the error.
 public delegate Task CompatibilityPersistence(Func<WorkspaceDocument> createSnapshot, Action publish, CancellationToken cancellationToken);
+// Production dispatches the entire read onto the workspace owner's UI thread. The default is
+// for callers that already serialize all document access (including immutable test fixtures).
+public delegate Task<bool> CompatibilityWorkspaceRead(Func<bool> read, CancellationToken cancellationToken);
 public sealed class CompatibilityService(WorkspaceDocument document, ITargetContext targets,
     Func<IDisposable?> acquireTestLease,
     Func<PlaybackBinding, CompiledAction, CancellationToken, ValueTask<GestureResult>> sendGesture,
-    CompatibilityPersistence persist)
+    CompatibilityPersistence persist, CompatibilityWorkspaceRead? readWorkspace = null)
 {
     private readonly SemaphoreSlim confirmationGate = new(1, 1);
     private readonly object evidenceSync = new();
     private readonly HashSet<(Guid AppId, TargetState State, InputCapability Capability)> pending = [];
-    public bool IsConfirmed(Guid appId, TargetContext context, TargetState state, InputCapability capability, bool fixedCoordinates)
+    public Task<bool> IsConfirmedAsync(Guid appId, TargetContext context, TargetState state, InputCapability capability, bool fixedCoordinates, CancellationToken cancellationToken = default) =>
+        ReadAsync(() => IsConfirmed(appId, context, state, capability, fixedCoordinates), cancellationToken);
+    private bool IsConfirmed(Guid appId, TargetContext context, TargetState state, InputCapability capability, bool fixedCoordinates)
     {
         if (!ValidContext(appId, context, state, true)) return false;
         lock (evidenceSync)
@@ -37,7 +42,7 @@ public sealed class CompatibilityService(WorkspaceDocument document, ITargetCont
         try
         {
             var context = (await targets.GetAsync(token, cancellationToken)).Context;
-            if (context is null || context.Window.Token != token || !ValidContext(appId, context, state, true)) throw new InvalidOperationException("Selected target identity, surface, geometry or state is invalid.");
+            if (context is null || context.Window.Token != token || !await ReadAsync(() => ValidContext(appId, context, state, true), cancellationToken)) throw new InvalidOperationException("Selected target identity, surface, geometry or state is invalid.");
             var capability = action switch { CompiledAction.Click => InputCapability.Click, CompiledAction.Key k => k.Keys.Count > 1 ? InputCapability.Shortcut : InputCapability.Key, CompiledAction.Text => InputCapability.Text, CompiledAction.Wheel => InputCapability.Wheel, _ => throw new InvalidOperationException("Select an input action to test.") };
             if (action is CompiledAction.Click click && (!double.IsFinite(click.Point.X) || !double.IsFinite(click.Point.Y) || !Enum.IsDefined(click.Mode) || (click.Mode == CoordinateMode.FixedPixels ? click.Point.X < 0 || click.Point.Y < 0 || click.Point.X >= context.Window.Geometry!.Width || click.Point.Y >= context.Window.Geometry.Height : click.Point.X < 0 || click.Point.Y < 0 || click.Point.X > 100 || click.Point.Y > 100))) throw new InvalidOperationException("Test point is outside client geometry.");
             var binding = new PlaybackBinding(appId, token, context.Window.Title, context.SurfaceFingerprint, context.Window.Geometry, state);
@@ -60,7 +65,7 @@ public sealed class CompatibilityService(WorkspaceDocument document, ITargetCont
             if (attempt.Owner != this || !Delivered(attempt.Result) || !(started = attempt.BeginConfirmation())) throw new InvalidOperationException("Only pending, delivered and cleaned tests can be confirmed.");
             lock (evidenceSync) pending.Add(pendingKey);
             var context = (await targets.GetAsync(attempt.Token, cancellationToken)).Context;
-            if (context is null || context.Window.Token != attempt.Token || !ValidContext(attempt.SavedAppId, context, attempt.State, false) || context.Window.App != attempt.Context.Window.App || context.Window.Title != attempt.Context.Window.Title || context.SurfaceFingerprint != attempt.Fingerprint || context.Window.Geometry != attempt.Geometry)
+            if (context is null || context.Window.Token != attempt.Token || !await ReadAsync(() => ValidContext(attempt.SavedAppId, context, attempt.State, false), cancellationToken) || context.Window.App != attempt.Context.Window.App || context.Window.Title != attempt.Context.Window.Title || context.SurfaceFingerprint != attempt.Fingerprint || context.Window.Geometry != attempt.Geometry)
             { attempt.Dispose(); throw new InvalidOperationException("Test target closed or changed before confirmation."); }
             cancellationToken.ThrowIfCancellationRequested();
             if (!attempt.TryBeginPersistence()) throw new InvalidOperationException("Test observation was discarded before persistence.");
@@ -107,6 +112,11 @@ public sealed class CompatibilityService(WorkspaceDocument document, ITargetCont
         }
     }
     private static bool Delivered(GestureResult result) => result.Delivery.Queued && result.Delivery.Error is null && result.Delivery.CleanupError is null && result.CleanupError is null;
+    private Task<bool> ReadAsync(Func<bool> read, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return readWorkspace is null ? Task.FromResult(read()) : readWorkspace(read, cancellationToken);
+    }
     private bool ValidContext(Guid appId, TargetContext context, TargetState state, bool requireState)
     {
         var app = document.Profiles.SelectMany(p => p.Apps).SingleOrDefault(a => a.Id == appId);

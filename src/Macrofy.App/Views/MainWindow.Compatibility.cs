@@ -45,6 +45,7 @@ public sealed partial class MainWindow
         var action = new ComboBox { Name = "CompatibilityAction", ItemsSource = new[] { "Click", "Key", "Shortcut", "Text", "Wheel" }, SelectedIndex = -1, MinWidth = 140 };
         var value = new TextBox { Name = "CompatibilityValue", Text = "", MinWidth = 220, PlaceholderText = "Harmless test value / client X, Y" };
         var status = Wrap("Select an app, live window, input surface, state and harmless action. Nothing is sent automatically.", "muted", 13); status.Name = "CompatibilityStatus";
+        var actionHelp = Wrap("", "muted", 12);
         var capture = TextButton("Capture client point in 5 seconds", () => { }); capture.Name = "CaptureCompatibilityPoint";
         var test = TextButton("Test one action", () => { }); test.Name = "TestCompatibilityAction";
         var yes = TextButton("Observed working", () => { }); yes.Name = "ObservedWorking";
@@ -64,6 +65,7 @@ public sealed partial class MainWindow
         }
         void UpdateControls()
         {
+            actionHelp.Text = ActionHelp(action.SelectedItem as string);
             var locked = CompatibilityLocked || closing;
             foreach (var control in new Control[] { app, window, surface, state, action, value }) control.IsEnabled = !locked;
             var ready = !locked && Workspace.ActiveCount == 0 && playback.HotkeysReady;
@@ -173,7 +175,7 @@ public sealed partial class MainWindow
         compatibilityPane = Panel(Scroll(Stack(Text("Window compatibility", size: 16),
             Wrap("Choose a harmless action. Macrofy does not activate or minimize the target. Arrange the window yourself. Background macros use BackgroundVisible evidence; Minimized macros use Minimized evidence. Other coverage states are recorded separately.", "muted", 13),
             Field("Saved app", app), Field("Live window", window), Field("Input surface", surface), Field("Observed window state", state),
-            Row(Field("Action capability", action), Field("Client position / value", value)), Row(capture, test), Row(yes, no, discard), status,
+            Row(Field("Action capability", action), Field("Client position / value", value)), actionHelp, Row(capture, test), Row(yes, no, discard), status,
             Wrap("Screen actions are tested from the macro editor, with a 3 second countdown. Screen tests never establish window compatibility.", "muted", 12))));
         UpdateControls(); return compatibilityPane;
     }

@@ -17,17 +17,18 @@ internal sealed class UiPlayback(WorkspaceDocument document) : IWorkspacePlaybac
     public bool HotkeysReady => true;
     public PlatformError? HotkeyError => null;
     public event EventHandler? Changed;
-    public bool CanStart(Profile profile, Macro macro, out string reason)
+    public bool CanStart(Profile profile, Macro macro, out string reason, bool selectedAction = false, int selectedIndex = -1)
     {
         reason = "";
         if (sessions.GetValueOrDefault(macro.Id)?.IsActive == true || macro.Steps.Count == 0 || (macro.AppId is { } id && !profile.Apps.Any(a => a.Id == id))) { reason = "Busy or missing target"; return false; }
         var state = new WorkspaceState(document);
-        foreach (var step in macro.Steps) if (!state.ValidateStep(macro, step, out reason)) return false;
+        if (selectedAction && (selectedIndex < 0 || selectedIndex >= macro.Steps.Count)) { reason = "Select an action"; return false; }
+        foreach (var step in selectedAction ? [macro.Steps[selectedIndex]] : macro.Steps) if (!state.ValidateStep(macro, step, out reason)) return false;
         return true;
     }
     public Task<DeliveryResult> StartAsync(Profile profile, Macro macro, bool selectedAction = false, int selectedIndex = -1)
     {
-        if (!CanStart(profile, macro, out var reason)) return Task.FromResult(new DeliveryResult(false, new("CannotStart", reason)));
+        if (!CanStart(profile, macro, out var reason, selectedAction, selectedIndex)) return Task.FromResult(new DeliveryResult(false, new("CannotStart", reason)));
         sessions[macro.Id] = new(macro.Id, macro.Name, profile.Name, PlaybackState.Running, [new CompiledAction.Wait(600000, 0)], 1, 0, 0, TimeSpan.Zero, TimeSpan.Zero, null, null);
         Changed?.Invoke(this, EventArgs.Empty); return Task.FromResult(new DeliveryResult(true));
     }

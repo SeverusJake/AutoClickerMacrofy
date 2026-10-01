@@ -18,6 +18,9 @@ internal sealed class PlaybackSession
     private readonly long began;
     private PlaybackState state = PlaybackState.Starting;
     private PlaybackBinding? binding;
+    // Only preparation needs history: binding publication and loss observation share sync.
+    private HashSet<TargetToken>? lostDuringPreparation;
+    private bool targetLost;
     private bool pauseRequested, inGesture, needsResumeValidation;
     private long? pausedAt, ended;
     private TimeSpan pausedTime, remaining;
@@ -86,6 +89,25 @@ internal sealed class PlaybackSession
         catch (AggregateException) { /* A cancellation subscriber cannot prevent other sessions stopping. */ }
     }
 
+    public void TargetLost(TargetToken token)
+    {
+        bool cancel;
+        lock (sync)
+        {
+            if (ended is not null || request.Target.Rule is null) return;
+            if (binding is null) (lostDuringPreparation ??= []).Add(token);
+            cancel = (binding?.Token ?? request.Target.SelectedSurface) == token;
+            if (cancel) MarkTargetLost();
+        }
+        if (cancel) Stop();
+    }
+
+    private void MarkTargetLost()
+    {
+        targetLost = true;
+        deliveryError = new("TargetLost", "The original playback target disappeared. Select a live target before starting again.");
+    }
+
     private async Task RunAsync()
     {
         try
@@ -98,8 +120,15 @@ internal sealed class PlaybackSession
                 Fail(new(false, preparation.Error ?? new("PreparationFailed", "Target preparation returned no binding.")));
                 return;
             }
-            lock (sync) binding = preparation.Binding;
-            started.TrySetResult(new(true));
+            lock (sync)
+            {
+                binding = preparation.Binding;
+                if (binding.Token is { } token && lostDuringPreparation?.Contains(token) == true) MarkTargetLost();
+                lostDuringPreparation = null;
+                if (targetLost) throw new PlaybackFailure(new(false, deliveryError));
+                stop.Token.ThrowIfCancellationRequested();
+                started.TrySetResult(new(true));
+            }
             await WaitAsync(request.StartDelayMs).ConfigureAwait(false);
             while (request.Repeat == 0 || completedLoops < request.Repeat)
             {
@@ -139,8 +168,10 @@ internal sealed class PlaybackSession
             {
                 ended = clock.GetTimestamp();
                 remaining = TimeSpan.Zero; waiting = false;
-                state = cleanupError is not null || (deliveryError is not null && !stop.IsCancellationRequested)
-                    ? PlaybackState.Error : stop.IsCancellationRequested ? PlaybackState.Stopped : PlaybackState.Completed;
+                lostDuringPreparation = null;
+                var stopped = targetLost || stop.IsCancellationRequested;
+                state = cleanupError is not null || (deliveryError is not null && !stopped)
+                    ? PlaybackState.Error : stopped ? PlaybackState.Stopped : PlaybackState.Completed;
                 Signal();
             }
             started.TrySetResult(new(false, deliveryError ?? new("Cancelled", "Playback stopped during preparation."), cleanupError));
@@ -154,7 +185,7 @@ internal sealed class PlaybackSession
     {
         lock (sync)
         {
-            deliveryError = result.Error ?? (!result.Queued ? new("DeliveryFailed", "Input was not queued.") : null);
+            if (!targetLost) deliveryError = result.Error ?? (!result.Queued ? new("DeliveryFailed", "Input was not queued.") : null);
             cleanupError = cleanup ?? result.CleanupError;
         }
         started.TrySetResult(new(false, deliveryError, cleanupError));

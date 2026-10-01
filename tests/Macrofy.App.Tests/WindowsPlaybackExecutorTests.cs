@@ -315,7 +315,7 @@ public class WindowsPlaybackExecutorTests
             Catalog.Resolution = new ResolutionResult.Matched(Window);
             Sender = new(this, this, Input, Input, _ => new(ClientPointer), () => Ready);
             Executor = new(Catalog, this, (token, _) => Task.FromResult(Surfaces.GetValueOrDefault(token) ?? []), Sender,
-                (id, context, state, capability, fixedCoordinates) => { EvidenceQueries.Add((id, capability, fixedCoordinates)); return Evidence && (!fixedCoordinates || FixedEvidence) && AllowedCapabilities.Contains(capability) && (EvidenceToken is null || EvidenceToken == context.Window.Token); });
+                (id, context, state, capability, fixedCoordinates, _) => { EvidenceQueries.Add((id, capability, fixedCoordinates)); return Task.FromResult(Evidence && (!fixedCoordinates || FixedEvidence) && AllowedCapabilities.Contains(capability) && (EvidenceToken is null || EvidenceToken == context.Window.Token)); });
         }
         public PlaybackRequest Request(bool screen = false, TargetToken? selected = null) => new(Guid.NewGuid(), "Macro", "Profile", screen ? new(null, null, null, null) : new(AppId, new(Window.App, "Game"), TargetState.BackgroundCovered, selected), [new CompiledAction.Text("x", 0)], 1, 0, 0);
         public ValueTask<TargetContextResult> GetAsync(TargetToken token, CancellationToken ct = default) => ValueTask.FromResult(new TargetContextResult(Contexts.GetValueOrDefault(token), Contexts.ContainsKey(token) ? null : new("TargetLost", "gone")));

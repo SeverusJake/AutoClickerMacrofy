@@ -24,11 +24,15 @@ Select a macro on the Macros tab. Add or edit actions, then apply valid edits:
 
 Each step has **Wait after** (`0–600000` ms). Repeat can be Once, 100 times, or Until stopped. **Interval between runs** (`0–600000` ms) starts after the last action and its Wait after finish; the next run starts after that interval. The first run starts immediately apart from the Screen countdown. Waits use a monotonic clock; pause preserves remaining wait time. The UI shows current/total step, completed loops, active elapsed time, remaining wait/countdown, and delivery or cleanup errors. Sent/queued input is not an observed game response.
 
+**Test selected action** validates and runs only that saved action once, even if another action has an unsupported value or lacks capability confirmation. Full Run still requires every action. Apply or discard drafts first; target, global Stop, and input-ownership checks apply to both controls.
+
 Percentage `0` maps to the first pixel and `100` to the last pixel. Screen percentages span the virtual desktop rectangle, then validate that the point belongs to a connected monitor; gaps are invalid. Fixed Screen coordinates can be negative on monitors left or above the primary screen. Screen Click moves the physical pointer and needs visible intended content. Screen Run and Test selected action start after a cancellable three-second countdown. Screen mode cannot reach minimized or covered content.
 
 Window playback targets a saved executable/title rule and one matching live input surface; ambiguous matches require explicit selection. It never brings the target forward, minimizes it, or falls back to Screen on failure. Background and minimized states require separate user-observed evidence for each action capability: Click, Key, Shortcut, Text, or Wheel. Use Compatibility to select a saved app, live window and surface, target state, and one harmless test action. After successful delivery and cleanup, mark **Observed working** or **Observed ignored** based on visible response. Click evidence does not authorize other capabilities. Changed executable/title/surface/state or geometry can invalidate playback or require coordinates to be checked again. Window Wheel uses the current pointer in the target client area; this can be unavailable for minimized windows.
 
 Stop cancels future actions and waits promptly. Native input already sent cannot be withdrawn. Cleanup releases input owned by the current gesture using an independent 500 ms budget; errors are reported separately. Native synchronous delivery can delay a Stop boundary. Recording and independent hold/drag editing are unavailable.
+
+Closing the original window stops its sessions even while paused or waiting, with a target-loss diagnostic. Other targets keep running; input ownership remains held until cleanup finishes. Wheel help in the editor and Compatibility explains the current-pointer requirement and possible minimized `OutsideClient` rejection. Key/Shortcut help explains that received messages alone do not establish working keyboard-state-based shortcuts; each needs an observed response.
 
 ## Data and build
 

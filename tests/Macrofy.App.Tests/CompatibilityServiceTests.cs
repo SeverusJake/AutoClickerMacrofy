@@ -48,7 +48,7 @@ public class CompatibilityServiceTests
                 (_, _, _) => ValueTask.FromResult(f.Result), async (snapshot, publish, _) => { await saving.Task; snapshot(); publish(); });
             var attempt = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
             var confirmation = service.ConfirmAsync(attempt, true, TestContext.Current.CancellationToken);
-            Assert.False(service.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+            Assert.False(await service.IsConfirmedAsync(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true, TestContext.Current.CancellationToken));
             f.Document.Mode = "dark";
             store.Save(f.Document);
             var saved = new WorkspaceStore(folder).Load();
@@ -75,7 +75,7 @@ public class CompatibilityServiceTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => confirmation);
         Assert.Equal(0, saves);
         Assert.Empty(f.Document.CompatibilityEvidence);
-        Assert.False(service.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+        Assert.False(await service.IsConfirmedAsync(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true, TestContext.Current.CancellationToken));
     }
     [Fact]
     public async Task DelayedCandidateSaveKeepsUnrelatedWorkspaceEditsAndEvidence()
@@ -116,10 +116,10 @@ public class CompatibilityServiceTests
             (_, _, _) => ValueTask.FromResult(f.Result), async (snapshot, publish, _) => { await saving.Task; snapshot(); publish(); });
         var second = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
         var confirmation = service.ConfirmAsync(second, false, TestContext.Current.CancellationToken);
-        Assert.False(service.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+        Assert.False(await service.IsConfirmedAsync(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true, TestContext.Current.CancellationToken));
         saving.SetException(new IOException("save conflict"));
         await Assert.ThrowsAsync<IOException>(() => confirmation);
-        Assert.True(service.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+        Assert.True(await service.IsConfirmedAsync(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true, TestContext.Current.CancellationToken));
     }
     [Fact]
     public async Task KeyAndShortcutEvidenceDoNotAuthorizeEachOther()
@@ -129,13 +129,13 @@ public class CompatibilityServiceTests
         var keyFixture = new Fixture(); var keyService = keyFixture.Service();
         var keyAttempt = await keyService.BeginAttemptAsync(keyFixture.AppId, keyFixture.Token, TargetState.Minimized, key, TestContext.Current.CancellationToken);
         await keyService.ConfirmAsync(keyAttempt, true, TestContext.Current.CancellationToken);
-        Assert.True(keyService.IsConfirmed(keyFixture.AppId, keyFixture.Source.Context!, TargetState.Minimized, InputCapability.Key, true));
-        Assert.False(keyService.IsConfirmed(keyFixture.AppId, keyFixture.Source.Context!, TargetState.Minimized, InputCapability.Shortcut, true));
+        Assert.True(await keyService.IsConfirmedAsync(keyFixture.AppId, keyFixture.Source.Context!, TargetState.Minimized, InputCapability.Key, true, TestContext.Current.CancellationToken));
+        Assert.False(await keyService.IsConfirmedAsync(keyFixture.AppId, keyFixture.Source.Context!, TargetState.Minimized, InputCapability.Shortcut, true, TestContext.Current.CancellationToken));
         var shortcutFixture = new Fixture(); var shortcutService = shortcutFixture.Service();
         var shortcutAttempt = await shortcutService.BeginAttemptAsync(shortcutFixture.AppId, shortcutFixture.Token, TargetState.Minimized, shortcut, TestContext.Current.CancellationToken);
         await shortcutService.ConfirmAsync(shortcutAttempt, true, TestContext.Current.CancellationToken);
-        Assert.True(shortcutService.IsConfirmed(shortcutFixture.AppId, shortcutFixture.Source.Context!, TargetState.Minimized, InputCapability.Shortcut, true));
-        Assert.False(shortcutService.IsConfirmed(shortcutFixture.AppId, shortcutFixture.Source.Context!, TargetState.Minimized, InputCapability.Key, true));
+        Assert.True(await shortcutService.IsConfirmedAsync(shortcutFixture.AppId, shortcutFixture.Source.Context!, TargetState.Minimized, InputCapability.Shortcut, true, TestContext.Current.CancellationToken));
+        Assert.False(await shortcutService.IsConfirmedAsync(shortcutFixture.AppId, shortcutFixture.Source.Context!, TargetState.Minimized, InputCapability.Key, true, TestContext.Current.CancellationToken));
     }
     [Fact]
     public async Task PendingObservationAndSaveKeepExclusiveLeaseUntilConfirmationOrDiscard()
@@ -187,7 +187,7 @@ public class CompatibilityServiceTests
             var reopened = new WorkspaceStore(folder).Load();
             var saved = Assert.Single(reopened.CompatibilityEvidence); Assert.True(saved.ObservedSuccess); Assert.Equal(InputCapability.Click, saved.Capability);
             var restored = new CompatibilityService(reopened, f.Source, () => new Lease(), (_, _, _) => ValueTask.FromResult(f.Result), (snapshot, publish, _) => { snapshot(); publish(); return Task.CompletedTask; });
-            Assert.True(restored.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+            Assert.True(await restored.IsConfirmedAsync(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true, TestContext.Current.CancellationToken));
         }
         finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
     }
@@ -199,10 +199,10 @@ public class CompatibilityServiceTests
         f.Source.Context = f.Source.Context! with { Window = f.Source.Context.Window with { IsMinimized = false } };
         var evidence = await service.ConfirmAsync(attempt, true, TestContext.Current.CancellationToken);
         f.Source.Context = f.Source.Context with { Window = f.Source.Context.Window with { IsMinimized = true } };
-        Assert.True(service.IsConfirmed(f.AppId, f.Source.Context, TargetState.Minimized, InputCapability.Click, true));
+        Assert.True(await service.IsConfirmedAsync(f.AppId, f.Source.Context, TargetState.Minimized, InputCapability.Click, true, TestContext.Current.CancellationToken));
         Assert.Equal(TargetState.Minimized, evidence.State);
         foreach (var capability in new[] { InputCapability.Key, InputCapability.Shortcut, InputCapability.Text, InputCapability.Wheel })
-            Assert.False(service.IsConfirmed(f.AppId, f.Source.Context, TargetState.Minimized, capability, true));
+            Assert.False(await service.IsConfirmedAsync(f.AppId, f.Source.Context, TargetState.Minimized, capability, true, TestContext.Current.CancellationToken));
         var json = System.Text.Json.JsonSerializer.Serialize(f.Document);
         Assert.DoesNotContain(f.Token.Id.ToString(), json); Assert.DoesNotContain("HWND", json); Assert.DoesNotContain("PID", json);
     }
@@ -216,9 +216,9 @@ public class CompatibilityServiceTests
         var second = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
         f.SaveFails = true;
         await Assert.ThrowsAsync<IOException>(() => service.ConfirmAsync(second, false, TestContext.Current.CancellationToken));
-        Assert.True(service.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+        Assert.True(await service.IsConfirmedAsync(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true, TestContext.Current.CancellationToken));
         f.SaveFails = false; await service.ConfirmAsync(second, false, TestContext.Current.CancellationToken);
-        Assert.False(service.IsConfirmed(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true));
+        Assert.False(await service.IsConfirmedAsync(f.AppId, f.Source.Context!, TargetState.Minimized, InputCapability.Click, true, TestContext.Current.CancellationToken));
     }
     [Theory]
     [InlineData(false, false, false)] [InlineData(true, true, false)] [InlineData(true, false, true)]
@@ -245,11 +245,11 @@ public class CompatibilityServiceTests
         var attempt = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
         await service.ConfirmAsync(attempt, true, TestContext.Current.CancellationToken);
         foreach (var changed in new[] { context with { SurfaceFingerprint = "other" }, context with { Window = context.Window with { Title = "other" } }, context with { Window = context.Window with { App = new("other", "other.exe") } } })
-            Assert.False(service.IsConfirmed(f.AppId, changed, TargetState.Minimized, InputCapability.Click, true));
+            Assert.False(await service.IsConfirmedAsync(f.AppId, changed, TargetState.Minimized, InputCapability.Click, true, TestContext.Current.CancellationToken));
         var resized = context with { Window = context.Window with { Geometry = new(900, 600, 1) } };
-        Assert.False(service.IsConfirmed(f.AppId, resized, TargetState.Minimized, InputCapability.Click, true));
-        Assert.True(service.IsConfirmed(f.AppId, resized, TargetState.Minimized, InputCapability.Click, false));
-        Assert.False(service.IsConfirmed(f.AppId, context, TargetState.BackgroundVisible, InputCapability.Click, true));
+        Assert.False(await service.IsConfirmedAsync(f.AppId, resized, TargetState.Minimized, InputCapability.Click, true, TestContext.Current.CancellationToken));
+        Assert.True(await service.IsConfirmedAsync(f.AppId, resized, TargetState.Minimized, InputCapability.Click, false, TestContext.Current.CancellationToken));
+        Assert.False(await service.IsConfirmedAsync(f.AppId, context, TargetState.BackgroundVisible, InputCapability.Click, true, TestContext.Current.CancellationToken));
         var pending = await service.BeginAttemptAsync(f.AppId, f.Token, TargetState.Minimized, f.Click, TestContext.Current.CancellationToken);
         f.Source.Context = null;
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.ConfirmAsync(pending, true, TestContext.Current.CancellationToken));

@@ -14,6 +14,8 @@ Locked Release verification on 2026-09-30: **236 passed** (Core 44, App 110, Win
 
 The controlled receiver records raw messages. Its Key and Shortcut receipts do not establish that another application's keyboard-state-based commands work. Screen Unicode receipt uses the fixture's limited `VK_PACKET` translation. These tests do not create confirmed game evidence.
 
+The final review fixes add fake-clock regressions for original-token loss while paused, waiting, and preparing, unrelated-target survival, cleanup ownership, and subscription disposal. Headless regressions cover selected-action eligibility, action-specific help, and asynchronous workspace-owner reads while unrelated profile/app collections change. Production compatibility reads run on the UI dispatcher with cancellation; candidate/save/publish remains one dispatcher transaction. These focused checks supplement the dated Task 8 count above; fresh whole-solution verification is reported separately.
+
 ## Target rules and deliberate game observation
 
 Screen mode is the default without an assigned app. It uses real [SendInput](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput) and may move the desktop pointer; visible content must be intended. Fixed pixels can be negative across monitors. Percentage 0 maps to the first pixel, 100 to the last pixel of the virtual desktop rectangle, and points in monitor gaps fail validation. Screen cannot reach minimized or covered content. A three-second cancellable countdown precedes Screen Run/Test.

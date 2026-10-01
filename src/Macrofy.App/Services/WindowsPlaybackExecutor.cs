@@ -10,10 +10,10 @@ namespace Macrofy.App.Services;
 
 public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetContext targets,
     Func<TargetToken, CancellationToken, Task<IReadOnlyList<TargetWindow>>> listSurfaces,
-    WindowsGestureSender sender, Func<Guid, TargetContext, TargetState, InputCapability, bool, bool> isConfirmed) : IPlaybackExecutor
+    WindowsGestureSender sender, Func<Guid, TargetContext, TargetState, InputCapability, bool, CancellationToken, Task<bool>> isConfirmed) : IPlaybackExecutor
 {
     public WindowsPlaybackExecutor(WindowsWindowCatalog catalog, WindowsGestureSender sender, CompatibilityService compatibility)
-        : this(catalog, catalog, async (token, ct) => (await catalog.ListInputSurfacesAsync(token, ct)).Select(s => s.Window).ToArray(), sender, compatibility.IsConfirmed) { }
+        : this(catalog, catalog, async (token, ct) => (await catalog.ListInputSurfacesAsync(token, ct)).Select(s => s.Window).ToArray(), sender, compatibility.IsConfirmedAsync) { }
 
     // Preparation only reads metadata. Native input belongs exclusively to the coordinator's gesture gate.
     public async ValueTask<PlaybackPreparation> PrepareAsync(PlaybackRequest request, CancellationToken cancellationToken)
@@ -61,7 +61,7 @@ public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetConte
             var requirementsMet = true;
             foreach (var action in request.Actions)
             {
-                var evidence = CheckEvidence(binding, context, action);
+                var evidence = await CheckEvidenceAsync(binding, context, action, cancellationToken);
                 if (!evidence.Queued) { failure = evidence.Error; requirementsMet = false; }
             }
             if (requirementsMet) matches.Add(binding);
@@ -82,13 +82,13 @@ public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetConte
         if (!check.Result.Queued) return new(check.Result, check.Result.CleanupError);
         if (check.Context is { } context)
         {
-            var evidence = CheckEvidence(binding, context, action);
+            var evidence = await CheckEvidenceAsync(binding, context, action, cancellationToken);
             if (!evidence.Queued) return new(evidence, evidence.CleanupError);
         }
         return await sender.SendGestureAsync(binding, action, cancellationToken);
     }
 
-    private DeliveryResult CheckEvidence(PlaybackBinding binding, TargetContext context, CompiledAction action)
+    private async Task<DeliveryResult> CheckEvidenceAsync(PlaybackBinding binding, TargetContext context, CompiledAction action, CancellationToken cancellationToken)
     {
         if (action is CompiledAction.Wait) return new(true);
         InputCapability? capability = action switch
@@ -102,7 +102,7 @@ public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetConte
         };
         if (capability is null) return WindowsGestureSender.Fail("UnsupportedCapability", "Window playback does not support this action.");
         return binding.SavedAppId is { } id && binding.State is { } state &&
-            isConfirmed(id, context, state, capability.Value, action is CompiledAction.Click { Mode: CoordinateMode.FixedPixels })
+            await isConfirmed(id, context, state, capability.Value, action is CompiledAction.Click { Mode: CoordinateMode.FixedPixels }, cancellationToken)
             ? new(true) : WindowsGestureSender.Fail("CompatibilityRequired", $"Confirm {capability} compatibility for the selected surface and target state.");
     }
 

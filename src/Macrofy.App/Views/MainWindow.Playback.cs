@@ -39,19 +39,19 @@ public sealed partial class MainWindow
         if (commonProfile is not null) commonProfile.IsEnabled = !CompatibilityLocked;
         foreach (var refresh in refreshPlayback) refresh();
     }
-    private bool CanRun(Macro macro, out string reason)
+    private bool CanRun(Macro macro, out string reason, bool selectedAction = false)
     {
         if (closing || CompatibilityLocked) { reason = "Finish or discard the compatibility test first."; return false; }
         if (HasDraft(macro)) { reason = "Apply or discard action edits first."; return false; }
         var owner = Workspace.Owner(macro);
         if (owner is null) { reason = "Macro profile is missing."; return false; }
-        return playback.CanStart(owner, macro, out reason);
+        return playback.CanStart(owner, macro, out reason, selectedAction, selectedAction ? selectedStep : -1);
     }
     private bool CanRunAll(Macro macro) => macro.Enabled && CanRun(macro, out _);
     private async void Start(Macro macro) => await StartMacroAsync(macro);
     private async Task StartMacroAsync(Macro macro, bool selectedAction = false)
     {
-        if (!CanRun(macro, out var reason)) { if (!dirty) messageText.Text = reason; return; }
+        if (!CanRun(macro, out var reason, selectedAction)) { if (!dirty) messageText.Text = reason; return; }
         var owner = Workspace.Owner(macro)!;
         var index = selectedStep;
         var started = playback.StartAsync(owner, macro, selectedAction, index);

@@ -71,10 +71,12 @@ public sealed partial class MainWindow
             if (!drafts.TryGetValue(key, out var draft)) drafts[key] = draft = new(step);
             Workspace.ValidateStep(macro, new(draft.Kind, draft.Value, draft.Delay), out var initialError); draft.Error = initialError;
             var error = Wrap(draft.Error, "danger", 12); error.Name = "ActionError";
+            var help = Wrap(ActionHelp(draft.Kind), "muted", 12);
             void DraftChanged()
             {
                 Workspace.ValidateStep(macro, new(draft.Kind, draft.Value, draft.Delay), out var problem);
                 draft.Error = problem; error.Text = problem; RefreshPlayback();
+                help.Text = ActionHelp(draft.Kind);
             }
             var kindPicker = Choice(["Click", "Key", "Text", "Wait", "Wheel"], draft.Kind, value => { draft.Kind = value; DraftChanged(); }); kindPicker.Name = "ActionKind";
             var valueInput = new TextBox { Name = "ActionValue", Text = draft.Value, MinHeight = 32, AcceptsReturn = draft.Kind == "Text", TextWrapping = Avalonia.Media.TextWrapping.Wrap };
@@ -88,7 +90,7 @@ public sealed partial class MainWindow
             }, "tertiary"); apply.Name = "ApplyAction";
             var discard = IconButton("close", "Discard unapplied action edit", () => { drafts.Remove(key); Render(); }); discard.Name = "DiscardDraft";
             refreshPlayback.Add(() => discard.IsEnabled = !Workspace.IsActive(macro) && draft.Changed);
-            inspector.Children.Add(Field("Action", kindPicker)); inspector.Children.Add(Field("Position / value", valueInput)); inspector.Children.Add(Field("Wait after (ms)", delayInput)); inspector.Children.Add(error); inspector.Children.Add(Row(apply, discard));
+            inspector.Children.Add(Field("Action", kindPicker)); inspector.Children.Add(Field("Position / value", valueInput)); inspector.Children.Add(help); inspector.Children.Add(Field("Wait after (ms)", delayInput)); inspector.Children.Add(error); inspector.Children.Add(Row(apply, discard));
             editable.AddRange([kindPicker, valueInput, delayInput, apply]);
         }
         var coordinate = Choice(["Fixed pixels", "Percentage"], macro.Coordinates, value => { macro.Coordinates = value; Save(); Render(); }); coordinate.Name = "CoordinateMode";
@@ -118,7 +120,7 @@ public sealed partial class MainWindow
             add.IsEnabled = addType.IsEnabled = !active && !CompatibilityLocked && !pending;
             delete.IsEnabled = !active && !CompatibilityLocked && Workspace.Profile.Macros.Count > 1;
             remove.IsEnabled = !active && !CompatibilityLocked && !pending && selectedStep >= 0; up.IsEnabled = !active && !CompatibilityLocked && !pending && selectedStep > 0; down.IsEnabled = !active && !CompatibilityLocked && !pending && selectedStep >= 0 && selectedStep < macro.Steps.Count - 1;
-            test.IsEnabled = CanRun(macro, out var testReason) && !pending && selectedStep >= 0;
+            test.IsEnabled = CanRun(macro, out var testReason, selectedAction: true) && !pending && selectedStep >= 0;
             ToolTip.SetTip(test, test.IsEnabled ? "Send selected action once; Screen starts after 3 seconds" : testReason);
             run.IsEnabled = CanRun(macro, out _);
             ToolTip.SetTip(run, CanRun(macro, out var runReason) ? "Run: " + macro.Name : runReason);
@@ -142,4 +144,10 @@ public sealed partial class MainWindow
         (steps[selectedStep], steps[next]) = (steps[next], steps[selectedStep]); selectedStep = next; Save(); Render();
     }
     private sealed record TargetChoice(Guid? Id, string Name) { public override string ToString() => Name; }
+    private static string ActionHelp(string? kind) => kind switch
+    {
+        "Wheel" => "Wheel value is a signed vertical delta (+ up, − down), sent at the current pointer. Window mode requires the pointer inside current client bounds; minimized targets may reject it with OutsideClient.",
+        "Key" or "Shortcut" => "Received key messages do not establish working keyboard-state-based shortcuts. Key and Shortcut each need their own observed response in Compatibility.",
+        _ => ""
+    };
 }

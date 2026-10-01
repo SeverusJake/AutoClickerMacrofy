@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Macrofy.Core.Actions;
+using Macrofy.Platform;
 using Macrofy.Platform.Models;
 
 namespace Macrofy.Core.Playback;
@@ -11,12 +12,15 @@ public sealed class PlaybackCoordinator : IAsyncDisposable
     private readonly SemaphoreSlim dispatchGate = new(1, 1);
     private readonly IPlaybackExecutor executor;
     private readonly TimeProvider timeProvider;
+    private readonly IWindowCatalog? catalog;
     private bool disposed;
 
-    public PlaybackCoordinator(IPlaybackExecutor executor, TimeProvider timeProvider)
+    public PlaybackCoordinator(IPlaybackExecutor executor, TimeProvider timeProvider, IWindowCatalog? catalog = null)
     {
         this.executor = executor ?? throw new ArgumentNullException(nameof(executor));
         this.timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        this.catalog = catalog;
+        if (catalog is not null) catalog.TargetLost += OnTargetLost;
     }
 
     public IReadOnlyDictionary<Guid, PlaybackSnapshot> Snapshots
@@ -64,6 +68,11 @@ public sealed class PlaybackCoordinator : IAsyncDisposable
     public void Stop(Guid macroId) => Find(macroId)?.Stop();
     public void StopAll() { foreach (var session in ActiveSessions()) session.Stop(); }
 
+    private void OnTargetLost(TargetToken token)
+    {
+        foreach (var session in ActiveSessions()) session.TargetLost(token);
+    }
+
     /// <summary>Waits for sessions active at the time of this call, including preparation and cleanup.</summary>
     public Task WaitForIdleAsync(CancellationToken cancellationToken = default) =>
         Task.WhenAll(ActiveSessions().Select(s => s.Completion)).WaitAsync(cancellationToken);
@@ -79,7 +88,11 @@ public sealed class PlaybackCoordinator : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         PlaybackSession[] active;
-        lock (sync) { disposed = true; active = sessions.Values.ToArray(); }
+        lock (sync)
+        {
+            if (!disposed && catalog is not null) catalog.TargetLost -= OnTargetLost;
+            disposed = true; active = sessions.Values.ToArray();
+        }
         foreach (var session in active) session.Stop();
         await Task.WhenAll(active.Select(s => s.Completion)).ConfigureAwait(false);
         // Keeping the tiny managed semaphore permits concurrent/reentrant disposal safely.

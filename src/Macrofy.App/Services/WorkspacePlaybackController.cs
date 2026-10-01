@@ -9,7 +9,7 @@ namespace Macrofy.App.Services;
 public interface IWorkspacePlaybackController : IAsyncDisposable
 {
     Task<DeliveryResult> StartAsync(Profile profile, Macro macro, bool selectedAction = false, int selectedIndex = -1);
-    bool CanStart(Profile profile, Macro macro, out string reason);
+    bool CanStart(Profile profile, Macro macro, out string reason, bool selectedAction = false, int selectedIndex = -1);
     void TogglePause(Guid id);
     void TogglePauseAll();
     void Stop(Guid id);
@@ -45,7 +45,7 @@ public sealed class WorkspacePlaybackController : IWorkspacePlaybackController
     public bool HotkeysReady => health.IsOperational;
     public PlatformError? HotkeyError => health.OperationalError;
     public event EventHandler? Changed;
-    public bool CanStart(Profile profile, Macro macro, out string reason)
+    public bool CanStart(Profile profile, Macro macro, out string reason, bool selectedAction = false, int selectedIndex = -1)
     {
         lock (sync)
         {
@@ -53,7 +53,7 @@ public sealed class WorkspacePlaybackController : IWorkspacePlaybackController
             if (!HotkeysReady) { reason = HotkeyError?.Message ?? "Global emergency Stop is unavailable."; return false; }
             if (lifetimes.ContainsKey(macro.Id) || Sessions.GetValueOrDefault(macro.Id)?.IsActive == true)
             { reason = "Stop this macro before starting it again."; return false; }
-            return TryBuild(profile, macro, false, -1, out _, out reason);
+            return TryBuild(profile, macro, selectedAction, selectedIndex, out _, out reason);
         }
     }
     public Task<DeliveryResult> StartAsync(Profile profile, Macro macro, bool selectedAction = false, int selectedIndex = -1)
