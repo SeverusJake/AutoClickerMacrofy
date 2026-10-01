@@ -163,8 +163,34 @@ public class PlaybackIntegrationTests
         // Every check precedes the first injection. Failure here sends no physical input.
         var diagnostics = await target.RequestAsync("screen");
         var surface = diagnostics.GetProperty("Surface");
+        var originalHwnd = surface.GetProperty("Hwnd").GetInt64();
+        var originalChild = surface.GetProperty("Child").GetInt64();
+        // Activation can finish after the command response. Poll only diagnostics: never
+        // retry activation or send input while the original receiver is not ready.
+        using (var readiness = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken))
+        {
+            readiness.CancelAfter(TimeSpan.FromSeconds(5));
+            try
+            {
+                while (!surface.GetProperty("Focused").GetBoolean() || !surface.GetProperty("Exposed").GetBoolean())
+                {
+                    await Task.Delay(10, readiness.Token);
+                    diagnostics = await target.RequestAsync("snapshot").WaitAsync(readiness.Token);
+                    surface = diagnostics.GetProperty("Surface");
+                    Assert.Equal(originalHwnd, surface.GetProperty("Hwnd").GetInt64());
+                    Assert.Equal(originalChild, surface.GetProperty("Child").GetInt64());
+                }
+                readiness.Token.ThrowIfCancellationRequested();
+            }
+            catch (OperationCanceledException e) when (!TestContext.Current.CancellationToken.IsCancellationRequested)
+            {
+                throw new InvalidOperationException("Blocked environment: dedicated Screen receiver did not become focused and exposed within five seconds; no input was injected. " +
+                    $"ReceiptCount={diagnostics.GetProperty("Events").GetArrayLength()}; Surface={surface.GetRawText()}", e);
+            }
+        }
         Assert.True(surface.GetProperty("Focused").GetBoolean(), diagnostics.GetRawText());
         Assert.True(surface.GetProperty("Exposed").GetBoolean(), diagnostics.GetRawText());
+        TestContext.Current.TestOutputHelper?.WriteLine("Screen readiness: " + surface.GetRawText());
         var safe = new PointerPoint(surface.GetProperty("SafeX").GetInt32(), surface.GetProperty("SafeY").GetInt32());
         var screen = new ControlledScreenPlayer(surface);
         await using var f = await Composition.CreateAsync(target, false, screen);

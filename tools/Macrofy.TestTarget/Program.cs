@@ -13,6 +13,7 @@ internal static class Program
     private static readonly Native.WndProc callback = WindowProcedure;
     private static string pipeName = "";
     private static nint first, second, screen;
+    private static volatile bool screenActivationAccepted;
     private static volatile bool stalled;
     private static readonly CancellationTokenSource shutdown = new();
     private sealed record Receipt(uint Message, ulong WParam, long LParam, long Hwnd, long Timestamp);
@@ -79,7 +80,7 @@ internal static class Program
                             if (!Native.GetMonitorInfo(Native.MonitorFromPoint(pointer, 2), ref monitor)) throw new Win32Exception();
                             Native.SetWindowPos(screen, -1, monitor.Work.Left + 32, monitor.Work.Top + 32, 640, 480, 0x40);
                             Native.ShowWindow(screen, 5);
-                            Native.SetForegroundWindow(screen);
+                            screenActivationAccepted = Native.SetForegroundWindow(screen);
                             Native.SetFocus(Native.GetWindow(screen, 5));
                             break;
                         case "clear": while (receipts.TryDequeue(out _)) { } break;
@@ -130,6 +131,7 @@ internal static class Program
             Native.GetGUIThreadInfo(Native.GetWindowThreadProcessId(hwnd, out _), ref gui);
             return new { Hwnd = (long)hwnd, Child = (long)child, Width = rect.Right, Height = rect.Bottom,
                 SafeX = point.X, SafeY = point.Y, Foreground = (long)Native.GetForegroundWindow(),
+                ActivationAccepted = screenActivationAccepted, GuiFocus = (long)gui.Focus,
                 Focused = Native.GetForegroundWindow() == hwnd && gui.Focus == child,
                 Exposed = Native.IsWindowVisible(hwnd) && !Native.IsIconic(hwnd) && Native.WindowFromPoint(point) == child };
         }
