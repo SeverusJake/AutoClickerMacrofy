@@ -44,10 +44,10 @@ Existing validation (non-empty name, executable, rule) and the active-macro and 
 
 ## Errors
 
-- No catalog (non-Windows or no compatibility services): the picker shows `Window list unavailable. Enter details manually.`; manual fields work.
-- `ListAsync` throws: same message plus the error text; Refresh retries.
+- No catalog (non-Windows or no compatibility services): the picker shows `Window list unavailable. Enter details manually.`; manual fields work; the match line stays empty.
+- `ListAsync` throws: same message plus the error text; the match line stays empty; Refresh retries.
 - Regex timeout in `Matches`: treated as no match.
-- A stale load (dialog closed or a newer Refresh started) is discarded.
+- A load superseded by a newer Refresh is discarded.
 
 ## Testing
 
