@@ -86,7 +86,8 @@ public sealed partial class MainWindow
     private Control AppsPane()
     {
         var body = new StackPanel { Spacing = 16 };
-        body.Children.Add(Row(Text("Saved apps", size: 16), IconButton("plus", "Add app", () => AppDialog(null))));
+        var addApp = IconButton("plus", "Add app", () => AppDialog(null)); addApp.Name = "AddApp";
+        body.Children.Add(Row(Text("Saved apps", size: 16), addApp));
         foreach (var app in Workspace.Profile.Apps)
         {
             var used = Workspace.Profile.Macros.Any(m => m.AppId == app.Id);

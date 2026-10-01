@@ -43,13 +43,14 @@ public sealed partial class MainWindow
         if (CompatibilityLocked) return;
         if (app is not null && Workspace.Profile.Macros.Any(m => m.AppId == app.Id && Workspace.IsActive(m))) return;
         var profile = Workspace.Profile;
-        var name = new TextBox { Text = app?.Name ?? "", MinHeight = 34 };
-        var executable = new TextBox { Text = app?.Executable ?? "", MinHeight = 34 };
-        var title = new TextBox { Text = app?.TitleRule ?? "*", MinHeight = 34 };
+        var name = new TextBox { Name = "AppName", Text = app?.Name ?? "", MinHeight = 34 };
+        var executable = new TextBox { Name = "AppExecutable", Text = app?.Executable ?? "", MinHeight = 34 };
+        var title = new TextBox { Name = "AppTitleRule", Text = app?.TitleRule ?? "*", MinHeight = 34 };
         var error = Text("", "danger", 12);
-        var body = Stack(Field("App name", name), Field("Executable path", executable), Field("Window title rule", title), error);
+        var (picker, match) = AppWindowPicker(name, executable, title);
+        var body = Stack(picker, Field("App name", name), Field("Executable path", executable), Field("Window title rule", title), match, error);
         var dialog = Dialog(app is null ? "Add app" : "Edit app", body);
-        body.Children.Add(Row(IconButton("check", "Save app", () =>
+        var save = IconButton("check", "Save app", () =>
         {
             if (string.IsNullOrWhiteSpace(name.Text) || string.IsNullOrWhiteSpace(executable.Text) || string.IsNullOrWhiteSpace(title.Text)) { error.Text = "Enter an app name, executable path and title rule."; return; }
             if (CompatibilityLocked || (app is not null && profile.Macros.Any(m => m.AppId == app.Id && Workspace.IsActive(m)))) return;
@@ -57,7 +58,8 @@ public sealed partial class MainWindow
             if (app is null) profile.Apps.Add(item);
             ResetCompatibilityContext();
             Save(); Render(); dialog.Close();
-        }, "success"), IconButton("close", "Cancel", dialog.Close)));
+        }, "success"); save.Name = "SaveApp";
+        body.Children.Add(Row(save, IconButton("close", "Cancel", dialog.Close)));
         _ = dialog.ShowDialog(this);
     }
     private void DuplicateProfile()
