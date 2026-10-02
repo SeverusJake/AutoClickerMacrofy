@@ -35,7 +35,7 @@ public sealed partial class MainWindow
         Add(grid, new Border { Background = palette.Brush("subtle"), BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 0, 1, 0), Padding = new Thickness(16, 20), Child = Scroll(library) }, 0);
         var main = new StackPanel { Spacing = 16 };
         main.Children.Add(Row(Text(Workspace.Profile.Name + " — macros", size: 16), IconButton("plus", "New macro", NewMacro)));
-        main.Children.Add(TableRow("Enabled", "Macro", "Target app", "Steps", "Status", "Controls"));
+        main.Children.Add(TableRow("Enabled", "Macro", "Target app", "Steps", "Loop", "Interval (s)", "Status", "Controls"));
         foreach (var macro in Workspace.Profile.Macros)
         {
             var enabled = new ToggleSwitch { Name = "Enable_" + macro.Id.ToString("N"), IsChecked = macro.Enabled,
@@ -43,6 +43,21 @@ public sealed partial class MainWindow
             AutomationProperties.SetName(enabled, "Include in Run all: " + macro.Name);
             ToolTip.SetTip(enabled, "Include in Run all · current runs keep their state");
             enabled.IsCheckedChanged += (_, _) => { macro.Enabled = enabled.IsChecked == true; Save(); RefreshPlayback(); };
+            var loop = new ToggleSwitch { Name = "Loop_" + macro.Id.ToString("N"), IsChecked = macro.Repeat != 1,
+                OnContent = null, OffContent = null, MinWidth = 0, Width = 48, VerticalAlignment = VerticalAlignment.Center };
+            AutomationProperties.SetName(loop, "Loop until stopped: " + macro.Name);
+            ToolTip.SetTip(loop, "On: repeat until stopped · Off: run once");
+            loop.IsCheckedChanged += (_, _) =>
+            {
+                var repeat = loop.IsChecked == true ? 0 : 1;
+                if ((macro.Repeat != 1) == (repeat != 1)) return;
+                macro.Repeat = repeat; Save(); RefreshPlayback();
+            };
+            var interval = new NumericUpDown { Name = "Interval_" + macro.Id.ToString("N"), Value = macro.IntervalMs / 1000m, Minimum = 0, Maximum = 600,
+                Increment = 0.5m, FormatString = "0.##", Width = 76, MinHeight = 30, ShowButtonSpinner = false, VerticalAlignment = VerticalAlignment.Center };
+            AutomationProperties.SetName(interval, "Interval between runs in seconds: " + macro.Name);
+            ToolTip.SetTip(interval, "Seconds between runs");
+            interval.ValueChanged += (_, _) => { macro.IntervalMs = (int)Math.Round((interval.Value ?? 0) * 1000); Save(); };
             var status = Text(Workspace.Status(macro), StateRole(Workspace.Status(macro)), 12); status.Name = "Status_" + macro.Id.ToString("N");
             var run = IconButton("play", "Run: " + macro.Name, () => Start(macro), "success"); run.Name = "Run_" + macro.Id.ToString("N");
             var pause = IconButton("pause", "Pause macro: " + macro.Name, () => { Workspace.TogglePause(macro.Id); RefreshPlayback(); }, "warning"); pause.Name = "Pause_" + macro.Id.ToString("N");
@@ -52,7 +67,7 @@ public sealed partial class MainWindow
             var targetName = Text(Workspace.TargetName(macro), "tertiary", 13);
             macroName.TextTrimming = targetName.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis;
             ToolTip.SetTip(macroName, macro.Name); ToolTip.SetTip(targetName, Workspace.TargetName(macro));
-            var row = TableRow(enabled, macroName, targetName, Text(macro.Steps.Count.ToString(), "accent", 13), status, Row(run, pause, stop, edit));
+            var row = TableRow(enabled, macroName, targetName, Text(macro.Steps.Count.ToString(), "accent", 13), loop, interval, status, Row(run, pause, stop, edit));
             row.Name = "MacroRow_" + macro.Id.ToString("N"); row.Background = Avalonia.Media.Brushes.Transparent;
             row.PointerEntered += (_, _) => row.Background = palette.Tint("accent", .08);
             row.PointerExited += (_, _) => row.Background = Avalonia.Media.Brushes.Transparent;
@@ -60,14 +75,14 @@ public sealed partial class MainWindow
             row.DoubleTapped += (_, e) =>
             {
                 if (e.Source is Visual source && source.GetVisualAncestors().Prepend(source)
-                    .TakeWhile(v => v != row).Any(v => v is Button or ToggleSwitch)) return;
+                    .TakeWhile(v => v != row).Any(v => v is Button or ToggleSwitch or NumericUpDown)) return;
                 e.Handled = true;
                 Edit(macro);
             };
             main.Children.Add(row);
             refreshPlayback.Add(() =>
             {
-                var active = Workspace.IsActive(macro); run.IsEnabled = !HasDraft(macro) && CanRun(macro, out _);
+                var active = Workspace.IsActive(macro); loop.IsEnabled = interval.IsEnabled = !active; run.IsEnabled = !HasDraft(macro) && CanRun(macro, out _);
                 ToolTip.SetTip(run, CanRun(macro, out var reason) ? "Run: " + macro.Name : reason); pause.IsEnabled = stop.IsEnabled = active; status.Text = Workspace.Status(macro); status.Foreground = palette.Brush(StateRole(status.Text));
                 var paused = status.Text == "Paused"; SetIcon(pause, paused ? "play" : "pause", (paused ? "Resume macro: " : "Pause macro: ") + macro.Name, "warning");
             });
@@ -77,7 +92,7 @@ public sealed partial class MainWindow
     private Control TableRow(params string[] cells) => TableRow(cells.Select(c => (Control)Text(c, "muted", 12)).ToArray());
     private Border TableRow(params Control[] cells)
     {
-        var grid = new Grid { ColumnDefinitions = new("64,*,*,55,85,172"), MinWidth = 674, Margin = new Thickness(0, 8) };
+        var grid = new Grid { ColumnDefinitions = new("64,*,*,55,60,84,85,172"), MinWidth = 818, Margin = new Thickness(0, 8) };
         for (var i = 0; i < cells.Length; i++) { cells[i].Margin = new Thickness(4, 0); Add(grid, cells[i], 0, i); }
         return new Border { BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(0, 0, 0, 6), Child = grid };
     }
