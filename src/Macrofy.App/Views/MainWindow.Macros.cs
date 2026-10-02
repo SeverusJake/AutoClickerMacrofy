@@ -91,7 +91,17 @@ public sealed partial class MainWindow
             var discard = IconButton("close", "Discard unapplied action edit", () => { drafts.Remove(key); Render(); }); discard.Name = "DiscardDraft";
             refreshPlayback.Add(() => discard.IsEnabled = !Workspace.IsActive(macro) && draft.Changed);
             inspector.Children.Add(Field("Action", kindPicker)); inspector.Children.Add(Field("Position / value", valueInput));
-            inspector.Children.Add(CapturePointControl(macro, draft)); inspector.Children.Add(help); inspector.Children.Add(Field("Wait after (ms)", delayInput)); inspector.Children.Add(error); inspector.Children.Add(Row(apply, discard));
+            var recordStatus = Wrap(recordMessage, "muted", 12); recordStatus.Name = "RecordStatus";
+            var recordApp = macro.AppId is { } recordAppId ? Workspace.Profile.Apps.SingleOrDefault(a => a.Id == recordAppId) : null;
+            var recordPoint = RecordPointButton("RecordPoint",
+                () => draft.Kind == "Click" && macro.Coordinates != "Percentage" && !Workspace.IsActive(macro) && compatibility is not null && (macro.AppId is null || recordApp is not null),
+                () => ReadMacroPointAsync(recordApp),
+                point => { draft.Value = FormatPoint(point); recordMessage = $"Recorded {draft.Value}. Apply change to save it."; Render(); },
+                text => { recordMessage = text; recordStatus.Text = text; });
+            ToolTip.SetTip(recordPoint, macro.Coordinates == "Percentage" ? "Recording gives pixels. Switch Coordinates to Fixed pixels." : "Hover over the spot and press the record key. No input is sent.");
+            var recordPanel = new StackPanel { Spacing = 4, Children = { recordPoint, recordStatus } };
+            refreshPlayback.Add(() => recordPanel.IsVisible = draft.Kind == "Click" && compatibility is not null);
+            inspector.Children.Add(recordPanel); inspector.Children.Add(help); inspector.Children.Add(Field("Wait after (ms)", delayInput)); inspector.Children.Add(error); inspector.Children.Add(Row(apply, discard));
             editable.AddRange([kindPicker, valueInput, delayInput, apply]);
         }
         var coordinate = Choice(["Fixed pixels", "Percentage"], macro.Coordinates, value => { macro.Coordinates = value; Save(); Render(); }); coordinate.Name = "CoordinateMode";

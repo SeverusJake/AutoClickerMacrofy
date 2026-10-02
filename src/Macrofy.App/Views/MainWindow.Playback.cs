@@ -77,11 +77,11 @@ public sealed partial class MainWindow
         RefreshPlayback();
     }
     private void TogglePauseAll() { playback.TogglePauseAll(); RefreshPlayback(); }
-    private void StopAll() { playback.StopAll(); CancelCompatibilityTest(); RefreshPlayback(); }
+    private void StopAll() { playback.StopAll(); CancelCompatibilityTest(); EndRecording(); RefreshPlayback(); }
     private void Suspend()
     {
         playback.StopAll(); CancelCompatibilityTest();
-        Dispatcher.UIThread.Post(RefreshPlayback);
+        Dispatcher.UIThread.Post(() => { EndRecording(); RefreshPlayback(); });
     }
     private void GlobalCommand(HotkeyCommand command)
     {
@@ -99,7 +99,8 @@ public sealed partial class MainWindow
             if (closing) return;
             if (command == HotkeyCommand.Run) RunAllEnabled();
             else if (command == HotkeyCommand.Pause) TogglePauseAll();
-            else RefreshPlayback();
+            else if (command == HotkeyCommand.Capture) _ = CompleteRecordingAsync();
+            else { EndRecording(); RefreshPlayback(); }
         });
     }
     private bool ConfigureHotkeys(ShortcutSettings candidate)
@@ -139,7 +140,7 @@ public sealed partial class MainWindow
         if (closeAllowed) return;
         e.Cancel = true;
         if (closing) return;
-        closing = true; timer.Stop(); playback.StopAll(); CancelCompatibilityTest();
+        closing = true; timer.Stop(); playback.StopAll(); CancelCompatibilityTest(); EndRecording();
         try
         {
             await compatibilityWork;

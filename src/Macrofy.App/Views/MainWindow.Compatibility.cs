@@ -38,7 +38,10 @@ public sealed partial class MainWindow
         var value = new TextBox { Name = "CompatibilityValue", Text = "", MinWidth = 220, PlaceholderText = "Harmless test value / client X, Y" };
         var status = Wrap("Select an app, live window, input surface and a harmless action. Nothing is sent automatically.", "muted", 13); status.Name = "CompatibilityStatus";
         var actionHelp = Wrap("", "muted", 12);
-        var capture = TextButton("Capture client point in 5 seconds", () => { }); capture.Name = "CaptureCompatibilityPoint";
+        var capture = RecordPointButton("CompatibilityRecordPoint", () => surface.SelectedItem is WindowOption && action.SelectedItem as string == "Click",
+            () => Task.FromResult(surface.SelectedItem is WindowOption option ? compatibility.ReadPointer(option.Window.Token) : new ScreenPointResult(null, new("NoSurface", "Select an input surface."))),
+            point => { value.Text = FormatPoint(point); status.Text = $"Recorded {value.Text}. Arrange the window, then send the test."; },
+            text => status.Text = text);
         var test = TextButton("Click test", () => { }); test.Name = "TestCompatibilityAction";
         var generation = 0;
         Guid? selectedAppId = null;
@@ -58,14 +61,13 @@ public sealed partial class MainWindow
             var locked = CompatibilityLocked || closing;
             foreach (var control in new Control[] { app, window, surface, action, value }) control.IsEnabled = !locked;
             var ready = !locked && Workspace.ActiveCount == 0 && playback.HotkeysReady;
-            capture.IsEnabled = ready && surface.SelectedItem is WindowOption && action.SelectedItem as string == "Click";
             var valid = TryAction(out _, out var problem);
             test.Content = (action.SelectedItem as string ?? "Click") + " test";
             test.IsEnabled = ready && app.SelectedItem is SavedApp && surface.SelectedItem is WindowOption && valid;
             ToolTip.SetTip(test, !playback.HotkeysReady ? playback.HotkeyError?.Message ?? "Global emergency Stop unavailable." : valid ? "Send exactly one selected action; watch the app yourself." : problem);
         }
         refreshCompatibility = UpdateControls; refreshPlayback.Add(UpdateControls);
-        void ClearValue() { value.Text = ""; status.Text = "Selection changed. Enter or record a fresh test value."; UpdateControls(); }
+        void ClearValue() { value.Text = ""; status.Text = "Selection changed. Enter or record a fresh test value."; RefreshPlayback(); }
         app.SelectionChanged += async (_, _) =>
         {
             if (CompatibilityLocked) return;
@@ -114,18 +116,6 @@ public sealed partial class MainWindow
             catch (Exception error) { status.Text = "Test stopped: " + error.Message; }
             finally { compatibilityCancellation = null; compatibilityBusy = false; RefreshPlayback(); }
         }
-        capture.Click += (_, _) =>
-        {
-            if (!capture.IsEnabled || surface.SelectedItem is not WindowOption selected) return;
-            compatibilityWork = RunOperation(async ct =>
-            {
-                for (var seconds = 5; seconds > 0; seconds--) { status.Text = $"Restore the selected window and hover over a harmless client point. Capture in {seconds}s; no input sent."; await Task.Delay(1000, ct); }
-                var point = compatibility.ReadPointer(selected.Window.Token);
-                if (point.Point is null) throw new InvalidOperationException(point.Error?.Message ?? "Pointer unavailable.");
-                value.Text = string.Create(CultureInfo.InvariantCulture, $"{point.Point.Value.X}, {point.Point.Value.Y}");
-                status.Text = "Point captured. Arrange the window before testing.";
-            });
-        };
         test.Click += (_, _) =>
         {
             if (!test.IsEnabled || app.SelectedItem is not SavedApp selectedApp || surface.SelectedItem is not WindowOption selected || !TryAction(out var compiled, out _)) return;
