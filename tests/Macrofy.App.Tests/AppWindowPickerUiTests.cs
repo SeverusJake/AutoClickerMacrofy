@@ -71,6 +71,19 @@ public sealed class AppWindowPickerUiTests
         finally { window.Close(); }
     }
 
+    [AvaloniaFact]
+    public async Task MainWindowAndDialogsUseAppIcon()
+    {
+        var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
+        var (window, dialog) = await OpenAddApp(state, new ListedCatalog([]));
+        try
+        {
+            Assert.NotNull(window.Icon);
+            Assert.Same(window.Icon, dialog.Icon);
+        }
+        finally { window.Close(); }
+    }
+
     private static async Task<(MainWindow Window, Window Dialog)> OpenAddApp(WorkspaceState state, ListedCatalog catalog)
     {
         var keys = new HarmlessHotkeys();

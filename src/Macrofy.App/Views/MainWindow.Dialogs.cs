@@ -10,7 +10,7 @@ public sealed partial class MainWindow
 {
     private Window Dialog(string title, Control body)
     {
-        return new Window { Title = title, Width = 540, SizeToContent = SizeToContent.Height, MinWidth = 420, MaxHeight = 700, CanResize = false,
+        return new Window { Title = title, Icon = Icon, Width = 540, SizeToContent = SizeToContent.Height, MinWidth = 420, MaxHeight = 700, CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = palette.Brush("surface"), Foreground = palette.Brush("ink"),
             RequestedThemeVariant = RequestedThemeVariant, FontFamily = FontFamily, FontSize = 14, Content = new Border { Padding = new Thickness(24), Child = body } };
     }

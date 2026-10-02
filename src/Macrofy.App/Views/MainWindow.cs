@@ -6,6 +6,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -22,6 +23,7 @@ namespace Macrofy.App.Views;
 public sealed partial class MainWindow : Window
 {
     private static readonly string[] Tabs = ["Profiles", "Apps", "Macros", "Compatibility", "Settings", "Log", "About"];
+    private static readonly Lazy<WindowIcon> AppIcon = new(() => new WindowIcon(AssetLoader.Open(new Uri("avares://Macrofy/Assets/macrofy.ico"))));
     private readonly WorkspaceStore? store;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(600) };
     private readonly List<(string Time, string Event)> log = [];
@@ -57,7 +59,7 @@ public sealed partial class MainWindow : Window
         if (hotkeys is ISystemEvents systemEvents) systemEvents.Suspended += Suspend;
         ConfigureHotkeys(Workspace.Document.Shortcuts);
         palette = new(workspace.Document.Theme, workspace.Document.Mode);
-        Title = "Macrofy"; Width = 1100; Height = 760; MinWidth = 780; MinHeight = 580;
+        Title = "Macrofy"; Icon = AppIcon.Value; Width = 1100; Height = 760; MinWidth = 780; MinHeight = 580;
         FontFamily = new FontFamily("Tahoma"); FontSize = 14;
         timer.Tick += (_, _) => RefreshPlayback();
         Opened += (_, _) => timer.Start();
