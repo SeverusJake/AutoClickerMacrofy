@@ -19,6 +19,8 @@ public sealed class WindowsScreenInputPlayer : IScreenInputPlayer
     private readonly IScreenPlayerNative native;
     private readonly object gate = new();
     private readonly List<ScreenNativeInput> heldReleases = [];
+    // Inputs a playback session keeps down on purpose; release-all cleanup skips them.
+    private readonly List<HeldInput> pinned = [];
     public WindowsScreenInputPlayer() : this(new Win32ScreenInputNative()) { }
     internal WindowsScreenInputPlayer(IScreenPlayerNative native) => this.native = native;
     public ScreenGeometry ReadGeometry() => native.ReadGeometry();
@@ -59,13 +61,21 @@ public sealed class WindowsScreenInputPlayer : IScreenInputPlayer
     {
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         budget.CancelAfter(TimeSpan.FromMilliseconds(500));
-        if (heldReleases.Count == 0) return new(true);
+        var releases = heldReleases.AsEnumerable().Reverse().Where(release => !IsPinned(release)).ToArray();
+        if (releases.Length == 0) return new(true);
         if (budget.IsCancellationRequested) return new(false, new("CleanupTimeout", "Screen release cancelled or exceeded its 500ms budget."));
-        var releases = heldReleases.AsEnumerable().Reverse().ToArray();
         var inserted = Math.Clamp(native.Send(releases), 0, releases.Length);
         foreach (var release in releases.Take(inserted)) ApplyInserted(release);
         return inserted == releases.Length ? new(true) : new(false, new("CleanupFailed", $"Windows inserted {inserted} of {releases.Length} owned-input releases."));
     }
+
+    public void Pin(HeldInput input) { lock (gate) pinned.Add(input); }
+    public void Unpin(HeldInput input) { lock (gate) pinned.Remove(input); }
+
+    private bool IsPinned(ScreenNativeInput release) => pinned.Any(pin =>
+        pin.Button is { } button
+            ? release.Type == 0 && release.Flags == button switch { MouseButton.Left => 4u, MouseButton.Right => 0x10u, MouseButton.Middle => 0x40u, _ => 0x100u }
+            : pin.Key is { } key && release.Type == 1 && (release.Flags & 4) == 0 && release.VirtualKey == MessageEncoder.VirtualKey(key.LogicalKey));
 
     private ScreenNativeInput[] Encode(InputCommand command)
     {

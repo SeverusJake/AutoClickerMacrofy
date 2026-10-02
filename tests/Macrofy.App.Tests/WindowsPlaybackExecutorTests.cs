@@ -228,6 +228,42 @@ public class WindowsPlaybackExecutorTests
         Assert.Null(preparation.Binding); Assert.Equal("UnsupportedCapability", preparation.Error!.Code); Assert.Empty(f.Input.Commands);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task MouseDownPinsAndHeldReleaseSendsUpAtStoredPoint(bool screen)
+    {
+        var f = new Fixture();
+        var binding = (await f.Executor.PrepareAsync(f.Request(screen: screen), TestContext.Current.CancellationToken)).Binding!;
+        Assert.True((await f.Executor.ExecuteAsync(binding, new CompiledAction.MouseDown(new(10, 12), CoordinateMode.FixedPixels, MouseButton.Right, 0), TestContext.Current.CancellationToken)).Delivery.Queued);
+        Assert.Equal(new InputCommand[] { new PointerCommand(PointerKind.Down, new(10, 12), MouseButton.Right) }, f.Input.Commands);
+        Assert.Equal(new[] { "pin Right" }, f.Input.Pins);
+        var release = await f.Executor.ReleaseHeldAsync(binding, [new HeldInput(Button: MouseButton.Right)], TestContext.Current.CancellationToken);
+        Assert.True(release.Delivery.Queued); Assert.Null(release.CleanupError);
+        Assert.Equal(new PointerCommand(PointerKind.Up, new(10, 12), MouseButton.Right), f.Input.Commands[^1]);
+        Assert.Equal(new[] { "pin Right", "unpin Right" }, f.Input.Pins);
+    }
+
+    [Fact]
+    public async Task KeyDownPinsAndKeyUpUnpinsBeforeSending()
+    {
+        var f = new Fixture(); var binding = (await f.Executor.PrepareAsync(f.Request(), TestContext.Current.CancellationToken)).Binding!;
+        Assert.True((await f.Executor.ExecuteAsync(binding, new CompiledAction.KeyDown([new("Shift"), new("W")], 0), TestContext.Current.CancellationToken)).Delivery.Queued);
+        Assert.Equal(new[] { "pin Shift", "pin W" }, f.Input.Pins);
+        Assert.True((await f.Executor.ExecuteAsync(binding, new CompiledAction.KeyUp([new("Shift"), new("W")], 0), TestContext.Current.CancellationToken)).Delivery.Queued);
+        Assert.Equal(new[] { "pin Shift", "pin W", "unpin Shift", "unpin W" }, f.Input.Pins);
+        Assert.Equal(new[] { "Down:Shift", "Down:W", "Up:W", "Up:Shift" }, f.Input.Commands.Cast<KeyCommand>().Select(c => $"{c.Kind}:{c.Key.LogicalKey}"));
+    }
+
+    [Fact]
+    public async Task RightButtonClickSendsRightDownAndUp()
+    {
+        var f = new Fixture(); var binding = (await f.Executor.PrepareAsync(f.Request(), TestContext.Current.CancellationToken)).Binding!;
+        Assert.True((await f.Executor.ExecuteAsync(binding, new CompiledAction.Click(new(5, 6), CoordinateMode.FixedPixels, 0, MouseButton.Right), TestContext.Current.CancellationToken)).Delivery.Queued);
+        Assert.Equal(new InputCommand[] { new PointerCommand(PointerKind.Down, new(5, 6), MouseButton.Right), new PointerCommand(PointerKind.Up, new(5, 6), MouseButton.Right) }, f.Input.Commands);
+        Assert.Empty(f.Input.Pins);
+    }
+
     [Fact]
     public async Task StopLossBetweenChordDownsReleasesOwnedModifier()
     {
@@ -306,7 +342,12 @@ public class WindowsPlaybackExecutorTests
     }
     private sealed class Player : IInputPlayer, IScreenInputPlayer
     {
-        public List<InputCommand> Commands = []; public List<KeyIdentity> Held = [];
+        public List<InputCommand> Commands = []; public List<KeyIdentity> Held = []; public List<string> Pins = [];
+        private static string Describe(HeldInput input) => input.Button?.ToString() ?? input.Key!.LogicalKey;
+        public void Pin(TargetToken target, HeldInput input) => Pins.Add("pin " + Describe(input));
+        public void Unpin(TargetToken target, HeldInput input) => Pins.Add("unpin " + Describe(input));
+        public void Pin(HeldInput input) => Pins.Add("pin " + Describe(input));
+        public void Unpin(HeldInput input) => Pins.Add("unpin " + Describe(input));
         public Action? AfterSend; public DeliveryResult Next = new(true); public int Cleanups;
         public DeliveryResult CleanupResult = new(true); public bool DelayCleanup;
         public bool CleanupTokenCanCancel, CleanupTokenCancelled;

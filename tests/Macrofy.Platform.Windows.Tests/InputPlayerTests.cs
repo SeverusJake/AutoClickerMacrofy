@@ -95,6 +95,21 @@ public class InputPlayerTests
         Assert.Equal(4,f.Native.Sends.Count);
     }
     [Fact]
+    public async Task PinnedInputSurvivesCleanupUntilUnpinned()
+    {
+        using var f = new PlayerFixture();
+        await f.Player.SendAsync(f.Token,new KeyCommand(KeyKind.Down,new("W")));
+        await f.Player.SendAsync(f.Token,new KeyCommand(KeyKind.Down,new("A")));
+        await f.Player.SendAsync(f.Token,new PointerCommand(PointerKind.Down,new(20,30),MouseButton.Right));
+        f.Player.Pin(f.Token,new HeldInput(Key:new("W"))); f.Player.Pin(f.Token,new HeldInput(Button:MouseButton.Right));
+        Assert.True((await f.Player.ReleaseHeldAsync(f.Token)).Queued);
+        Assert.Equal(new uint[] {0x100,0x100,0x204,0x101},f.Native.Sends.Select(s=>s.Message.Id));
+        Assert.Equal(0x41ul,(ulong)f.Native.Sends[^1].Message.WParam);
+        f.Player.Unpin(f.Token,new HeldInput(Key:new("W"))); f.Player.Unpin(f.Token,new HeldInput(Button:MouseButton.Right));
+        Assert.True((await f.Player.ReleaseHeldAsync(f.Token)).Queued);
+        Assert.Equal(new uint[] {0x205,0x101},f.Native.Sends.Skip(4).Select(s=>s.Message.Id));
+    }
+    [Fact]
     public async Task CleanupNeverSendsToRecreatedWindow()
     {
         using var f = new PlayerFixture();

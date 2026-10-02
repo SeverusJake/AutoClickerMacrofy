@@ -53,18 +53,20 @@ public sealed class WindowsGestureSender(ITargetContext targets, IPermissionServ
         var dispatched = false;
         try
         {
-            var fixedCoordinates = action is CompiledAction.Click { Mode: CoordinateMode.FixedPixels };
+            var fixedCoordinates = action is CompiledAction.Click { Mode: CoordinateMode.FixedPixels } or CompiledAction.MouseDown { Mode: CoordinateMode.FixedPixels } or CompiledAction.MouseUp { Mode: CoordinateMode.FixedPixels };
             var check = await CheckAsync(binding, fixedCoordinates, cancellationToken);
             if (!check.Result.Queued) return new(check.Result, check.Result.CleanupError);
             if (action is CompiledAction.Wait) return new(new(true));
             var geometry = check.Context?.Window.Geometry;
             var commands = BuildCommands(binding, action, geometry);
+            // A release stops protecting its input first, so failure cleanup still lets it go.
+            foreach (var input in HeldBy(action, release: true)) Unpin(binding, input);
             async ValueTask<DeliveryResult> ValidatePost(CancellationToken ct)
             {
                 var fresh = await CheckAsync(binding, fixedCoordinates, ct);
                 if (!fresh.Result.Queued) return fresh.Result;
                 // A percentage is recalculated between gestures; never reuse a converted point after a resize mid-gesture.
-                if (binding.Token is not null && action is CompiledAction.Click or CompiledAction.Wheel && fresh.Context!.Window.Geometry != geometry)
+                if (binding.Token is not null && action is CompiledAction.Click or CompiledAction.Wheel or CompiledAction.MouseDown or CompiledAction.MouseUp && fresh.Context!.Window.Geometry != geometry)
                     return Fail("GeometryChanged", "Target geometry changed while preparing pointer input.");
                 return new(true);
             }
@@ -80,6 +82,11 @@ public sealed class WindowsGestureSender(ITargetContext targets, IPermissionServ
                     : await screen.SendAsync(command, cancellationToken);
                 cleanupError ??= delivery.CleanupError;
                 if (!delivery.Queued || delivery.Error is not null || delivery.CleanupError is not null) break;
+            }
+            if (delivery.Queued && delivery.Error is null && delivery.CleanupError is null)
+            {
+                var point = commands.OfType<PointerCommand>().LastOrDefault()?.Point ?? default;
+                foreach (var input in HeldBy(action, release: false)) Pin(binding, input, point);
             }
         }
         catch (OperationCanceledException) { delivery = Fail("Cancelled", "Future input cancelled; already-delivered input cannot be withdrawn."); }
@@ -104,27 +111,90 @@ public sealed class WindowsGestureSender(ITargetContext targets, IPermissionServ
         return new(delivery, cleanupError);
     }
 
+    private readonly object pinSync = new();
+    private readonly List<(TargetToken? Token, HeldInput Input, PointerPoint Point)> pins = [];
+
+    /// <summary>Best-effort release of session-held input at its stored point, without target-state checks.</summary>
+    public async ValueTask<GestureResult> ReleaseHeldAsync(PlaybackBinding binding, IReadOnlyList<HeldInput> inputs, CancellationToken cancellationToken)
+    {
+        PlatformError? error = null;
+        foreach (var input in inputs.Reverse())
+        {
+            var point = Unpin(binding, input);
+            InputCommand command = input.Button is { } button ? new PointerCommand(PointerKind.Up, point, button) : new KeyCommand(KeyKind.Up, input.Key!);
+            try
+            {
+                var result = binding.Token is { } token ? await window.SendAsync(token, command, cancellationToken) : await screen.SendAsync(command, cancellationToken);
+                if (!result.Queued || result.Error is not null) error ??= result.Error ?? new("CleanupFailed", "Held input could not be released.");
+            }
+            catch (Exception ex) { error ??= new("CleanupFailed", ex.Message); }
+        }
+        return new(new(true), error);
+    }
+
+    private static IEnumerable<HeldInput> HeldBy(CompiledAction action, bool release) => (action, release) switch
+    {
+        (CompiledAction.MouseDown down, false) => [new(Button: down.Button)],
+        (CompiledAction.MouseUp up, true) => [new(Button: up.Button)],
+        (CompiledAction.KeyDown down, false) => down.Keys.Select(k => new HeldInput(Key: k)),
+        (CompiledAction.KeyUp up, true) => up.Keys.Select(k => new HeldInput(Key: k)),
+        _ => []
+    };
+
+    private void Pin(PlaybackBinding binding, HeldInput input, PointerPoint point)
+    {
+        lock (pinSync) pins.Add((binding.Token, input, point));
+        if (binding.Token is { } token) window.Pin(token, input); else screen.Pin(input);
+    }
+
+    private PointerPoint Unpin(PlaybackBinding binding, HeldInput input)
+    {
+        PointerPoint point = default;
+        lock (pinSync)
+        {
+            var index = pins.FindIndex(p => p.Token == binding.Token && (input.Button is { } b ? p.Input.Button == b
+                : p.Input.Key is { } k && string.Equals(k.LogicalKey, input.Key?.LogicalKey, StringComparison.OrdinalIgnoreCase)));
+            if (index < 0) return point;
+            (point, input) = (pins[index].Point, pins[index].Input); pins.RemoveAt(index);
+        }
+        if (binding.Token is { } token) window.Unpin(token, input); else screen.Unpin(input);
+        return point;
+    }
+
+    private PointerPoint ResolvePoint(PlaybackBinding binding, PointerPoint point, CoordinateMode mode, ClientGeometry? clientGeometry)
+    {
+        var screenGeometry = binding.Token is null ? screen.ReadGeometry() : default;
+        var width = clientGeometry?.Width ?? screenGeometry.Width;
+        var height = clientGeometry?.Height ?? screenGeometry.Height;
+        var left = binding.Token is null ? screenGeometry.Left : 0;
+        var top = binding.Token is null ? screenGeometry.Top : 0;
+        if (!Enum.IsDefined(mode) || !double.IsFinite(point.X) || !double.IsFinite(point.Y) || width <= 0 || height <= 0)
+            throw new ArgumentException("Click coordinates or target geometry are invalid.");
+        if (mode == CoordinateMode.Percentage)
+        {
+            if (point.X < 0 || point.Y < 0 || point.X > 100 || point.Y > 100) throw new ArgumentException("Percentage coordinates must be between 0 and 100.");
+            point = new(left + Math.Floor(point.X * (width - 1) / 100), top + Math.Floor(point.Y * (height - 1) / 100));
+        }
+        if (point.X < left || point.Y < top || point.X >= (long)left + width || point.Y >= (long)top + height)
+            throw new ArgumentException("Click point is outside target geometry.");
+        return point;
+    }
+
     private IReadOnlyList<InputCommand> BuildCommands(PlaybackBinding binding, CompiledAction action, ClientGeometry? clientGeometry)
     {
         switch (action)
         {
             case CompiledAction.Click click:
-                var screenGeometry = binding.Token is null ? screen.ReadGeometry() : default;
-                var width = clientGeometry?.Width ?? screenGeometry.Width;
-                var height = clientGeometry?.Height ?? screenGeometry.Height;
-                var left = binding.Token is null ? screenGeometry.Left : 0;
-                var top = binding.Token is null ? screenGeometry.Top : 0;
-                var point = click.Point;
-                if (!Enum.IsDefined(click.Mode) || !double.IsFinite(point.X) || !double.IsFinite(point.Y) || width <= 0 || height <= 0)
-                    throw new ArgumentException("Click coordinates or target geometry are invalid.");
-                if (click.Mode == CoordinateMode.Percentage)
-                {
-                    if (point.X < 0 || point.Y < 0 || point.X > 100 || point.Y > 100) throw new ArgumentException("Percentage coordinates must be between 0 and 100.");
-                    point = new(left + Math.Floor(point.X * (width - 1) / 100), top + Math.Floor(point.Y * (height - 1) / 100));
-                }
-                if (point.X < left || point.Y < top || point.X >= (long)left + width || point.Y >= (long)top + height)
-                    throw new ArgumentException("Click point is outside target geometry.");
-                return [new PointerCommand(PointerKind.Down, point, MouseButton.Left), new PointerCommand(PointerKind.Up, point, MouseButton.Left)];
+                var point = ResolvePoint(binding, click.Point, click.Mode, clientGeometry);
+                return [new PointerCommand(PointerKind.Down, point, click.Button), new PointerCommand(PointerKind.Up, point, click.Button)];
+            case CompiledAction.MouseDown down:
+                return [new PointerCommand(PointerKind.Down, ResolvePoint(binding, down.Point, down.Mode, clientGeometry), down.Button)];
+            case CompiledAction.MouseUp up:
+                return [new PointerCommand(PointerKind.Up, ResolvePoint(binding, up.Point, up.Mode, clientGeometry), up.Button)];
+            case CompiledAction.KeyDown down when down.Keys.Count > 0:
+                return down.Keys.Select(k => (InputCommand)new KeyCommand(KeyKind.Down, k)).ToArray();
+            case CompiledAction.KeyUp up when up.Keys.Count > 0:
+                return up.Keys.Reverse().Select(k => (InputCommand)new KeyCommand(KeyKind.Up, k)).ToArray();
             case CompiledAction.Key key when key.Keys.Count > 0:
                 return key.Keys.Select(k => (InputCommand)new KeyCommand(KeyKind.Down, k))
                     .Concat(key.Keys.Reverse().Select(k => (InputCommand)new KeyCommand(KeyKind.Up, k))).ToArray();

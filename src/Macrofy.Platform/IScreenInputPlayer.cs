@@ -8,4 +8,7 @@ public interface IScreenInputPlayer
     ScreenPointResult ReadPointer();
     ValueTask<DeliveryResult> SendAsync(InputCommand command, CancellationToken cancellationToken = default);
     ValueTask<DeliveryResult> ReleaseHeldAsync(CancellationToken cancellationToken = default);
+    /// <summary>Keeps a held input down through release-all cleanup until unpinned.</summary>
+    void Pin(HeldInput input) { }
+    void Unpin(HeldInput input) { }
 }

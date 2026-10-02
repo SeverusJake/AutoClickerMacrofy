@@ -73,14 +73,17 @@ public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetConte
 
     public async ValueTask<GestureResult> ExecuteAsync(PlaybackBinding binding, CompiledAction action, CancellationToken cancellationToken)
     {
-        var check = await sender.CheckAsync(binding, action is CompiledAction.Click { Mode: CoordinateMode.FixedPixels }, cancellationToken);
+        var check = await sender.CheckAsync(binding, action is CompiledAction.Click { Mode: CoordinateMode.FixedPixels } or CompiledAction.MouseDown { Mode: CoordinateMode.FixedPixels } or CompiledAction.MouseUp { Mode: CoordinateMode.FixedPixels }, cancellationToken);
         if (!check.Result.Queued) return new(check.Result, check.Result.CleanupError);
         if (check.Context is not null && CheckCapability(action) is { Queued: false } unsupported) return new(unsupported);
         return await sender.SendGestureAsync(binding, action, cancellationToken);
     }
 
+    public ValueTask<GestureResult> ReleaseHeldAsync(PlaybackBinding binding, IReadOnlyList<HeldInput> inputs, CancellationToken cancellationToken) =>
+        sender.ReleaseHeldAsync(binding, inputs, cancellationToken);
+
     private static DeliveryResult CheckCapability(CompiledAction action) =>
-        action is CompiledAction.Wait or CompiledAction.Click or CompiledAction.Key { Keys.Count: > 0 } or CompiledAction.Text or CompiledAction.Wheel
+        action is CompiledAction.Wait or CompiledAction.Click or CompiledAction.Key { Keys.Count: > 0 } or CompiledAction.Text or CompiledAction.Wheel or CompiledAction.MouseDown or CompiledAction.MouseUp or CompiledAction.KeyDown { Keys.Count: > 0 } or CompiledAction.KeyUp { Keys.Count: > 0 }
             ? new(true) : WindowsGestureSender.Fail("UnsupportedCapability", "Window playback does not support this action.");
 
     private static bool Matches(TargetRule rule, TargetWindow window)

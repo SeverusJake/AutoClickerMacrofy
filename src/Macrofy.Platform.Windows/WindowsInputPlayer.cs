@@ -27,6 +27,9 @@ public sealed class WindowsInputPlayer : IInputPlayer, IDisposable
     private readonly IPermissionService permission;
     private readonly SemaphoreSlim sender = new(1, 1);
     private readonly Dictionary<TargetToken, HeldInputTracker> held = [];
+    // Inputs a playback session keeps down on purpose; release-all cleanup skips them.
+    private readonly Dictionary<TargetToken, List<HeldInput>> pinned = [];
+    private readonly object pinSync = new();
     private TimeSpan nextPost;
     public WindowsInputPlayer(WindowsWindowCatalog catalog) : this(catalog, new Win32InputNative(), new InputClock(), new WindowsPermissionService(catalog)) { }
     internal WindowsInputPlayer(WindowsWindowCatalog catalog, IInputNative native, IInputClock clock, IPermissionService permission)
@@ -97,30 +100,48 @@ public sealed class WindowsInputPlayer : IInputPlayer, IDisposable
         {
             await sender.WaitAsync(budget.Token); acquired = true;
             if (!held.TryGetValue(target, out var state)) return new(true);
-            if (!catalog.Registry.TryResolve(target, out _)) { held.Remove(target); return Failure("TargetLost", "Cleanup skipped: original target disappeared."); }
+            if (!catalog.Registry.TryResolve(target, out _)) { Forget(target); return Failure("TargetLost", "Cleanup skipped: original target disappeared."); }
             var refreshed = await catalog.GetAsync(target, budget.Token);
             if (refreshed.Context is not { } context)
             {
-                held.Remove(target);
+                Forget(target);
                 return new(false, refreshed.Error ?? new("TargetLost", "Cleanup skipped: original target disappeared."));
             }
             var point = state.LastPoint;
             if (context.Window.Geometry is { } g) point = new(Math.Clamp(point.X, 0, g.Width - 1), Math.Clamp(point.Y, 0, g.Height - 1));
-            foreach (var button in state.Buttons.ToArray())
+            List<HeldInput> keep;
+            lock (pinSync) keep = pinned.TryGetValue(target, out var pins) ? [.. pins] : [];
+            foreach (var button in state.Buttons.Where(b => !keep.Any(p => p.Button == b)).ToArray())
             {
                 var result = await SendLockedAsync(target, new PointerCommand(PointerKind.Up, point, button), budget.Token);
                 if (!result.Queued) return result;
             }
-            foreach (var key in state.Keys.Values.Reverse().ToArray())
+            foreach (var (vk, key) in state.Keys.Reverse().Where(k => !keep.Any(p => p.Key is { } pin && MessageEncoder.VirtualKey(pin.LogicalKey) == k.Key)).ToArray())
             {
                 var result = await SendLockedAsync(target, new KeyCommand(KeyKind.Up, key), budget.Token);
                 if (!result.Queued) return result;
             }
-            held.Remove(target);
+            if (keep.Count == 0) held.Remove(target);
             return new(true);
         }
         catch (OperationCanceledException) { return Failure("CleanupTimeout", "Best-effort input release exceeded its 500ms budget; target may still consider input held."); }
         finally { if (acquired) sender.Release(); }
+    }
+
+    public void Pin(TargetToken target, HeldInput input)
+    {
+        lock (pinSync) { if (!pinned.TryGetValue(target, out var pins)) pinned[target] = pins = []; pins.Add(input); }
+    }
+
+    public void Unpin(TargetToken target, HeldInput input)
+    {
+        lock (pinSync) { if (pinned.TryGetValue(target, out var pins) && pins.Remove(input) && pins.Count == 0) pinned.Remove(target); }
+    }
+
+    private void Forget(TargetToken target)
+    {
+        held.Remove(target);
+        lock (pinSync) pinned.Remove(target);
     }
 
     private static DeliveryResult Failure(string code, string message) => new(false, new(code, message));

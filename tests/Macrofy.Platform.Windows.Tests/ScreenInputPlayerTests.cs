@@ -166,6 +166,24 @@ public class ScreenInputPlayerTests
     }
 
     [Fact]
+    public async Task PinnedInputSurvivesReleaseAndFailureCleanupUntilUnpinned()
+    {
+        var native = new ScreenPlayerNative(); var player = new WindowsScreenInputPlayer(native);
+        await player.SendAsync(new KeyCommand(KeyKind.Down, new("Ctrl")));
+        await player.SendAsync(new KeyCommand(KeyKind.Down, new("A")));
+        await player.SendAsync(new PointerCommand(PointerKind.Down, new(0, 0), MouseButton.Right));
+        player.Pin(new HeldInput(Key: new("Ctrl"))); player.Pin(new HeldInput(Button: MouseButton.Right));
+        Assert.True((await player.ReleaseHeldAsync()).Queued);
+        Assert.Equal(new ushort[] { 65 }, native.Batches[^1].Select(x => x.VirtualKey));
+        Assert.False((await player.SendAsync(new TextCommand("\ud800"))).Queued);
+        Assert.Equal(4, native.Batches.Count);
+        player.Unpin(new HeldInput(Key: new("Ctrl"))); player.Unpin(new HeldInput(Button: MouseButton.Right));
+        Assert.True((await player.ReleaseHeldAsync()).Queued);
+        Assert.Equal(new uint[] { 0x10, 2 }, native.Batches[^1].Select(x => x.Flags));
+        Assert.Equal((ushort)0x11, native.Batches[^1][1].VirtualKey);
+    }
+
+    [Fact]
     public async Task ReleasesKeysInReverseAcquisitionOrder()
     {
         var native = new ScreenPlayerNative(); var player = new WindowsScreenInputPlayer(native);
