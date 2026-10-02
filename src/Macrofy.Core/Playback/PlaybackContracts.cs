@@ -27,4 +27,7 @@ public interface IPlaybackExecutor
     ValueTask<PlaybackPreparation> PrepareAsync(PlaybackRequest request, CancellationToken cancellationToken);
     ValueTask<DeliveryResult> ValidateAsync(PlaybackBinding binding, CancellationToken cancellationToken);
     ValueTask<GestureResult> ExecuteAsync(PlaybackBinding binding, CompiledAction action, CancellationToken cancellationToken);
+    /// <summary>Best-effort release of inputs a session still holds, without target-state checks.</summary>
+    ValueTask<GestureResult> ReleaseHeldAsync(PlaybackBinding binding, IReadOnlyList<HeldInput> inputs, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(new GestureResult(new(true)));
 }
