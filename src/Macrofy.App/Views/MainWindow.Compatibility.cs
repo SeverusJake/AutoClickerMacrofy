@@ -93,7 +93,14 @@ public sealed partial class MainWindow
             try
             {
                 var surfaces = await compatibility.ListSurfaces(selected.Window.Token, CancellationToken.None);
-                if (version == generation) surface.ItemsSource = surfaces.Select(w => new WindowOption(w)).ToArray();
+                // The live window's own token is its largest visible surface, which playback uses by default.
+                var options = surfaces.OrderByDescending(w => w.Token == selected.Window.Token).Select(w => new WindowOption(w, w.Token == selected.Window.Token
+                    ? $"Main · {Size(w)} (default)" : $"Child · {Size(w)} · {w.Token.Id.ToString("N")[..8]}")).ToArray();
+                if (version == generation)
+                {
+                    surface.ItemsSource = options;
+                    surface.SelectedItem = options.FirstOrDefault(o => o.Window.Token == selected.Window.Token);
+                }
             }
             catch (Exception error) { status.Text = "Cannot list surfaces: " + error.Message; }
             UpdateControls();
@@ -134,6 +141,7 @@ public sealed partial class MainWindow
             Wrap("Screen actions are tested from the macro editor, with a 3 second countdown.", "muted", 12))));
         UpdateControls(); return compatibilityPane;
     }
-    private sealed record WindowOption(TargetWindow Window)
-    { public override string ToString() => $"{Window.Title} · {Window.Token.Id.ToString("N")[..8]}"; }
+    private sealed record WindowOption(TargetWindow Window, string? Label = null)
+    { public override string ToString() => Label ?? $"{Window.Title} · {Window.Token.Id.ToString("N")[..8]}"; }
+    private static string Size(TargetWindow window) => window.Geometry is { } g ? $"{g.Width}×{g.Height}" : "?×?";
 }

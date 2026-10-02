@@ -73,7 +73,7 @@ public sealed class RecordPointUiTests
             await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<ComboBox>(window, "CompatibilityWindow").ItemCount == 1);
             PlaybackUiTests.Find<ComboBox>(window, "CompatibilityWindow").SelectedIndex = 0;
             await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<ComboBox>(window, "CompatibilitySurface").ItemCount == 1);
-            PlaybackUiTests.Find<ComboBox>(window, "CompatibilitySurface").SelectedIndex = 0;
+            Assert.Equal("Main · 696×1237 (default)", PlaybackUiTests.Find<ComboBox>(window, "CompatibilitySurface").SelectedItem?.ToString());
             PlaybackUiTests.Click(window, "CompatibilityRecordPoint");
             clicks.Click();
             await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<TextBox>(window, "CompatibilityValue").Text == "123, 45");
