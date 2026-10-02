@@ -31,6 +31,18 @@ public class GlobalHotkeyTests
         Assert.True(SpinWait.SpinUntil(() => commands.Count == 3, 1000));
         Assert.Equal(new[] { HotkeyCommand.Run, HotkeyCommand.Pause, HotkeyCommand.Stop }, commands.ToArray());
     }
+    [Fact] public void OptionalCaptureRegistersRoutesAndUnregisters()
+    {
+        var native = new FakeNative(); using var service = new WindowsGlobalHotkeys(native);
+        Assert.True(service.Configure(Defaults with { Capture = new("F7") }).Registered);
+        Assert.Contains(native.Keys.Values, k => k.Key == 118);
+        var commands = new ConcurrentQueue<HotkeyCommand>(); service.Triggered += commands.Enqueue;
+        native.Messages.Enqueue((0x312, (nuint)native.Keys.Single(x => x.Value.Key == 118).Key));
+        Assert.True(SpinWait.SpinUntil(() => commands.Contains(HotkeyCommand.Capture), 1000));
+        Assert.True(service.Configure(Defaults).Registered);
+        Assert.DoesNotContain(native.Keys.Values, k => k.Key == 118);
+        Assert.False(service.Configure(Defaults with { Capture = new("F9") }).Registered);
+    }
     [Theory] [InlineData("F12")] [InlineData("F13")] [InlineData("A")] [InlineData("F8")]
     public void InvalidSetKeepsOldStop(string key)
     {
