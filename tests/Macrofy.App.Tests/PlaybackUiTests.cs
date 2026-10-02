@@ -113,7 +113,8 @@ internal sealed class HarmlessHotkeys : IGlobalHotkeys, IHotkeyHealth, ISystemEv
     public event Action? HealthChanged;
     public event Action<HotkeyCommand>? Triggered;
     public event Action? Suspended;
-    public HotkeyRegistrationResult Configure(HotkeySet set) => new(IsOperational, OperationalError);
+    public HotkeySet? Last { get; private set; }
+    public HotkeyRegistrationResult Configure(HotkeySet set) { Last = set; return new(IsOperational, OperationalError); }
     public void Trigger(HotkeyCommand command) => Triggered?.Invoke(command);
     public void LoseHealth() { IsOperational = false; HealthChanged?.Invoke(); }
     public void Suspend() => Suspended?.Invoke();

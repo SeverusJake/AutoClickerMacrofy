@@ -180,7 +180,7 @@ public sealed partial class MainWindow : Window
         input.LostFocus += (_, _) =>
         {
             if (shortcutCapture == input) { shortcutCapture = null; capturingShortcut = false; }
-            input.Text = action switch { "Run" => Workspace.Document.Shortcuts.Run, "Pause" => Workspace.Document.Shortcuts.Pause, _ => Workspace.Document.Shortcuts.Stop };
+            input.Text = action switch { "Run" => Workspace.Document.Shortcuts.Run, "Pause" => Workspace.Document.Shortcuts.Pause, "Capture" => Workspace.Document.Shortcuts.Capture, _ => Workspace.Document.Shortcuts.Stop };
         };
         return input;
     }
