@@ -57,7 +57,7 @@ public sealed class CapturePointUiTests
         var catalog = new CaptureCatalog();
         var keys = new HarmlessHotkeys();
         var service = new CompatibilityService(state.Document, catalog, () => null,
-            (_, _, _) => throw new InvalidOperationException("Capture must not send input"), (_, _, _) => Task.CompletedTask);
+            (_, _, _) => throw new InvalidOperationException("Capture must not send input"));
         var ui = new CompatibilityUiServices(service, catalog, (_, _) => Task.FromResult<IReadOnlyList<TargetWindow>>([]),
             token => { catalog.ReadToken = token; return new(new(123, 45)); }, () => new(new(-10, 20)));
         var window = new MainWindow(state, new UiPlayback(state.Document), keys, compatibility: ui) { CaptureCountdownSeconds = 0 };

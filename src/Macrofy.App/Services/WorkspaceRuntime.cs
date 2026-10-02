@@ -8,7 +8,7 @@ using Macrofy.Platform.Windows;
 #endif
 namespace Macrofy.App.Services;
 
-/// <summary>Read-only target discovery and explicit observed-test service used by the compatibility pane.</summary>
+/// <summary>Read-only target discovery, pointer reading and single-test service used by the compatibility pane and point recording.</summary>
 public sealed record CompatibilityUiServices(CompatibilityService Service, IWindowCatalog Catalog,
     Func<TargetToken, CancellationToken, Task<IReadOnlyList<TargetWindow>>> ListSurfaces,
     Func<TargetToken, ScreenPointResult> ReadPointer, Func<ScreenPointResult>? ReadScreenPointer = null);
@@ -32,8 +32,7 @@ public sealed class WorkspaceRuntime : IAsyncDisposable
         var activity = new InputActivityGuard();
         var sender = new WindowsGestureSender(catalog, window, screen, () => hotkeys.IsOperational);
         var compatibility = new CompatibilityService(document, catalog,
-            () => activity.TryEnterTest(out var lease) ? lease : null, sender.SendGestureAsync,
-            (snapshot, publish, ct) => PersistAsync(store, snapshot, publish, ct), ReadAsync);
+            () => activity.TryEnterTest(out var lease) ? lease : null, sender.SendGestureAsync);
         var playback = new WorkspacePlaybackController(document,
             new PlaybackCoordinator(new WindowsPlaybackExecutor(catalog, sender), TimeProvider.System, catalog), activity, hotkeys, hotkeys);
         return new(playback, hotkeys, new(compatibility, catalog,
@@ -43,19 +42,6 @@ public sealed class WorkspaceRuntime : IAsyncDisposable
         var unavailable = new UnavailableHotkeys();
         return new(new WorkspacePlaybackController(document, new(new UnavailableExecutor(), TimeProvider.System), new(), unavailable, unavailable), unavailable, null);
 #endif
-    }
-    public static async Task<bool> ReadAsync(Func<bool> read, CancellationToken ct) =>
-        await Dispatcher.UIThread.InvokeAsync(() => { ct.ThrowIfCancellationRequested(); return read(); }, DispatcherPriority.Normal, ct);
-
-    public static async Task PersistAsync(WorkspaceStore store, Func<WorkspaceDocument> snapshot, Action publish, CancellationToken ct)
-    {
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            ct.ThrowIfCancellationRequested();
-            var candidate = snapshot();
-            store.Save(candidate);
-            publish();
-        });
     }
     public async ValueTask DisposeAsync()
     {

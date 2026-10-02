@@ -22,7 +22,7 @@ public sealed partial class MainWindow
     private void PlaybackChanged(object? sender, EventArgs e)
     {
         if (!playback.HotkeysReady) CancelCompatibilityTest();
-        Dispatcher.UIThread.Post(() => { if (!closeAllowed) { if (!playback.HotkeysReady) DiscardCompatibility(); RefreshPlayback(); } });
+        Dispatcher.UIThread.Post(() => { if (!closeAllowed) RefreshPlayback(); });
     }
     private void RefreshPlayback()
     {
@@ -41,7 +41,7 @@ public sealed partial class MainWindow
     }
     private bool CanRun(Macro macro, out string reason, bool selectedAction = false)
     {
-        if (closing || CompatibilityLocked) { reason = "Finish or discard the compatibility test first."; return false; }
+        if (closing || CompatibilityLocked) { reason = "Wait for the compatibility test to finish."; return false; }
         if (HasDraft(macro)) { reason = "Apply or discard action edits first."; return false; }
         var owner = Workspace.Owner(macro);
         if (owner is null) { reason = "Macro profile is missing."; return false; }
@@ -77,11 +77,11 @@ public sealed partial class MainWindow
         RefreshPlayback();
     }
     private void TogglePauseAll() { playback.TogglePauseAll(); RefreshPlayback(); }
-    private void StopAll() { playback.StopAll(); CancelCompatibilityTest(); DiscardCompatibility(); RefreshPlayback(); }
+    private void StopAll() { playback.StopAll(); CancelCompatibilityTest(); RefreshPlayback(); }
     private void Suspend()
     {
         playback.StopAll(); CancelCompatibilityTest();
-        Dispatcher.UIThread.Post(() => { DiscardCompatibility(); RefreshPlayback(); });
+        Dispatcher.UIThread.Post(RefreshPlayback);
     }
     private void GlobalCommand(HotkeyCommand command)
     {
@@ -99,7 +99,7 @@ public sealed partial class MainWindow
             if (closing) return;
             if (command == HotkeyCommand.Run) RunAllEnabled();
             else if (command == HotkeyCommand.Pause) TogglePauseAll();
-            else { DiscardCompatibility(); RefreshPlayback(); }
+            else RefreshPlayback();
         });
     }
     private bool ConfigureHotkeys(ShortcutSettings candidate)
@@ -139,7 +139,7 @@ public sealed partial class MainWindow
         if (closeAllowed) return;
         e.Cancel = true;
         if (closing) return;
-        closing = true; timer.Stop(); playback.StopAll(); CancelCompatibilityTest(); DiscardCompatibility();
+        closing = true; timer.Stop(); playback.StopAll(); CancelCompatibilityTest();
         try
         {
             await compatibilityWork;

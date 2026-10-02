@@ -20,11 +20,6 @@ public sealed class WorkspaceStore(string folder)
             var bytes = File.ReadAllBytes(path);
             var result = JsonSerializer.Deserialize<WorkspaceDocument>(bytes) ?? throw new InvalidDataException("Empty workspace.");
             if (result.Version != 1) throw new InvalidDataException("Unsupported workspace version.");
-            if (result.CompatibilityEvidence is null || result.CompatibilityEvidence.Any(e => e is null || e.SavedAppId == Guid.Empty ||
-                e.App is null || string.IsNullOrWhiteSpace(e.App.Name) || string.IsNullOrWhiteSpace(e.App.ExecutablePath) ||
-                e.Title is null || string.IsNullOrWhiteSpace(e.SurfaceFingerprint) || !Enum.IsDefined(e.State) || !Enum.IsDefined(e.Capability) ||
-                e.Geometry is not { Width: > 0, Height: > 0, DpiScale: > 0 } || !double.IsFinite(e.Geometry.DpiScale)))
-                throw new InvalidDataException("Invalid compatibility evidence.");
             if (result.Mode is not ("light" or "dark") || ThemePalette.Choices.All(t => t.Id != result.Theme)) throw new InvalidDataException("Invalid appearance settings.");
             if (result.Shortcuts is null || new[] { result.Shortcuts.Run, result.Shortcuts.Pause, result.Shortcuts.Stop }
                 .Any(key => key is null || !System.Text.RegularExpressions.Regex.IsMatch(key, "^F(?:[1-9]|1[0-2])$")) ||

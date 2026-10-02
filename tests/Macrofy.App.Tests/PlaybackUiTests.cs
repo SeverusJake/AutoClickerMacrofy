@@ -56,7 +56,6 @@ public class PlaybackControllerTests
     {
         var document = WorkspaceDocument.CreateDefault(); var profile = document.Profiles[0]; var macro = profile.Macros[0];
         macro.Steps = [new("Key", "Space", 0), new("Text", "hello", 0)];
-        PlaybackEligibilityTests.AddEvidence(document, profile.Apps[1], InputCapability.Text, TargetState.Minimized);
         var executor = new HarmlessExecutor(); var hotkeys = new HarmlessHotkeys();
         await using var controller = new WorkspacePlaybackController(document, new(executor, TimeProvider.System), new(), hotkeys, hotkeys);
         document.ActiveProfileId = document.Profiles[1].Id;
@@ -214,15 +213,14 @@ public class RealPlaybackUiTests
 public class CompatibilityUiTests
 {
     [AvaloniaFact]
-    public async Task ExplicitTargetSurfaceStateAndActionAreRequiredAndObservationIsNeverAutomatic()
+    public async Task TestButtonSendsOneSelectedActionAndSavesNothing()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
         state.Profile.Apps[0].Executable = @"C:\test.exe"; state.Profile.Apps[0].TitleRule = "Test *"; state.Document.ShowAdvancedTools = true;
         using var catalog = new Macrofy.Platform.Windows.WindowsWindowCatalog(new UiWindows());
         var guard = new InputActivityGuard(); var keys = new HarmlessHotkeys(); var sends = 0;
         var service = new CompatibilityService(state.Document, catalog, () => guard.TryEnterTest(out var lease) ? lease : null,
-            (_, _, _) => { sends++; return ValueTask.FromResult(new GestureResult(new(true))); },
-            (snapshot, publish, ct) => { _ = snapshot(); publish(); return Task.CompletedTask; });
+            (_, _, _) => { sends++; return ValueTask.FromResult(new GestureResult(new(true))); });
         var executor = new HarmlessExecutor();
         var controller = new WorkspacePlaybackController(state.Document, new(executor, TimeProvider.System), guard, keys, keys);
         var ui = new CompatibilityUiServices(service, catalog, async (t, ct) => (await catalog.ListInputSurfacesAsync(t, ct)).Select(s => s.Window).ToArray(), _ => new(new(20, 30)));
@@ -231,31 +229,22 @@ public class CompatibilityUiTests
         {
             PlaybackUiTests.Click(window, "Tab_Compatibility");
             window.UpdateLayout();
-            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("Run does not need them") == true);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("Run does not need it") == true);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Control>(), c => c.Name is "ObservedWorking" or "ObservedIgnored" or "DiscardCompatibility" or "CompatibilityState");
+            Assert.Equal("Click test", PlaybackUiTests.Find<Button>(window, "TestCompatibilityAction").Content);
             Assert.False(PlaybackUiTests.Find<Button>(window, "TestCompatibilityAction").IsEnabled);
             PlaybackUiTests.Find<ComboBox>(window, "CompatibilityApp").SelectedIndex = 0;
             PlaybackUiTests.Find<ComboBox>(window, "CompatibilityWindow").SelectedIndex = 0;
             PlaybackUiTests.Find<ComboBox>(window, "CompatibilitySurface").SelectedIndex = 0;
-            PlaybackUiTests.Find<ComboBox>(window, "CompatibilityState").SelectedItem = TargetState.BackgroundVisible;
             PlaybackUiTests.Find<ComboBox>(window, "CompatibilityAction").SelectedItem = "Key";
             PlaybackUiTests.Find<TextBox>(window, "CompatibilityValue").Text = "Space";
+            Assert.Equal("Key test", PlaybackUiTests.Find<Button>(window, "TestCompatibilityAction").Content);
             Assert.True(PlaybackUiTests.Find<Button>(window, "TestCompatibilityAction").IsEnabled);
-            Assert.False(PlaybackUiTests.Find<Button>(window, "ObservedWorking").IsEnabled);
             PlaybackUiTests.Click(window, "TestCompatibilityAction");
-            await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<Button>(window, "ObservedWorking").IsEnabled);
-            Assert.Equal(1, sends); Assert.Empty(state.Document.CompatibilityEvidence);
-            Assert.False(guard.TryEnterPlayback(Guid.NewGuid(), out _));
-            Assert.False(PlaybackUiTests.Find<ComboBox>(window, "CompatibilityApp").IsEnabled);
-            PlaybackUiTests.Click(window, "Tab_Apps"); window.UpdateLayout();
-            Assert.False(window.GetVisualDescendants().OfType<Button>().Single(b => Avalonia.Automation.AutomationProperties.GetName(b) == "Edit app: " + state.Profile.Apps[0].Name).IsEnabled);
-            PlaybackUiTests.Click(window, "Tab_Compatibility");
-            PlaybackUiTests.Click(window, "ObservedWorking");
-            await PlaybackControllerTests.Until(() => state.Document.CompatibilityEvidence.Count == 1);
-            var evidence = Assert.Single(state.Document.CompatibilityEvidence);
-            Assert.Equal(InputCapability.Key, evidence.Capability); Assert.Equal(TargetState.BackgroundVisible, evidence.State); Assert.True(evidence.ObservedSuccess);
-            Assert.False(PlaybackUiTests.Find<Button>(window, "ObservedWorking").IsEnabled);
+            await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<TextBlock>(window, "CompatibilityStatus").Text == "Sent one key. Watch the app.");
+            Assert.Equal(1, sends);
+            Assert.True(guard.TryEnterPlayback(Guid.NewGuid(), out var free)); free!.Dispose();
             var macro = state.Macro; macro.AppId = state.Profile.Apps[0].Id; macro.WindowState = "Background"; macro.Steps = [new("Key", "Space", 0)];
-            Assert.True(controller.CanStart(state.Profile, macro, out _));
             Assert.True((await controller.StartAsync(state.Profile, macro)).Queued);
             Assert.Equal((await catalog.ListAsync())[0].Token, Assert.Single(executor.Requests).Target.SelectedSurface);
             controller.StopAll(); await PlaybackControllerTests.Until(() => !controller.Sessions[macro.Id].IsActive);
@@ -277,53 +266,14 @@ public class PlaybackEligibilityTests
         macro.Steps = [new("Key", "Space", 0), new("Text", "hello", 0)];
         var keys = new HarmlessHotkeys();
         await using var controller = new WorkspacePlaybackController(document, new(new HarmlessExecutor(), TimeProvider.System), new(), keys, keys);
-        Assert.Empty(document.CompatibilityEvidence);
         Assert.True(controller.CanStart(profile, macro, out _));
         macro.WindowState = "Sideways"; Assert.False(controller.CanStart(profile, macro, out var reason)); Assert.Contains("state", reason);
         macro.WindowState = "Background"; macro.AppId = Guid.NewGuid();
         Assert.False(controller.CanStart(profile, macro, out reason)); Assert.Contains("missing", reason);
     }
-    internal static void AddEvidence(WorkspaceDocument document, SavedApp app, InputCapability capability, TargetState state) =>
-        document.CompatibilityEvidence.Add(new(app.Id, new("process", app.Executable), "Example game", "surface", state, capability, new(800, 600, 1), DateTimeOffset.UtcNow, true));
 }
 
 
-
-
-public class WorkspacePersistenceUiTests
-{
-    [AvaloniaFact]
-    public async Task CandidateSaveAndPublishShareDispatcherTurnAndRetainEarlierUnrelatedSave()
-    {
-        var folder = Path.Combine(Path.GetTempPath(), "macrofy-transaction-" + Guid.NewGuid());
-        try
-        {
-            var store = new WorkspaceStore(folder); var document = store.Load(); store.Save(document);
-            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var proceed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var published = false; var trace = new List<string>();
-            var confirmation = Task.Run(async () =>
-            {
-                entered.SetResult(); await proceed.Task;
-                await WorkspaceRuntime.PersistAsync(store, () =>
-                {
-                    Assert.True(Avalonia.Threading.Dispatcher.UIThread.CheckAccess()); trace.Add("candidate");
-                    return new WorkspaceDocument { Profiles = document.Profiles, ActiveProfileId = document.ActiveProfileId, Theme = "synthwave", Mode = document.Mode, Shortcuts = document.Shortcuts };
-                }, () => { Assert.True(Avalonia.Threading.Dispatcher.UIThread.CheckAccess()); Assert.Equal("synthwave", new WorkspaceStore(folder).Load().Theme); trace.Add("publish"); published = true; }, TestContext.Current.CancellationToken);
-            }, TestContext.Current.CancellationToken);
-            await entered.Task;
-            document.Mode = "dark"; document.Profiles[0].Name = "Unrelated edit"; store.Save(document);
-            proceed.SetResult(); await confirmation;
-            Assert.True(published); Assert.Equal(new[] { "candidate", "publish" }, trace);
-            var saved = new WorkspaceStore(folder).Load(); Assert.Equal("dark", saved.Mode); Assert.Equal("Unrelated edit", saved.Profiles[0].Name);
-            var other = new WorkspaceStore(folder); var external = other.Load(); external.Mode = "light"; other.Save(external);
-            published = false;
-            await Assert.ThrowsAsync<InvalidOperationException>(() => WorkspaceRuntime.PersistAsync(store, () => document, () => published = true, TestContext.Current.CancellationToken));
-            Assert.False(published);
-        }
-        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
-    }
-}
 
 
 public class PlaybackLifecycleUiTests
@@ -333,7 +283,6 @@ public class PlaybackLifecycleUiTests
     {
         var document = WorkspaceDocument.CreateDefault(); var state = new WorkspaceState(document); var macro = state.Macro;
         macro.Repeat = 100; macro.Steps = [new("Wait", "0", 0), new("Key", "Space", 0)];
-        PlaybackEligibilityTests.AddEvidence(document, state.Profile.Apps.Single(a => a.Id == macro.AppId), InputCapability.Key, TargetState.Minimized);
         var executor = new HarmlessExecutor(); var keys = new HarmlessHotkeys();
         var controller = new WorkspacePlaybackController(document, new(executor, TimeProvider.System), new(), keys, keys);
         var window = new MainWindow(state, controller, keys); window.Show();
@@ -351,8 +300,6 @@ public class PlaybackLifecycleUiTests
     public async Task WindowCloseWaitsForCleanupBeforeDisposingOwnedServices()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
-        var app = state.Profile.Apps.Single(a => a.Id == state.Macro.AppId);
-        PlaybackEligibilityTests.AddEvidence(state.Document, app, InputCapability.Click, TargetState.Minimized);
         var executor = new CleanupExecutor(); var keys = new HarmlessHotkeys(); var guard = new InputActivityGuard();
         var controller = new WorkspacePlaybackController(state.Document, new(executor, TimeProvider.System), guard, keys, keys);
         var resources = new DisposalMarker();
@@ -392,66 +339,30 @@ public class PlaybackLifecycleUiTests
 public class CompatibilityLifetimeUiTests
 {
     [AvaloniaFact]
-    public async Task FailedCleanupNeverEnablesObservationAndReleasesExclusiveOwner()
+    public async Task FailedCleanupReportsErrorAndReleasesInput()
     {
-        using var fixture = new CompatibilityFixture((_, _, _) => ValueTask.FromResult(new GestureResult(new(true), new("CleanupFailed", "Key release failed"))));
-        var window = fixture.Window; fixture.SelectTest();
-        PlaybackUiTests.Click(window, "TestCompatibilityAction");
-        await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<TextBlock>(window, "CompatibilityStatus").Text?.Contains("Key release failed") == true);
-        Assert.False(PlaybackUiTests.Find<Button>(window, "ObservedWorking").IsEnabled);
-        Assert.False(PlaybackUiTests.Find<Button>(window, "ObservedIgnored").IsEnabled);
-        Assert.Empty(fixture.State.Document.CompatibilityEvidence);
-        Assert.True(fixture.Guard.TryEnterPlayback(Guid.NewGuid(), out var lease)); lease!.Dispose();
-    }
-    [AvaloniaFact]
-    public async Task ClosingDuringCommittedObservationWaitsForSaveAndKeepsExclusiveOwner()
-    {
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var fixture = new CompatibilityFixture(persist: async (snapshot, publish, ct) =>
-        { entered.SetResult(); await release.Task; _ = snapshot(); publish(); });
-        fixture.SelectTest(); PlaybackUiTests.Click(fixture.Window, "TestCompatibilityAction");
-        await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<Button>(fixture.Window, "ObservedWorking").IsEnabled);
-        PlaybackUiTests.Click(fixture.Window, "ObservedWorking"); await entered.Task;
+        var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
+        state.Profile.Apps[0].Executable = @"C:\test.exe"; state.Profile.Apps[0].TitleRule = "Test *"; state.Document.ShowAdvancedTools = true;
+        using var catalog = new Macrofy.Platform.Windows.WindowsWindowCatalog(new UiWindows());
+        var guard = new InputActivityGuard(); var keys = new HarmlessHotkeys();
+        var service = new CompatibilityService(state.Document, catalog, () => guard.TryEnterTest(out var lease) ? lease : null,
+            (_, _, _) => ValueTask.FromResult(new GestureResult(new(true), new("CleanupFailed", "Key release failed"))));
+        var controller = new WorkspacePlaybackController(state.Document, new(new HarmlessExecutor(), TimeProvider.System), guard, keys, keys);
+        var ui = new CompatibilityUiServices(service, catalog, async (t, ct) => (await catalog.ListInputSurfacesAsync(t, ct)).Select(s => s.Window).ToArray(), _ => new(new(20, 30)));
+        var window = new MainWindow(state, controller, keys, compatibility: ui); window.Show();
         try
         {
-            fixture.Window.Close(); Assert.True(fixture.Window.IsVisible);
-            Assert.False(fixture.Guard.TryEnterPlayback(Guid.NewGuid(), out _));
-            Assert.False(PlaybackUiTests.Find<Button>(fixture.Window, "TestCompatibilityAction").IsEnabled);
+            PlaybackUiTests.Click(window, "Tab_Compatibility");
+            PlaybackUiTests.Find<ComboBox>(window, "CompatibilityApp").SelectedIndex = 0;
+            PlaybackUiTests.Find<ComboBox>(window, "CompatibilityWindow").SelectedIndex = 0;
+            PlaybackUiTests.Find<ComboBox>(window, "CompatibilitySurface").SelectedIndex = 0;
+            PlaybackUiTests.Find<ComboBox>(window, "CompatibilityAction").SelectedItem = "Key";
+            PlaybackUiTests.Find<TextBox>(window, "CompatibilityValue").Text = "Space";
+            PlaybackUiTests.Click(window, "TestCompatibilityAction");
+            await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<TextBlock>(window, "CompatibilityStatus").Text == "Test failed: Key release failed");
+            Assert.True(guard.TryEnterPlayback(Guid.NewGuid(), out var lease)); lease!.Dispose();
         }
-        finally { release.TrySetResult(); }
-        await PlaybackControllerTests.Until(() => !fixture.Window.IsVisible);
-        Assert.Single(fixture.State.Document.CompatibilityEvidence);
-        Assert.True(fixture.Guard.TryEnterPlayback(Guid.NewGuid(), out var lease)); lease!.Dispose();
-    }
-    private sealed class CompatibilityFixture : IDisposable
-    {
-        public WorkspaceState State { get; } = new(WorkspaceDocument.CreateDefault());
-        public InputActivityGuard Guard { get; } = new();
-        public MainWindow Window { get; }
-        private readonly Macrofy.Platform.Windows.WindowsWindowCatalog catalog = new(new UiWindows());
-        public CompatibilityFixture(Func<PlaybackBinding, CompiledAction, CancellationToken, ValueTask<GestureResult>>? send = null, CompatibilityPersistence? persist = null)
-        {
-            State.Profile.Apps[0].Executable = @"C:\test.exe"; State.Profile.Apps[0].TitleRule = "Test *"; State.Document.ShowAdvancedTools = true;
-            var keys = new HarmlessHotkeys();
-            var service = new CompatibilityService(State.Document, catalog, () => Guard.TryEnterTest(out var lease) ? lease : null,
-                send ?? ((_, _, _) => ValueTask.FromResult(new GestureResult(new(true)))),
-                persist ?? ((snapshot, publish, ct) => { _ = snapshot(); publish(); return Task.CompletedTask; }));
-            var controller = new WorkspacePlaybackController(State.Document, new(new HarmlessExecutor(), TimeProvider.System), Guard, keys, keys);
-            var ui = new CompatibilityUiServices(service, catalog, async (t, ct) => (await catalog.ListInputSurfacesAsync(t, ct)).Select(s => s.Window).ToArray(), _ => new(new(20, 30)));
-            Window = new(State, controller, keys, compatibility: ui); Window.Show();
-        }
-        public void SelectTest()
-        {
-            PlaybackUiTests.Click(Window, "Tab_Compatibility");
-            PlaybackUiTests.Find<ComboBox>(Window, "CompatibilityApp").SelectedIndex = 0;
-            PlaybackUiTests.Find<ComboBox>(Window, "CompatibilityWindow").SelectedIndex = 0;
-            PlaybackUiTests.Find<ComboBox>(Window, "CompatibilitySurface").SelectedIndex = 0;
-            PlaybackUiTests.Find<ComboBox>(Window, "CompatibilityState").SelectedItem = TargetState.BackgroundVisible;
-            PlaybackUiTests.Find<ComboBox>(Window, "CompatibilityAction").SelectedItem = "Key";
-            PlaybackUiTests.Find<TextBox>(Window, "CompatibilityValue").Text = "Space";
-        }
-        public void Dispose() { Window.Close(); catalog.Dispose(); }
+        finally { window.Close(); await controller.DisposeAsync(); }
     }
 }
 

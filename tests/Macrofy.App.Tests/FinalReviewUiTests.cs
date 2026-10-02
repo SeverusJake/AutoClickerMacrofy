@@ -20,7 +20,6 @@ public sealed class FinalReviewUiTests
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault()); var app = state.Profile.Apps.Single(a => a.Id == state.Macro.AppId);
         state.Macro.Steps = [new("Text", "harmless", 0)]; state.Macro.Repeat = 1;
-        PlaybackEligibilityTests.AddEvidence(state.Document, app, InputCapability.Text, TargetState.Minimized);
         var token = new TargetToken(Guid.NewGuid()); var catalog = new ContextCatalog(); var executor = new LossCleanupExecutor(token);
         var guard = new InputActivityGuard(); var keys = new HarmlessHotkeys();
         await using var controller = new WorkspacePlaybackController(state.Document, new(executor, TimeProvider.System, catalog), guard, keys, keys);
@@ -40,45 +39,6 @@ public sealed class FinalReviewUiTests
         Assert.Equal("TargetLost", controller.Sessions[state.Macro.Id].DeliveryError?.Code);
     }
 
-    [AvaloniaFact]
-    public async Task WorkerEvidenceReadWaitsForUiWorkspaceMutationsAndCancellation()
-    {
-        var document = WorkspaceDocument.CreateDefault(); var app = document.Profiles[0].Apps[1];
-        PlaybackEligibilityTests.AddEvidence(document, app, InputCapability.Text, TargetState.Minimized);
-        var context = new TargetContext(new(new(Guid.NewGuid()), new("process", app.Executable), "Example game", true, new(800, 600, 1)), false, "surface");
-        var catalog = new ContextCatalog { Context = context };
-        var queued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var reads = 0;
-        var service = new CompatibilityService(document, catalog, () => null,
-            (_, _, _) => throw new InvalidOperationException("Evidence reads must not send input"), (_, _, _) => Task.CompletedTask,
-            (read, ct) =>
-            {
-                queued.TrySetResult();
-                return WorkspaceRuntime.ReadAsync(() => { Assert.True(Dispatcher.UIThread.CheckAccess()); reads++; return read(); }, ct);
-            });
-        // Hold this dispatcher turn while the worker requests evidence. All mutable lists stay UI-owned.
-        var check = Task.Run(() => service.IsConfirmedAsync(app.Id, context, TargetState.Minimized, InputCapability.Text, false));
-        Assert.True(queued.Task.Wait(TimeSpan.FromSeconds(3)));
-        Assert.False(check.IsCompleted);
-        for (var i = 0; i < 50; i++)
-        {
-            var unrelated = new Profile { Apps = [new SavedApp { Executable = "other.exe" }] };
-            document.Profiles.Add(unrelated); document.Profiles[1].Apps.Add(new SavedApp());
-            document.Profiles.Remove(unrelated); document.Profiles[1].Apps.RemoveAt(document.Profiles[1].Apps.Count - 1);
-        }
-        Assert.True(await check); Assert.Equal(1, reads);
-        queued = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var cancellation = new CancellationTokenSource();
-        var cancelled = Task.Run(() => service.IsConfirmedAsync(app.Id, context, TargetState.Minimized, InputCapability.Text, false, cancellation.Token));
-        Assert.True(queued.Task.Wait(TimeSpan.FromSeconds(3)));
-        cancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cancelled);
-        Assert.Equal(1, reads);
-        // The next check sees the current rule, rather than a stale constructor snapshot.
-        app.Executable = "changed.exe";
-        Assert.False(await Task.Run(() => service.IsConfirmedAsync(app.Id, context, TargetState.Minimized, InputCapability.Text, false)));
-    }
-
     [AvaloniaTheory]
     [InlineData("Space")]
     [InlineData("legacy-unknown-key")]
@@ -87,7 +47,6 @@ public sealed class FinalReviewUiTests
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
         state.Macro.Steps = [new("Text", "harmless", 0), new("Key", otherKey, 0)];
         var app = state.Profile.Apps.Single(a => a.Id == state.Macro.AppId);
-        PlaybackEligibilityTests.AddEvidence(state.Document, app, InputCapability.Text, TargetState.Minimized);
         var executor = new HarmlessExecutor(); var keys = new HarmlessHotkeys(); var guard = new InputActivityGuard();
         var controller = new WorkspacePlaybackController(state.Document, new(executor, TimeProvider.System), guard, keys, keys);
         var window = new MainWindow(state, controller, keys); window.Show();
@@ -120,7 +79,7 @@ public sealed class FinalReviewUiTests
         var catalog = new ContextCatalog(); var keys = new HarmlessHotkeys();
         var controller = new UiPlayback(state.Document);
         var service = new CompatibilityService(state.Document, catalog, () => null,
-            (_, _, _) => throw new InvalidOperationException("Help must not send input"), (_, _, _) => Task.CompletedTask);
+            (_, _, _) => throw new InvalidOperationException("Help must not send input"));
         var ui = new CompatibilityUiServices(service, catalog, (_, _) => Task.FromResult<IReadOnlyList<TargetWindow>>([]), _ => new(null));
         var window = new MainWindow(state, controller, keys, compatibility: ui); window.Show();
         try

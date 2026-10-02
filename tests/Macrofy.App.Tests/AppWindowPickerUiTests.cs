@@ -88,7 +88,7 @@ public sealed class AppWindowPickerUiTests
     {
         var keys = new HarmlessHotkeys();
         var service = new CompatibilityService(state.Document, catalog, () => null,
-            (_, _, _) => throw new InvalidOperationException("Picker must not send input"), (_, _, _) => Task.CompletedTask);
+            (_, _, _) => throw new InvalidOperationException("Picker must not send input"));
         var ui = new CompatibilityUiServices(service, catalog, (_, _) => Task.FromResult<IReadOnlyList<TargetWindow>>([]), _ => new(null));
         var window = new MainWindow(state, new UiPlayback(state.Document), keys, compatibility: ui); window.Show();
         PlaybackUiTests.Click(window, "Tab_Apps");
