@@ -12,7 +12,7 @@ Default global shortcuts are **F9 Run all**, **F8 Pause/Resume all**, and **F10 
 
 ## Edit and play a macro
 
-Select a macro on the Macros tab. Add or edit actions, then apply valid edits:
+Select a macro on the Macros tab. Each step is a row you edit in place: pick the Action (colored per type), type X and Y or the value, and set **Wait after**. A valid edit saves immediately; an invalid one stays marked with a `Step N:` error and blocks Run until fixed or undone with **Esc**. Add steps with the colored **+ Click / + Key / + Text / + Wait / + Wheel** buttons, duplicate or delete them per row, and reorder by dragging the ⋮⋮ handle or pressing **Alt+↑ / Alt+↓**. The top bar holds Run, Test selected step, Pause, Stop, **Loop** (optional **Times**; empty = until stopped), **Interval** in seconds, and **Pixels / %** coordinates.
 
 | Action | Value | Behavior |
 | --- | --- | --- |
@@ -24,7 +24,7 @@ Select a macro on the Macros tab. Add or edit actions, then apply valid edits:
 
 Each step has **Wait after** (`0–600000` ms). Repeat can be Once, 100 times, or Until stopped; each Profiles row also has a **Loop** toggle (on = until stopped, off = once) and an **Interval (s)** field. **Interval between runs** (`0–600000` ms) starts after the last action and its Wait after finish; the next run starts after that interval. The first run starts immediately apart from the Screen countdown. Waits use a monotonic clock; pause preserves remaining wait time. The UI shows current/total step, completed loops, active elapsed time, remaining wait/countdown, and delivery or cleanup errors. Sent/queued input is not an observed game response.
 
-**Test selected action** validates and runs only that saved action once, even if another action has an unsupported value. Full Run still requires every action. Apply or discard drafts first; target, global Stop, and input-ownership checks apply to both controls.
+**Test selected action** validates and runs only that saved action once, even if another action has an unsupported value. Full Run still requires every action. Fix or undo invalid step edits first; target, global Stop, and input-ownership checks apply to both controls.
 
 Percentage `0` maps to the first pixel and `100` to the last pixel. Screen percentages span the virtual desktop rectangle, then validate that the point belongs to a connected monitor; gaps are invalid. Fixed Screen coordinates can be negative on monitors left or above the primary screen. Screen Click moves the physical pointer and needs visible intended content. Screen Run and Test selected action start after a cancellable three-second countdown. Screen mode cannot reach minimized or covered content.
 
@@ -47,6 +47,6 @@ powershell -NoProfile -File scripts/publish-ui.ps1
 
 `verify-probe.ps1` runs test projects one at a time (`-m:1`) because native tests share the real cursor. Native tests move the mouse and type into dedicated test windows, so the script shows a popup before tests start (OK starts now, Cancel aborts, auto-start after 10 seconds) and another with the result; do not touch the mouse or keyboard in between. Pass `-NoPopup` for unattended runs.
 
-The 2026-10-03 locked Release verification passed **255 tests** (Core 51, App 118, Windows 86), with zero failures, skips, build warnings, or build errors. Controlled receiver tests covered real background/minimized window messages and a bounded Screen sequence on a dedicated harmless surface. See [native playback verification](docs/verification/native-ui-preview.md) and [Windows input compatibility](docs/verification/windows-input-compatibility.md). Physical global-key behavior outside Macrofy, suspend behavior, clean Windows 10/11 launch, and actual game response remain manual checks.
+The 2026-10-03 locked Release verification passed **260 tests** (Core 51, App 123, Windows 86), with zero failures, skips, build warnings, or build errors. Controlled receiver tests covered real background/minimized window messages and a bounded Screen sequence on a dedicated harmless surface. See [native playback verification](docs/verification/native-ui-preview.md) and [Windows input compatibility](docs/verification/windows-input-compatibility.md). Physical global-key behavior outside Macrofy, suspend behavior, clean Windows 10/11 launch, and actual game response remain manual checks.
 
 The standalone compatibility probe can also be built and run with `powershell -NoProfile -File scripts/publish-probe.ps1` and `dotnet run --project tools/Macrofy.CompatibilityProbe -- --interactive`. Its separate results file is `MacrofyData/compatibility-probe-results.json` beside the probe EXE. Probe observations do not replace the native app's per-capability confirmation workflow.
