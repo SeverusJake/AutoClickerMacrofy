@@ -13,16 +13,26 @@ public static class ActionCompiler
         else if (!Enum.IsDefined(coordinates)) error = "Unknown coordinate mode.";
         else switch (source.Kind)
         {
-            case "Click":
-                var parts = source.Value.Split(',');
-                if (parts.Length != 2 || !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x) || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y) || !double.IsFinite(x) || !double.IsFinite(y)) error = "Enter finite X, Y coordinates (for example 480, 640).";
-                else if (coordinates == CoordinateMode.Percentage && (x is < 0 or > 100 || y is < 0 or > 100)) error = "Percentage coordinates must be 0–100.";
-                else action = new CompiledAction.Click(new PointerPoint(x, y), coordinates, source.DelayMs);
+            case "Click" or "Mouse down" or "Mouse up":
+                if (!TryPoint(source.Value, coordinates, out var point, out error) || !TryButton(source.Button, out var button, out error)) break;
+                if (source.Kind == "Click" && !TryHold(source.HoldMs, out error)) break;
+                action = source.Kind switch
+                {
+                    "Click" => new CompiledAction.Click(point, coordinates, source.DelayMs, button, source.HoldMs),
+                    "Mouse down" => new CompiledAction.MouseDown(point, coordinates, button, source.DelayMs),
+                    _ => new CompiledAction.MouseUp(point, coordinates, button, source.DelayMs)
+                };
                 break;
-            case "Key":
+            case "Key" or "Key down" or "Key up":
                 if (!KeyParser.TryParse(source.Value, out var keys, out error)) break;
-                if (keys.Any(key => reservedKeys.Any(reserved => string.Equals(reserved, key.LogicalKey, StringComparison.OrdinalIgnoreCase)))) error = "Key chord contains a reserved control hotkey.";
-                else action = new CompiledAction.Key(keys, source.DelayMs);
+                if (keys.Any(key => reservedKeys.Any(reserved => string.Equals(reserved, key.LogicalKey, StringComparison.OrdinalIgnoreCase)))) { error = "Key chord contains a reserved control hotkey."; break; }
+                if (source.Kind == "Key" && !TryHold(source.HoldMs, out error)) break;
+                action = source.Kind switch
+                {
+                    "Key" => new CompiledAction.Key(keys, source.DelayMs, source.HoldMs),
+                    "Key down" => new CompiledAction.KeyDown(keys, source.DelayMs),
+                    _ => new CompiledAction.KeyUp(keys, source.DelayMs)
+                };
                 break;
             case "Text":
                 if (source.Value.Length > 4096) error = "Text is limited to 4096 UTF-16 units.";
@@ -47,5 +57,29 @@ public static class ActionCompiler
             default: error = "Unknown action type."; break;
         }
         return action is not null;
+    }
+
+    private static bool TryPoint(string value, CoordinateMode coordinates, out PointerPoint point, out string error)
+    {
+        point = default; error = "";
+        var parts = value.Split(',');
+        if (parts.Length != 2 || !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x) || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y) || !double.IsFinite(x) || !double.IsFinite(y))
+        { error = "Enter finite X, Y coordinates (for example 480, 640)."; return false; }
+        if (coordinates == CoordinateMode.Percentage && (x is < 0 or > 100 || y is < 0 or > 100)) { error = "Percentage coordinates must be 0–100."; return false; }
+        point = new(x, y); return true;
+    }
+
+    private static bool TryButton(string? text, out MouseButton button, out string error)
+    {
+        error = "";
+        button = text switch { "Left" or null => MouseButton.Left, "Right" => MouseButton.Right, "Middle" => MouseButton.Middle, _ => (MouseButton)(-1) };
+        if (Enum.IsDefined(button)) return true;
+        error = "Button must be Left, Right or Middle."; return false;
+    }
+
+    private static bool TryHold(int holdMs, out string error)
+    {
+        error = holdMs is < 0 or > 600000 ? "Hold must be 0–600000 ms." : "";
+        return error.Length == 0;
     }
 }
