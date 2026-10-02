@@ -37,25 +37,6 @@ public class WorkspaceStateTests
         finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
     }
     [Theory]
-    [InlineData(null, "F9", "F7")]
-    [InlineData("F9", "F9", "F7")]
-    [InlineData("F7", "F7", "F1")]
-    public void LoadRepairsMissingOrDuplicateRecordKey(string? capture, string run, string expected)
-    {
-        var folder = Path.Combine(Path.GetTempPath(), "macrofy-capture-" + Guid.NewGuid());
-        try
-        {
-            Directory.CreateDirectory(folder);
-            var json = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(WorkspaceDocument.CreateDefault()))!;
-            json["Shortcuts"]!["Run"] = run; json["Shortcuts"]!["Capture"] = capture;
-            json["CompatibilityEvidence"] = new System.Text.Json.Nodes.JsonArray();
-            File.WriteAllText(Path.Combine(folder, "ui-workspace.json"), json.ToJsonString());
-            var store = new WorkspaceStore(folder); var document = store.Load();
-            Assert.Null(store.LoadError); Assert.Equal(expected, document.Shortcuts.Capture);
-        }
-        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
-    }
-    [Theory]
     [InlineData("Key", "Unknown")]
     [InlineData("Key", "Ctrl +")]
     [InlineData("Wheel", "0")]

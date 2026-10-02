@@ -11,7 +11,7 @@ namespace Macrofy.App.Services;
 /// <summary>Read-only target discovery, pointer reading and single-test service used by the compatibility pane and point recording.</summary>
 public sealed record CompatibilityUiServices(CompatibilityService Service, IWindowCatalog Catalog,
     Func<TargetToken, CancellationToken, Task<IReadOnlyList<TargetWindow>>> ListSurfaces,
-    Func<TargetToken, ScreenPointResult> ReadPointer, Func<ScreenPointResult>? ReadScreenPointer = null);
+    Func<TargetToken, ScreenPointResult> ReadPointer, Func<ScreenPointResult>? ReadScreenPointer = null, IPointClickSource? Clicks = null);
 
 /// <summary>One native sender and activity guard shared by all playback and explicit tests.</summary>
 public sealed class WorkspaceRuntime : IAsyncDisposable
@@ -35,9 +35,10 @@ public sealed class WorkspaceRuntime : IAsyncDisposable
             () => activity.TryEnterTest(out var lease) ? lease : null, sender.SendGestureAsync);
         var playback = new WorkspacePlaybackController(document,
             new PlaybackCoordinator(new WindowsPlaybackExecutor(catalog, sender), TimeProvider.System, catalog), activity, hotkeys, hotkeys);
+        var clicks = new WindowsPointClickSource();
         return new(playback, hotkeys, new(compatibility, catalog,
             async (token, ct) => (await catalog.ListInputSurfacesAsync(token, ct)).Select(s => s.Window).ToArray(),
-            token => { var result = catalog.ReadPointerPosition(token); return new(result.Point, result.Error); }, screen.ReadPointer), window, catalog, hotkeys);
+            token => { var result = catalog.ReadPointerPosition(token); return new(result.Point, result.Error); }, screen.ReadPointer, clicks), window, catalog, hotkeys, clicks);
 #else
         var unavailable = new UnavailableHotkeys();
         return new(new WorkspacePlaybackController(document, new(new UnavailableExecutor(), TimeProvider.System), new(), unavailable, unavailable), unavailable, null);

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Macrofy.App.Models;
 using Macrofy.Platform.Models;
 namespace Macrofy.App.Views;
@@ -10,16 +11,16 @@ public sealed partial class MainWindow
     private PointRecording? recording;
     private string recordMessage = "";
 
-    /// <summary>Record point button: the record key is registered only while waiting; pressing it reads the pointer and never sends input.</summary>
+    /// <summary>Record point button: the next left click outside Macrofy is blocked and its position read; no input is sent.</summary>
     private Button RecordPointButton(string name, Func<bool> available, Func<Task<ScreenPointResult>> read, Action<PointerPoint> captured, Action<string> report)
     {
         var button = TextButton("", () => { }); button.Name = name;
         PointRecording? mine = null;
         bool Active() => mine is not null && ReferenceEquals(recording, mine);
-        bool CanStart() => recording is null && available() && Workspace.ActiveCount == 0 && !CompatibilityLocked && playback.HotkeysReady;
+        bool CanStart() => recording is null && available() && Workspace.ActiveCount == 0 && !CompatibilityLocked;
         void Update()
         {
-            button.Content = Active() ? "Cancel recording" : $"Record point ({Workspace.Document.Shortcuts.Capture})";
+            button.Content = Active() ? "Cancel recording" : "Record point";
             button.IsEnabled = Active() || CanStart();
         }
         button.Click += (_, _) =>
@@ -28,7 +29,7 @@ public sealed partial class MainWindow
             else if (CanStart())
             {
                 mine = new(read, captured, report);
-                if (StartRecording(mine)) report($"Hover over the spot and press {Workspace.Document.Shortcuts.Capture}. Press the button again to cancel.");
+                if (StartRecording(mine)) report("Click the spot to record it. That click is not sent to the app. Click Cancel recording to stop.");
             }
             RefreshPlayback();
         };
@@ -37,31 +38,25 @@ public sealed partial class MainWindow
 
     private bool StartRecording(PointRecording next)
     {
-        var shortcuts = Workspace.Document.Shortcuts;
-        var set = new HotkeySet(new(shortcuts.Run), new(shortcuts.Pause), new(shortcuts.Stop), new(shortcuts.Capture));
-        var result = hotkeys.Configure(set);
-        if (!result.Registered)
-        {
-            next.Report("Record key unavailable: " + (result.Error?.Message ?? "registration failed."));
-            if (hotkeys.Configure(set with { Capture = null }).Registered) registeredKeys = set with { Capture = null };
-            return false;
-        }
-        registeredKeys = set; recording = next; return true;
+        if (compatibility?.Clicks is not { } clicks) { next.Report("Click recording is unavailable."); return false; }
+        recording = next;
+        var error = clicks.Start(() => Dispatcher.UIThread.Post(() => _ = CompleteRecordingAsync()));
+        if (error is null) return true;
+        recording = null; next.Report("Recording unavailable: " + error.Message); return false;
     }
 
-    private void EndRecording()
+    /// <summary>Ends the recording; the click source is cancelled unless it already finished after swallowing the click.</summary>
+    private void EndRecording(bool cancelSource = true)
     {
         if (recording is null) return;
         recording = null;
-        var shortcuts = Workspace.Document.Shortcuts;
-        var set = new HotkeySet(new(shortcuts.Run), new(shortcuts.Pause), new(shortcuts.Stop));
-        if (hotkeys.Configure(set).Registered) registeredKeys = set;
+        if (cancelSource) compatibility?.Clicks?.Cancel();
     }
 
     private async Task CompleteRecordingAsync()
     {
         if (recording is not { } current) return;
-        EndRecording();
+        EndRecording(cancelSource: false);
         try
         {
             var point = await current.Read();

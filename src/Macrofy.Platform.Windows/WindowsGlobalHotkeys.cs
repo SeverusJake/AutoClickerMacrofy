@@ -44,7 +44,6 @@ public sealed class WindowsGlobalHotkeys : IGlobalHotkeys, ISystemEvents, IHotke
             if(disposed || failure is not null) return Error(failure?.Message ?? "Hotkey service is disposed.");
             var parsed = new List<((uint Modifiers,uint Key) Key,HotkeyCommand Command,HotkeyBinding Binding)>();
             var bindings = new List<(HotkeyBinding Binding,HotkeyCommand Command)> {(hotkeys.Run,HotkeyCommand.Run),(hotkeys.Pause,HotkeyCommand.Pause),(hotkeys.Stop,HotkeyCommand.Stop)};
-            if(hotkeys.Capture is { } capture) bindings.Add((capture,HotkeyCommand.Capture));
             foreach(var (binding,command) in bindings)
             {
                 var text = binding.Key;

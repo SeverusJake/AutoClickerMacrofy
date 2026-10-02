@@ -34,8 +34,6 @@ public sealed class ShortcutSettings
     public string Run { get; set; } = "F9";
     public string Pause { get; set; } = "F8";
     public string Stop { get; set; } = "F10";
-    /// <summary>Records the pointer position; registered only while a point is being recorded.</summary>
-    public string Capture { get; set; } = "F7";
 }
 
 public sealed class Profile

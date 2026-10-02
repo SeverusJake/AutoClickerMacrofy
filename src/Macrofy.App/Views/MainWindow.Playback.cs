@@ -89,7 +89,7 @@ public sealed partial class MainWindow
         if (capturingShortcut)
         {
             var keys = registeredKeys;
-            var key = command switch { HotkeyCommand.Run => keys?.Run.Key, HotkeyCommand.Pause => keys?.Pause.Key, HotkeyCommand.Capture => keys?.Capture?.Key, _ => keys?.Stop.Key };
+            var key = command switch { HotkeyCommand.Run => keys?.Run.Key, HotkeyCommand.Pause => keys?.Pause.Key, _ => keys?.Stop.Key };
             Dispatcher.UIThread.Post(() => { if (key is not null && shortcutCapture is not null) CaptureShortcut(key); });
             return;
         }
@@ -99,7 +99,6 @@ public sealed partial class MainWindow
             if (closing) return;
             if (command == HotkeyCommand.Run) RunAllEnabled();
             else if (command == HotkeyCommand.Pause) TogglePauseAll();
-            else if (command == HotkeyCommand.Capture) _ = CompleteRecordingAsync();
             else { EndRecording(); RefreshPlayback(); }
         });
     }
@@ -126,12 +125,11 @@ public sealed partial class MainWindow
         if (shortcutCapture is null) return;
         var action = shortcutCapture.Tag as string;
         var current = Workspace.Document.Shortcuts;
-        var candidate = new ShortcutSettings { Run = current.Run, Pause = current.Pause, Stop = current.Stop, Capture = current.Capture };
-        if (action == "Run") candidate.Run = key; else if (action == "Pause") candidate.Pause = key; else if (action == "Capture") candidate.Capture = key; else candidate.Stop = key;
-        if (new[] { candidate.Run, candidate.Pause, candidate.Stop, candidate.Capture }.Distinct().Count() != 4)
+        var candidate = new ShortcutSettings { Run = current.Run, Pause = current.Pause, Stop = current.Stop };
+        if (action == "Run") candidate.Run = key; else if (action == "Pause") candidate.Pause = key; else candidate.Stop = key;
+        if (new[] { candidate.Run, candidate.Pause, candidate.Stop }.Distinct().Count() != 3)
         { messageText.Text = $"{key} is already assigned to another control."; return; }
-        // The record key registers only while a point is being recorded.
-        if (action != "Capture" && !ConfigureHotkeys(candidate)) { messageText.Text = registrationError; return; }
+        if (!ConfigureHotkeys(candidate)) { messageText.Text = registrationError; return; }
         Workspace.Document.Shortcuts = candidate;
         shortcutCapture.Text = key; Save(); RefreshPlayback();
     }
