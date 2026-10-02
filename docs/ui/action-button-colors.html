@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Action Button Colors</title>
+<style>
+:root {
+  --page: #fafafa; --surface: #ffffff; --subtle: #f3f3f5; --ink: #202330; --muted: #555968; --line: #d4d7de; --sel: #fff8cc;
+  /* One hue per action, from the Neon District theme roles (light-mode safe shades). */
+  --click: #0097ab; --key: #c2409f; --text: #4f8f17; --wait: #b8730f; --wheel: #4d6bd6;
+  --click-t: #e2f8fb; --key-t: #fbe7f5; --text-t: #eef8e2; --wait-t: #fff1dc; --wheel-t: #e9eeff;
+  --on-solid: #ffffff;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #101216; --surface: #18191d; --subtle: #1f2126; --ink: #f2f2f5; --muted: #bfc4cc; --line: #3a3e46; --sel: #3a3510;
+    --click: #00e5ff; --key: #ff70d6; --text: #b7ff5a; --wait: #ffb454; --wheel: #8eabff;
+    --click-t: #0f3036; --key-t: #3a1832; --text-t: #22301a; --wait-t: #3a2a14; --wheel-t: #1d2440;
+    --on-solid: #101216;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #101216; --surface: #18191d; --subtle: #1f2126; --ink: #f2f2f5; --muted: #bfc4cc; --line: #3a3e46; --sel: #3a3510;
+  --click: #00e5ff; --key: #ff70d6; --text: #b7ff5a; --wait: #ffb454; --wheel: #8eabff;
+  --click-t: #0f3036; --key-t: #3a1832; --text-t: #22301a; --wait-t: #3a2a14; --wheel-t: #1d2440;
+  --on-solid: #101216;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.4 Tahoma, "Segoe UI", sans-serif; }
+header { padding: 20px 24px 8px; display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+header div { flex: 1; min-width: 260px; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+.lead { color: var(--muted); margin: 0; max-width: 860px; }
+.mode { border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 6px 12px; border-radius: 4px; font: inherit; cursor: pointer; }
+section { padding: 22px 24px; border-bottom: 1px solid var(--line); }
+h2 { font-size: 17px; margin: 0 0 4px; }
+.why { color: var(--muted); margin: 0 0 14px; max-width: 900px; }
+.frame { border: 1px solid var(--line); background: var(--surface); border-radius: 4px; max-width: 980px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 640px; }
+th { text-align: left; font-weight: normal; color: var(--muted); font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr.sel td { background: var(--sel); }
+.drag { color: var(--muted); width: 18px; }
+input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 3px; padding: 5px 8px; min-height: 32px; width: 64px; }
+input.wide { width: 120px; }
+.rec { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #c23a52; color: #c23a52; background: var(--surface); padding: 5px 10px; border-radius: 3px; font: inherit; }
+.rec::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: #c23a52; }
+.add { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 14px; }
+svg { width: 16px; height: 16px; flex: none; }
+.notes { margin: 10px 0 0; padding-left: 18px; color: var(--muted); max-width: 900px; }
+
+/* Shared action button shape */
+.act { display: inline-flex; align-items: center; gap: 6px; font: inherit; padding: 6px 12px; border-radius: 3px; cursor: pointer; min-height: 32px; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 3px; min-width: 86px; justify-content: space-between; cursor: pointer; }
+.chip::after { content: "▾"; font-size: 11px; opacity: .7; }
+.click { --c: var(--click); --t: var(--click-t); }
+.key { --c: var(--key); --t: var(--key-t); }
+.text { --c: var(--text); --t: var(--text-t); }
+.wait { --c: var(--wait); --t: var(--wait-t); }
+.wheel { --c: var(--wheel); --t: var(--wheel-t); }
+
+/* Option 1: tinted */
+.o1 .act, .o1 .chip { background: var(--t); color: var(--c); border: 1px solid var(--c); }
+.o1 .act:hover { background: var(--c); color: var(--on-solid); }
+
+/* Option 2: solid */
+.o2 .act, .o2 .chip { background: var(--c); color: var(--on-solid); border: 1px solid var(--c); font-weight: bold; }
+.o2 .act:hover { filter: brightness(1.08); }
+
+/* Option 3: neutral with color stripe + icon tile */
+.o3 .act, .o3 .chip { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-left: 4px solid var(--c); }
+.o3 .act svg, .o3 .chip svg { color: var(--c); background: var(--t); border-radius: 3px; padding: 2px; width: 20px; height: 20px; }
+.o3 .act:hover { border-color: var(--c); }
+.o3 tr td:nth-child(3) { box-shadow: none; }
+.o3 .rowmark td:first-child { box-shadow: inset 3px 0 0 var(--c); }
+
+@media (max-width: 760px) { header, section { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-click" viewBox="0 0 16 16"><path d="M4 1.5v11l3-2.8 2 4.3 2-.9-2-4.3h4z" fill="currentColor"/></symbol>
+  <symbol id="i-key" viewBox="0 0 16 16"><rect x="1" y="4" width="14" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 7h1M7 7h1M10 7h1M4.5 9.5h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-text" viewBox="0 0 16 16"><path d="M3 3h10M8 3v10M6 13h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="i-wait" viewBox="0 0 16 16"><circle cx="8" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 5.5v3l2 1.5M6.5 1.5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="i-wheel" viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+</svg>
+
+<header>
+  <div>
+    <h1>Action colors — 3 options</h1>
+    <p class="lead">Each action keeps the same color everywhere: the <b>+ Add</b> buttons and the Action cell of each step row. Click = cyan, Key = pink, Text = green, Wait = amber, Wheel = blue (from the app theme's role colors), each with its own icon.</p>
+  </div>
+  <button class="mode" id="mode" type="button">Switch light / dark</button>
+</header>
+
+<section class="o1">
+  <h2>Option 1 — Tinted</h2>
+  <p class="why">Soft colored background, colored text and border. Readable and calm; colors identify actions without dominating the table. Hover fills the button solid.</p>
+  <div class="frame">
+    <table>
+      <thead><tr><th></th><th>#</th><th>Action</th><th>Position / value</th><th>Wait after</th></tr></thead>
+      <tbody>
+        <tr class="sel"><td class="drag">⋮⋮</td><td>1</td><td><span class="chip click"><svg><use href="#i-click"/></svg>Click</span></td><td>X <input value="480"> Y <input value="640"> <button class="rec">Record</button></td><td><input value="100"> ms</td></tr>
+        <tr><td class="drag">⋮⋮</td><td>2</td><td><span class="chip wait"><svg><use href="#i-wait"/></svg>Wait</span></td><td><input value="2000"> ms</td><td><input value="0"> ms</td></tr>
+        <tr><td class="drag">⋮⋮</td><td>3</td><td><span class="chip key"><svg><use href="#i-key"/></svg>Key</span></td><td><input class="wide" value="Space"></td><td><input value="100"> ms</td></tr>
+        <tr><td class="drag">⋮⋮</td><td>4</td><td><span class="chip text"><svg><use href="#i-text"/></svg>Text</span></td><td><input class="wide" value="gg"></td><td><input value="100"> ms</td></tr>
+        <tr><td class="drag">⋮⋮</td><td>5</td><td><span class="chip wheel"><svg><use href="#i-wheel"/></svg>Wheel</span></td><td><input value="-120"></td><td><input value="100"> ms</td></tr>
+      </tbody>
+    </table>
+    <div class="add">
+      <button class="act click"><svg><use href="#i-click"/></svg>+ Click</button>
+      <button class="act key"><svg><use href="#i-key"/></svg>+ Key</button>
+      <button class="act text"><svg><use href="#i-text"/></svg>+ Text</button>
+      <button class="act wait"><svg><use href="#i-wait"/></svg>+ Wait</button>
+      <button class="act wheel"><svg><use href="#i-wheel"/></svg>+ Wheel</button>
+    </div>
+  </div>
+</section>
+
+<section class="o2">
+  <h2>Option 2 — Solid</h2>
+  <p class="why">Fully filled color with bold label. Most vivid and game-like; actions are recognizable at a glance, but a long list becomes very colorful.</p>
+  <div class="frame">
+    <table>
+      <thead><tr><th></th><th>#</th><th>Action</th><th>Position / value</th><th>Wait after</th></tr></thead>
+      <tbody>
+        <tr class="sel"><td class="drag">⋮⋮</td><td>1</td><td><span class="chip click"><svg><use href="#i-click"/></svg>Click</span></td><td>X <input value="480"> Y <input value="640"> <button class="rec">Record</button></td><td><input value="100"> ms</td></tr>
+        <tr><td class="drag">⋮⋮</td><td>2</td><td><span class="chip wait"><svg><use href="#i-wait"/></svg>Wait</span></td><td><input value="2000"> ms</td><td><input value="0"> ms</td></tr>
+        <tr><td class="drag">⋮⋮</td><td>3</td><td><span class="chip key"><svg><use href="#i-key"/></svg>Key</span></td><td><input class="wide" value="Space"></td><td><input value="100"> ms</td></tr>
+        <tr><td class="drag">⋮⋮</td><td>4</td><td><span class="chip text"><svg><use href="#i-text"/></svg>Text</span></td><td><input class="wide" value="gg"></td><td><input value="100"> ms</td></tr>
+        <tr><td class="drag">⋮⋮</td><td>5</td><td><span class="chip wheel"><svg><use href="#i-wheel"/></svg>Wheel</span></td><td><input value="-120"></td><td><input value="100"> ms</td></tr>
+      </tbody>
+    </table>
+    <div class="add">
+      <button class="act click"><svg><use href="#i-click"/></svg>+ Click</button>
+      <button class="act key"><svg><use href="#i-key"/></svg>+ Key</button>
+      <button class="act text"><svg><use href="#i-text"/></svg>+ Text</button>
+      <button class="act wait"><svg><use href="#i-wait"/></svg>+ Wait</button>
+      <button class="act wheel"><svg><use href="#i-wheel"/></svg>+ Wheel</button>
+    </div>
+  </div>
+</section>
+
+<section class="o3">
+  <h2>Option 3 — Color stripe + icon tile</h2>
+  <p class="why">Neutral buttons with a colored left stripe and a tinted icon tile; each row also gets a thin stripe in its action color. Most subtle and professional; color guides the eye without heavy fills.</p>
+  <div class="frame">
+    <table>
+      <thead><tr><th></th><th>#</th><th>Action</th><th>Position / value</th><th>Wait after</th></tr></thead>
+      <tbody>
+        <tr class="sel rowmark click"><td class="drag">⋮⋮</td><td>1</td><td><span class="chip click"><svg><use href="#i-click"/></svg>Click</span></td><td>X <input value="480"> Y <input value="640"> <button class="rec">Record</button></td><td><input value="100"> ms</td></tr>
+        <tr class="rowmark wait"><td class="drag">⋮⋮</td><td>2</td><td><span class="chip wait"><svg><use href="#i-wait"/></svg>Wait</span></td><td><input value="2000"> ms</td><td><input value="0"> ms</td></tr>
+        <tr class="rowmark key"><td class="drag">⋮⋮</td><td>3</td><td><span class="chip key"><svg><use href="#i-key"/></svg>Key</span></td><td><input class="wide" value="Space"></td><td><input value="100"> ms</td></tr>
+        <tr class="rowmark text"><td class="drag">⋮⋮</td><td>4</td><td><span class="chip text"><svg><use href="#i-text"/></svg>Text</span></td><td><input class="wide" value="gg"></td><td><input value="100"> ms</td></tr>
+        <tr class="rowmark wheel"><td class="drag">⋮⋮</td><td>5</td><td><span class="chip wheel"><svg><use href="#i-wheel"/></svg>Wheel</span></td><td><input value="-120"></td><td><input value="100"> ms</td></tr>
+      </tbody>
+    </table>
+    <div class="add">
+      <button class="act click"><svg><use href="#i-click"/></svg>+ Click</button>
+      <button class="act key"><svg><use href="#i-key"/></svg>+ Key</button>
+      <button class="act text"><svg><use href="#i-text"/></svg>+ Text</button>
+      <button class="act wait"><svg><use href="#i-wait"/></svg>+ Wait</button>
+      <button class="act wheel"><svg><use href="#i-wheel"/></svg>+ Wheel</button>
+    </div>
+  </div>
+  <ul class="notes"><li>In all options the colors follow the selected app theme (Neon District shown) and switch with light/dark mode.</li></ul>
+</section>
+<script>
+document.getElementById("mode").addEventListener("click", () => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+});
+</script>
+</body>
+</html>
