@@ -35,7 +35,7 @@ public sealed class WorkspaceRuntime : IAsyncDisposable
             () => activity.TryEnterTest(out var lease) ? lease : null, sender.SendGestureAsync,
             (snapshot, publish, ct) => PersistAsync(store, snapshot, publish, ct), ReadAsync);
         var playback = new WorkspacePlaybackController(document,
-            new PlaybackCoordinator(new WindowsPlaybackExecutor(catalog, sender, compatibility), TimeProvider.System, catalog), activity, hotkeys, hotkeys);
+            new PlaybackCoordinator(new WindowsPlaybackExecutor(catalog, sender), TimeProvider.System, catalog), activity, hotkeys, hotkeys);
         return new(playback, hotkeys, new(compatibility, catalog,
             async (token, ct) => (await catalog.ListInputSurfacesAsync(token, ct)).Select(s => s.Window).ToArray(),
             token => { var result = catalog.ReadPointerPosition(token); return new(result.Point, result.Error); }), window, catalog, hotkeys);

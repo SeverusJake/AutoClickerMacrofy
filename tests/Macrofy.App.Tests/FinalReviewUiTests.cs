@@ -15,50 +15,6 @@ namespace Macrofy.App.Tests;
 
 public sealed class FinalReviewUiTests
 {
-    [AvaloniaTheory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task WindowPlaybackSerializesEvidenceWithUiEditsAndHonorsStop(bool stopDuringRead)
-    {
-        var state = new WorkspaceState(WorkspaceDocument.CreateDefault()); var app = state.Profile.Apps.Single(a => a.Id == state.Macro.AppId);
-        state.Macro.Steps = [new("Text", "harmless", 0)]; state.Macro.Repeat = 1;
-        PlaybackEligibilityTests.AddEvidence(state.Document, app, InputCapability.Text, TargetState.Minimized);
-        var context = new TargetContext(new(new(Guid.NewGuid()), new("process", app.Executable), "Example game", true, new(800, 600, 1)), false, "surface");
-        var catalog = new ContextCatalog { Context = context }; var input = new HarmlessInput(); var keys = new HarmlessHotkeys();
-        var reads = 0; var dispatchRead = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var service = new CompatibilityService(state.Document, catalog, () => null,
-            (_, _, _) => throw new InvalidOperationException("No compatibility test expected"), (_, _, _) => Task.CompletedTask,
-            async (read, ct) =>
-            {
-                if (Interlocked.Increment(ref reads) == 2) { dispatchRead.SetResult(); await release.Task.WaitAsync(ct); }
-                return await WorkspaceRuntime.ReadAsync(() => { Assert.True(Dispatcher.UIThread.CheckAccess()); return read(); }, ct);
-            });
-        var sender = new WindowsGestureSender(catalog, input, input, input, _ => new(new(10, 10)), () => true);
-        var executor = new WindowsPlaybackExecutor(catalog, catalog, (_, _) => Task.FromResult<IReadOnlyList<TargetWindow>>([context.Window]), sender, service.IsConfirmedAsync);
-        var coordinator = new PlaybackCoordinator(executor, TimeProvider.System, catalog);
-        await using var controller = new WorkspacePlaybackController(state.Document, coordinator, new(), keys, keys);
-        Assert.True((await controller.StartAsync(state.Profile, state.Macro)).Queued);
-        await dispatchRead.Task.WaitAsync(TimeSpan.FromSeconds(3));
-        try
-        {
-            Assert.True(controller.Sessions[state.Macro.Id].IsActive);
-            for (var i = 0; i < 50; i++)
-            {
-                var added = new Profile { Name = "Unrelated", Apps = [new SavedApp()] };
-                state.Document.Profiles.Add(added); state.Profile.Apps.Add(new SavedApp());
-                state.Document.Profiles.Remove(added); state.Profile.Apps.RemoveAt(state.Profile.Apps.Count - 1);
-            }
-            if (stopDuringRead) controller.StopAll();
-        }
-        finally { release.TrySetResult(); }
-        await coordinator.WaitForCompletionAsync(state.Macro.Id).WaitAsync(TimeSpan.FromSeconds(3));
-        Assert.Equal(stopDuringRead ? PlaybackState.Stopped : PlaybackState.Completed, controller.Sessions[state.Macro.Id].State);
-        Assert.Null(controller.Sessions[state.Macro.Id].DeliveryError);
-        if (stopDuringRead) Assert.Empty(input.Commands);
-        else Assert.IsType<TextCommand>(Assert.Single(input.Commands));
-    }
-
     [AvaloniaFact]
     public async Task TargetLossKeepsControllerLeaseUntilIndependentCleanupFinishes()
     {
@@ -126,7 +82,7 @@ public sealed class FinalReviewUiTests
     [AvaloniaTheory]
     [InlineData("Space")]
     [InlineData("legacy-unknown-key")]
-    public async Task SelectedTextTestIgnoresOtherUnconfirmedOrInvalidAction(string otherKey)
+    public async Task SelectedTextTestIgnoresOtherInvalidAction(string otherKey)
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
         state.Macro.Steps = [new("Text", "harmless", 0), new("Key", otherKey, 0)];
@@ -138,7 +94,7 @@ public sealed class FinalReviewUiTests
         try
         {
             PlaybackUiTests.Click(window, "Tab_Macros");
-            Assert.False(PlaybackUiTests.Find<Button>(window, "RunSelected").IsEnabled);
+            Assert.Equal(otherKey == "Space", PlaybackUiTests.Find<Button>(window, "RunSelected").IsEnabled);
             Assert.True(PlaybackUiTests.Find<Button>(window, "TestSelected").IsEnabled);
             PlaybackUiTests.Click(window, "TestSelected");
             await PlaybackControllerTests.Until(() => controller.Sessions.GetValueOrDefault(state.Macro.Id)?.State == PlaybackState.Completed);
@@ -148,7 +104,7 @@ public sealed class FinalReviewUiTests
             PlaybackUiTests.Click(window, "TestSelected"); Assert.Single(executor.Requests);
             PlaybackUiTests.Click(window, "DiscardDraft");
             PlaybackUiTests.Click(window, "SelectStep_1");
-            Assert.False(PlaybackUiTests.Find<Button>(window, "TestSelected").IsEnabled);
+            Assert.Equal(otherKey == "Space", PlaybackUiTests.Find<Button>(window, "TestSelected").IsEnabled);
             PlaybackUiTests.Click(window, "SelectStep_0");
             keys.LoseHealth(); await PlaybackControllerTests.Until(() => !PlaybackUiTests.Find<Button>(window, "TestSelected").IsEnabled);
             PlaybackUiTests.Click(window, "TestSelected"); Assert.Single(executor.Requests);

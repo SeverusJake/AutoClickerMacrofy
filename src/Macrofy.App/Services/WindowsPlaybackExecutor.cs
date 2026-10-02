@@ -9,10 +9,10 @@ namespace Macrofy.App.Services;
 
 public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetContext targets,
     Func<TargetToken, CancellationToken, Task<IReadOnlyList<TargetWindow>>> listSurfaces,
-    WindowsGestureSender sender, Func<Guid, TargetContext, TargetState, InputCapability, bool, CancellationToken, Task<bool>> isConfirmed) : IPlaybackExecutor
+    WindowsGestureSender sender) : IPlaybackExecutor
 {
-    public WindowsPlaybackExecutor(WindowsWindowCatalog catalog, WindowsGestureSender sender, CompatibilityService compatibility)
-        : this(catalog, catalog, async (token, ct) => (await catalog.ListInputSurfacesAsync(token, ct)).Select(s => s.Window).ToArray(), sender, compatibility.IsConfirmedAsync) { }
+    public WindowsPlaybackExecutor(WindowsWindowCatalog catalog, WindowsGestureSender sender)
+        : this(catalog, catalog, async (token, ct) => (await catalog.ListInputSurfacesAsync(token, ct)).Select(s => s.Window).ToArray(), sender) { }
 
     // Preparation only reads metadata. Native input belongs exclusively to the coordinator's gesture gate.
     public async ValueTask<PlaybackPreparation> PrepareAsync(PlaybackRequest request, CancellationToken cancellationToken)
@@ -28,6 +28,8 @@ public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetConte
         }
         if (request.Target.SavedAppId is not { } appId || request.Target.State is not { } state || !Enum.IsDefined(state))
             return Failed("InvalidTarget", "Choose a saved app and target state.");
+        foreach (var action in request.Actions)
+            if (CheckCapability(action) is { Queued: false } unsupported) return new(null, unsupported.Error);
         var resolution = await catalog.ResolveAsync(request.Target.Rule, null, cancellationToken);
         IReadOnlyList<TargetWindow> parents = resolution switch
         {
@@ -38,12 +40,12 @@ public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetConte
         if (parents.Count == 0) return Failed("TargetMissing", "No live window matches this macro's saved app rule.");
         if (parents.Count > 1 && request.Target.SelectedSurface is null)
             return Failed("TargetAmbiguous", "Choose the intended live window and input surface.");
+        // Without an explicit surface, bind the matched window's own token: it targets the largest visible client surface.
         var candidates = new List<TargetWindow>();
-        foreach (var parent in parents)
-        {
-            var surfaces = await listSurfaces(parent.Token, cancellationToken);
-            candidates.AddRange(surfaces.Where(s => request.Target.SelectedSurface is null || s.Token == request.Target.SelectedSurface));
-        }
+        if (request.Target.SelectedSurface is null) candidates.AddRange(parents);
+        else
+            foreach (var parent in parents)
+                candidates.AddRange((await listSurfaces(parent.Token, cancellationToken)).Where(s => s.Token == request.Target.SelectedSurface));
         candidates = candidates.DistinctBy(w => w.Token).ToList();
         if (candidates.Count == 0) return Failed("TargetMissing", "Selected input surface disappeared. Choose a new surface explicitly.");
         var matches = new List<PlaybackBinding>();
@@ -57,19 +59,13 @@ public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetConte
             var binding = new PlaybackBinding(appId, candidate.Token, context.Window.Title, context.SurfaceFingerprint, context.Window.Geometry, state);
             var validation = await sender.ValidateAsync(binding, false, cancellationToken);
             if (!validation.Queued) { failure = validation.Error; continue; }
-            var requirementsMet = true;
-            foreach (var action in request.Actions)
-            {
-                var evidence = await CheckEvidenceAsync(binding, context, action, cancellationToken);
-                if (!evidence.Queued) { failure = evidence.Error; requirementsMet = false; }
-            }
-            if (requirementsMet) matches.Add(binding);
+            matches.Add(binding);
         }
         return matches.Count switch
         {
             1 => new(matches[0]),
             > 1 => Failed("SurfaceAmbiguous", "Several input surfaces match. Choose one explicitly."),
-            _ => new(null, failure ?? new("CompatibilityRequired", "Confirm compatibility for this surface and every required action."))
+            _ => new(null, failure ?? new("TargetMissing", "No usable input surface matches this macro's saved app rule."))
         };
     }
 
@@ -79,31 +75,13 @@ public sealed class WindowsPlaybackExecutor(IWindowCatalog catalog, ITargetConte
     {
         var check = await sender.CheckAsync(binding, action is CompiledAction.Click { Mode: CoordinateMode.FixedPixels }, cancellationToken);
         if (!check.Result.Queued) return new(check.Result, check.Result.CleanupError);
-        if (check.Context is { } context)
-        {
-            var evidence = await CheckEvidenceAsync(binding, context, action, cancellationToken);
-            if (!evidence.Queued) return new(evidence, evidence.CleanupError);
-        }
+        if (check.Context is not null && CheckCapability(action) is { Queued: false } unsupported) return new(unsupported);
         return await sender.SendGestureAsync(binding, action, cancellationToken);
     }
 
-    private async Task<DeliveryResult> CheckEvidenceAsync(PlaybackBinding binding, TargetContext context, CompiledAction action, CancellationToken cancellationToken)
-    {
-        if (action is CompiledAction.Wait) return new(true);
-        InputCapability? capability = action switch
-        {
-            CompiledAction.Click => InputCapability.Click,
-            CompiledAction.Key { Keys.Count: > 1 } => InputCapability.Shortcut,
-            CompiledAction.Key { Keys.Count: 1 } => InputCapability.Key,
-            CompiledAction.Text => InputCapability.Text,
-            CompiledAction.Wheel => InputCapability.Wheel,
-            _ => null
-        };
-        if (capability is null) return WindowsGestureSender.Fail("UnsupportedCapability", "Window playback does not support this action.");
-        return binding.SavedAppId is { } id && binding.State is { } state &&
-            await isConfirmed(id, context, state, capability.Value, action is CompiledAction.Click { Mode: CoordinateMode.FixedPixels }, cancellationToken)
-            ? new(true) : WindowsGestureSender.Fail("CompatibilityRequired", $"Confirm {capability} compatibility for the selected surface and target state.");
-    }
+    private static DeliveryResult CheckCapability(CompiledAction action) =>
+        action is CompiledAction.Wait or CompiledAction.Click or CompiledAction.Key { Keys.Count: > 0 } or CompiledAction.Text or CompiledAction.Wheel
+            ? new(true) : WindowsGestureSender.Fail("UnsupportedCapability", "Window playback does not support this action.");
 
     private static bool Matches(TargetRule rule, TargetWindow window)
     {

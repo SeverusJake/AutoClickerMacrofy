@@ -112,23 +112,6 @@ public sealed class WorkspacePlaybackController : IWorkspacePlaybackController
                 if (selected.Executable == app.Executable && selected.Title == app.TitleRule) target = target with { SelectedSurface = selected.Token };
                 else selectedSurfaces.Remove(appId);
             }
-            foreach (var action in actions)
-            {
-                InputCapability? capability = action switch
-                {
-                    CompiledAction.Click => InputCapability.Click,
-                    CompiledAction.Key { Keys.Count: > 1 } => InputCapability.Shortcut,
-                    CompiledAction.Key => InputCapability.Key,
-                    CompiledAction.Text => InputCapability.Text,
-                    CompiledAction.Wheel => InputCapability.Wheel,
-                    _ => null
-                };
-                if (capability is null) continue;
-                var evidence = document.CompatibilityEvidence.LastOrDefault(e => e.SavedAppId == appId && e.State == target.State && e.Capability == capability);
-                if (evidence is not { ObservedSuccess: true } || !string.Equals(evidence.App.ExecutablePath, app.Executable, StringComparison.OrdinalIgnoreCase) ||
-                    !TitleRule.Matches(app.TitleRule, evidence.Title))
-                { reason = $"Confirm {capability} / {target.State} in Compatibility for this saved app first."; return false; }
-            }
         }
         else target = new(null, null, null, null);
         request = new(macro.Id, macro.Name, profile.Name, target, actions, selectedAction ? 1 : macro.Repeat,

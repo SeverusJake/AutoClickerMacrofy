@@ -261,16 +261,10 @@ public class PlaybackIntegrationTests
                 var context = (await f.Catalog.GetAsync(f.Window.Token, TestContext.Current.CancellationToken)).Context!;
                 f.state = minimized ? TargetState.Minimized : TargetState.BackgroundVisible;
                 f.app = new SavedApp { Name = context.Window.App.Name, Executable = target.ExecutablePath, TitleRule = f.Window.Title };
-                // Seeded test evidence simulates the user's observation. Receipts below prove delivery only.
-                var document = new WorkspaceDocument { Profiles = [new Profile { Apps = [f.app] }], CompatibilityEvidence =
-                    Enum.GetValues<InputCapability>().Select(capability => new CompatibilityEvidence(f.app.Id, context.Window.App,
-                        context.Window.Title, context.SurfaceFingerprint, f.state, capability, context.Window.Geometry!, DateTimeOffset.UtcNow, true)).ToList() };
+                // Receipts below prove delivery only; playback needs no observed compatibility evidence.
                 f.player = new WindowsInputPlayer(f.Catalog, f.Native, new InputClock(), new WindowsPermissionService(f.Catalog));
-                var guard = new InputActivityGuard();
                 var sender = new WindowsGestureSender(f.Catalog, f.player, screen ?? new RejectScreenPlayer(), () => true);
-                var compatibility = new CompatibilityService(document, f.Catalog, () => guard.TryEnterTest(out var lease) ? lease : null,
-                    sender.SendGestureAsync, (_, _, _) => throw new InvalidOperationException("Integration fixture never persists observations."));
-                f.Coordinator = new PlaybackCoordinator(new WindowsPlaybackExecutor(f.Catalog, sender, compatibility), TimeProvider.System);
+                f.Coordinator = new PlaybackCoordinator(new WindowsPlaybackExecutor(f.Catalog, sender), TimeProvider.System);
                 await target.RequestAsync("clear"); return f;
             }
             catch { f.player?.Dispose(); f.Catalog.Dispose(); throw; }

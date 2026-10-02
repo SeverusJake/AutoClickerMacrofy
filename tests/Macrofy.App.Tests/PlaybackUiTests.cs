@@ -268,21 +268,17 @@ public class CompatibilityUiTests
 public class PlaybackEligibilityTests
 {
     [Fact]
-    public async Task WindowRunRequiresEveryExactCapabilityStateAndCurrentRule()
+    public async Task WindowRunNeedsNoEvidenceButRequiresAppAndState()
     {
-        var document = WorkspaceDocument.CreateDefault(); var profile = document.Profiles[0]; var macro = profile.Macros[0]; var app = profile.Apps.Single(a => a.Id == macro.AppId);
+        var document = WorkspaceDocument.CreateDefault(); var profile = document.Profiles[0]; var macro = profile.Macros[0];
         macro.Steps = [new("Key", "Space", 0), new("Text", "hello", 0)];
         var keys = new HarmlessHotkeys();
         await using var controller = new WorkspacePlaybackController(document, new(new HarmlessExecutor(), TimeProvider.System), new(), keys, keys);
-        Assert.False(controller.CanStart(profile, macro, out var reason)); Assert.Contains("Key", reason);
-        AddEvidence(document, app, InputCapability.Key, TargetState.BackgroundVisible);
-        Assert.False(controller.CanStart(profile, macro, out _));
-        AddEvidence(document, app, InputCapability.Key, TargetState.Minimized);
-        Assert.False(controller.CanStart(profile, macro, out reason)); Assert.Contains("Text", reason);
-        AddEvidence(document, app, InputCapability.Text, TargetState.Minimized);
+        Assert.Empty(document.CompatibilityEvidence);
         Assert.True(controller.CanStart(profile, macro, out _));
-        app.TitleRule = "Different title"; Assert.False(controller.CanStart(profile, macro, out _));
-        app.TitleRule = "*"; app.Executable = @"C:\changed.exe"; Assert.False(controller.CanStart(profile, macro, out _));
+        macro.WindowState = "Sideways"; Assert.False(controller.CanStart(profile, macro, out var reason)); Assert.Contains("state", reason);
+        macro.WindowState = "Background"; macro.AppId = Guid.NewGuid();
+        Assert.False(controller.CanStart(profile, macro, out reason)); Assert.Contains("missing", reason);
     }
     internal static void AddEvidence(WorkspaceDocument document, SavedApp app, InputCapability capability, TargetState state) =>
         document.CompatibilityEvidence.Add(new(app.Id, new("process", app.Executable), "Example game", "surface", state, capability, new(800, 600, 1), DateTimeOffset.UtcNow, true));

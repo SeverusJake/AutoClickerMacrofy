@@ -29,7 +29,7 @@ public class WindowsPlaybackExecutorTests
     [Fact]
     public async Task ScreenNeedsNoEvidenceAndPreparationNeverSends()
     {
-        var f = new Fixture { Evidence = false };
+        var f = new Fixture();
         var result = await f.Executor.PrepareAsync(f.Request(screen: true), TestContext.Current.CancellationToken);
         Assert.NotNull(result.Binding); Assert.Null(result.Binding.Token);
         Assert.Empty(f.Input.Commands); Assert.Equal(0, f.Input.Cleanups);
@@ -70,30 +70,25 @@ public class WindowsPlaybackExecutorTests
     }
 
     [Fact]
-    public async Task UnselectedSurfaceNeedsUniqueEvidenceMatch()
+    public async Task UnselectedSurfaceBindsMatchedWindowMainSurface()
     {
         var f = new Fixture();
         f.Surfaces[f.Window.Token] = [f.Window, f.Child];
         f.Contexts[f.Child.Token] = new(f.Child, false, "child-fingerprint");
-        var ambiguous = await f.Executor.PrepareAsync(f.Request(selected: null), TestContext.Current.CancellationToken);
-        Assert.Equal("SurfaceAmbiguous", ambiguous.Error!.Code);
-        f.EvidenceToken = f.Child.Token;
-        var matched = await f.Executor.PrepareAsync(f.Request(selected: null), TestContext.Current.CancellationToken);
-        Assert.Equal(f.Child.Token, matched.Binding!.Token);
+        var result = await f.Executor.PrepareAsync(f.Request(selected: null), TestContext.Current.CancellationToken);
+        Assert.Equal(f.Window.Token, result.Binding!.Token);
     }
 
     [Fact]
-    public async Task SuppliedRuleAndAppIdentityUsedAcrossProfilesAndAllCapabilitiesChecked()
+    public async Task SuppliedRuleAndAppIdentityUsedAcrossProfilesWithoutEvidence()
     {
         var f = new Fixture();
         var appId = Guid.NewGuid(); var rule = new TargetRule(new("Other", "other.exe"), "Other*");
         f.Contexts[f.Window.Token] = f.Contexts[f.Window.Token] with { Window = f.Window with { App = rule.App, Title = "Other Game" } };
         var request = f.Request() with { Target = new(appId, rule, TargetState.BackgroundCovered, f.Window.Token), Actions = [new CompiledAction.Key([new("Ctrl"), new("A")], 0), new CompiledAction.Text("x", 0)] };
-        f.AllowedCapabilities.Remove(InputCapability.Text);
         var result = await f.Executor.PrepareAsync(request, TestContext.Current.CancellationToken);
-        Assert.Equal(rule, f.Catalog.Rule); Assert.Contains(f.EvidenceQueries, q => q.Id == appId && q.Capability == InputCapability.Shortcut);
-        Assert.Contains(f.EvidenceQueries, q => q.Capability == InputCapability.Text);
-        Assert.Null(result.Binding); Assert.Equal("CompatibilityRequired", result.Error!.Code);
+        Assert.Equal(rule, f.Catalog.Rule);
+        Assert.Equal(appId, result.Binding!.SavedAppId);
     }
 
     [Fact]
@@ -135,13 +130,12 @@ public class WindowsPlaybackExecutorTests
     }
 
     [Fact]
-    public async Task EvidenceRevocationStopsDispatchAndFixedEvidenceIsPerAction()
+    public async Task WindowActionsDispatchWithoutCompatibilityEvidence()
     {
         var f = new Fixture();
         var binding = (await f.Executor.PrepareAsync(f.Request(), TestContext.Current.CancellationToken)).Binding!;
-        f.Evidence = false;
-        Assert.Equal("CompatibilityRequired", (await f.Executor.ExecuteAsync(binding, new CompiledAction.Key([new("Ctrl"), new("A")], 0), TestContext.Current.CancellationToken)).Delivery.Error!.Code);
-        Assert.Empty(f.Input.Commands);
+        Assert.True((await f.Executor.ExecuteAsync(binding, new CompiledAction.Key([new("Ctrl"), new("A")], 0), TestContext.Current.CancellationToken)).Delivery.Queued);
+        Assert.True((await f.Executor.ExecuteAsync(binding, new CompiledAction.Click(new(10, 10), CoordinateMode.FixedPixels, 0), TestContext.Current.CancellationToken)).Delivery.Queued);
     }
 
     [Theory]
@@ -221,7 +215,7 @@ public class WindowsPlaybackExecutorTests
     [Fact]
     public async Task SenderAllowsExplicitCompatibilityTestWithoutPriorEvidence()
     {
-        var f = new Fixture { Evidence = false };
+        var f = new Fixture();
         var binding = new PlaybackBinding(f.AppId, f.Window.Token, f.Window.Title, "fingerprint", f.Window.Geometry, TargetState.BackgroundCovered);
         Assert.True((await f.Sender.SendGestureAsync(binding, new CompiledAction.Text("x", 0), TestContext.Current.CancellationToken)).Delivery.Queued);
     }
@@ -232,21 +226,6 @@ public class WindowsPlaybackExecutorTests
         var f = new Fixture();
         var preparation = await f.Executor.PrepareAsync(f.Request() with { Actions = [new UnsupportedAction()] }, TestContext.Current.CancellationToken);
         Assert.Null(preparation.Binding); Assert.Equal("UnsupportedCapability", preparation.Error!.Code); Assert.Empty(f.Input.Commands);
-    }
-
-    [Fact]
-    public async Task FixedAndPercentageClicksUseIndependentEvidenceGeometryRequirements()
-    {
-        var f = new Fixture();
-        var fixedClick = new CompiledAction.Click(new(10, 10), CoordinateMode.FixedPixels, 0);
-        var percentageClick = new CompiledAction.Click(new(50, 50), CoordinateMode.Percentage, 0);
-        var preparation = await f.Executor.PrepareAsync(f.Request() with { Actions = [fixedClick, percentageClick] }, TestContext.Current.CancellationToken);
-        Assert.NotNull(preparation.Binding);
-        Assert.Contains(f.EvidenceQueries, q => q.Capability == InputCapability.Click && q.Fixed);
-        Assert.Contains(f.EvidenceQueries, q => q.Capability == InputCapability.Click && !q.Fixed);
-        f.FixedEvidence = false;
-        Assert.False((await f.Executor.ExecuteAsync(preparation.Binding, fixedClick, TestContext.Current.CancellationToken)).Delivery.Queued);
-        Assert.True((await f.Executor.ExecuteAsync(preparation.Binding, percentageClick, TestContext.Current.CancellationToken)).Delivery.Queued);
     }
 
     [Fact]
@@ -300,11 +279,8 @@ public class WindowsPlaybackExecutorTests
         public TargetWindow Child { get; } = new(new(Guid.NewGuid()), new("Game", "game.exe"), "Game", false, new(800, 600, 1));
         public Dictionary<TargetToken, TargetContext> Contexts { get; } = [];
         public Dictionary<TargetToken, IReadOnlyList<TargetWindow>> Surfaces { get; } = [];
-        public bool Ready = true, Evidence = true, PermissionAllowed = true, FixedEvidence = true;
-        public TargetToken? EvidenceToken;
+        public bool Ready = true, PermissionAllowed = true;
         public PointerPoint ClientPointer = new(20, 30);
-        public HashSet<InputCapability> AllowedCapabilities = [InputCapability.Click, InputCapability.Key, InputCapability.Shortcut, InputCapability.Text, InputCapability.Wheel];
-        public List<(Guid Id, InputCapability Capability, bool Fixed)> EvidenceQueries = [];
         public Catalog Catalog { get; } = new();
         public Player Input { get; } = new();
         public WindowsGestureSender Sender { get; }
@@ -314,8 +290,7 @@ public class WindowsPlaybackExecutorTests
             Contexts[Window.Token] = new(Window, false, "fingerprint"); Surfaces[Window.Token] = [Window];
             Catalog.Resolution = new ResolutionResult.Matched(Window);
             Sender = new(this, this, Input, Input, _ => new(ClientPointer), () => Ready);
-            Executor = new(Catalog, this, (token, _) => Task.FromResult(Surfaces.GetValueOrDefault(token) ?? []), Sender,
-                (id, context, state, capability, fixedCoordinates, _) => { EvidenceQueries.Add((id, capability, fixedCoordinates)); return Task.FromResult(Evidence && (!fixedCoordinates || FixedEvidence) && AllowedCapabilities.Contains(capability) && (EvidenceToken is null || EvidenceToken == context.Window.Token)); });
+            Executor = new(Catalog, this, (token, _) => Task.FromResult(Surfaces.GetValueOrDefault(token) ?? []), Sender);
         }
         public PlaybackRequest Request(bool screen = false, TargetToken? selected = null) => new(Guid.NewGuid(), "Macro", "Profile", screen ? new(null, null, null, null) : new(AppId, new(Window.App, "Game"), TargetState.BackgroundCovered, selected), [new CompiledAction.Text("x", 0)], 1, 0, 0);
         public ValueTask<TargetContextResult> GetAsync(TargetToken token, CancellationToken ct = default) => ValueTask.FromResult(new TargetContextResult(Contexts.GetValueOrDefault(token), Contexts.ContainsKey(token) ? null : new("TargetLost", "gone")));
