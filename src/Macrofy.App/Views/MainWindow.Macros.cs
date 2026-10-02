@@ -35,7 +35,7 @@ public sealed partial class MainWindow
         var state = Choice(["Minimized", "Background"], macro.WindowState, value => { macro.WindowState = value; Save(); }); state.Name = "WindowState"; state.IsVisible = macro.AppId is not null;
         var targetGrid = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 };
         targetGrid.Children.Add(Field("Playback target", target)); Add(targetGrid, Field("Window state", state), 0, 1);
-        var modeNote = Text(macro.AppId is null ? "Visible desktop" : "Background / minimized · Capability confirmation required", "muted", 12);
+        var modeNote = Text(macro.AppId is null ? "Visible desktop" : "Background clicks don't work in every game. Watch the first run.", "muted", 12); modeNote.Name = "MacroModeNote";
         Add(main, new Border { Background = palette.Tint("secondary", .07), BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 1, 0, 1), Padding = new Thickness(20, 12), Child = Stack(targetGrid, modeNote) }, 1);
 
         var sequence = new StackPanel { Spacing = 12 };
@@ -90,7 +90,8 @@ public sealed partial class MainWindow
             }, "tertiary"); apply.Name = "ApplyAction";
             var discard = IconButton("close", "Discard unapplied action edit", () => { drafts.Remove(key); Render(); }); discard.Name = "DiscardDraft";
             refreshPlayback.Add(() => discard.IsEnabled = !Workspace.IsActive(macro) && draft.Changed);
-            inspector.Children.Add(Field("Action", kindPicker)); inspector.Children.Add(Field("Position / value", valueInput)); inspector.Children.Add(help); inspector.Children.Add(Field("Wait after (ms)", delayInput)); inspector.Children.Add(error); inspector.Children.Add(Row(apply, discard));
+            inspector.Children.Add(Field("Action", kindPicker)); inspector.Children.Add(Field("Position / value", valueInput));
+            inspector.Children.Add(CapturePointControl(macro, draft)); inspector.Children.Add(help); inspector.Children.Add(Field("Wait after (ms)", delayInput)); inspector.Children.Add(error); inspector.Children.Add(Row(apply, discard));
             editable.AddRange([kindPicker, valueInput, delayInput, apply]);
         }
         var coordinate = Choice(["Fixed pixels", "Percentage"], macro.Coordinates, value => { macro.Coordinates = value; Save(); Render(); }); coordinate.Name = "CoordinateMode";
