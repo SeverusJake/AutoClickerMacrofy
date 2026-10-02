@@ -28,7 +28,7 @@ The latest portable EXE publish and launch-only smoke succeeded (`final-publish.
 
 ## Target rules and deliberate game observation
 
-**2026-10-02 change:** window playback no longer requires saved compatibility evidence. The Compatibility tab is optional (Settings → Show advanced tools) and records observations only. Later the same day the tab stopped recording observations: it sends one chosen test action and saves nothing, and click points are recorded with the configurable record key (default F7). The paragraphs below describe the earlier evidence workflow for history.
+**2026-10-02 change:** window playback no longer requires saved compatibility evidence. The Compatibility tab is optional (Settings → Show advanced tools) and records observations only. Later the same day the tab stopped recording observations: it sends one chosen test action and saves nothing, and click points are recorded with the configurable record key (default F7). On 2026-10-03 the record key was replaced by one blocked left click captured with a temporary low-level mouse hook; the hook's click filter is unit-tested, and blocking a real click in a game remains a manual check. The paragraphs below describe the earlier evidence workflow for history.
 
 Screen mode is the default without an assigned app. It uses real [SendInput](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput) and may move the desktop pointer; visible content must be intended. Fixed pixels can be negative across monitors. Percentage 0 maps to the first pixel, 100 to the last pixel of the virtual desktop rectangle, and points in monitor gaps fail validation. Screen cannot reach minimized or covered content. A three-second cancellable countdown precedes Screen Run/Test.
 
