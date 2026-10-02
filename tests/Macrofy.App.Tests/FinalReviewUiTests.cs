@@ -58,10 +58,10 @@ public sealed class FinalReviewUiTests
             PlaybackUiTests.Click(window, "TestSelected");
             await PlaybackControllerTests.Until(() => controller.Sessions.GetValueOrDefault(state.Macro.Id)?.State == PlaybackState.Completed);
             Assert.IsType<CompiledAction.Text>(Assert.Single(executor.Actions));
-            PlaybackUiTests.Find<TextBox>(window, "ActionValue").Text = "unapplied";
+            PlaybackUiTests.Find<TextBox>(window, "StepDelay_0").Text = "unapplied";
             Assert.False(PlaybackUiTests.Find<Button>(window, "TestSelected").IsEnabled);
             PlaybackUiTests.Click(window, "TestSelected"); Assert.Single(executor.Requests);
-            PlaybackUiTests.Click(window, "DiscardDraft");
+            InlineEditorUiTests.Press(PlaybackUiTests.Find<TextBox>(window, "StepDelay_0"), Avalonia.Input.Key.Escape);
             PlaybackUiTests.Click(window, "SelectStep_1");
             Assert.Equal(otherKey == "Space", PlaybackUiTests.Find<Button>(window, "TestSelected").IsEnabled);
             PlaybackUiTests.Click(window, "SelectStep_0");
@@ -86,7 +86,7 @@ public sealed class FinalReviewUiTests
         {
             PlaybackUiTests.Click(window, "Tab_Macros");
             AssertWheelHelp(VisibleText(window));
-            PlaybackUiTests.Find<ComboBox>(window, "ActionKind").SelectedItem = "Text";
+            PlaybackUiTests.Find<ComboBox>(window, "StepKind_0").SelectedItem = "Text";
             Assert.DoesNotContain("signed vertical", VisibleText(window), StringComparison.OrdinalIgnoreCase);
             PlaybackUiTests.Click(window, "Tab_Compatibility");
             PlaybackUiTests.Find<ComboBox>(window, "CompatibilityAction").SelectedItem = "Wheel";

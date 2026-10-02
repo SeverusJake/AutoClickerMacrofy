@@ -20,20 +20,20 @@ public sealed class RecordPointUiTests
             var macro = state.Profile.Macros.Single(m => m.Name == "Collect rewards");
             PlaybackUiTests.Click(window, "Edit_" + macro.Id.ToString("N"));
             Assert.Equal("Background clicks don't work in every game. Watch the first run.", PlaybackUiTests.Find<TextBlock>(window, "MacroModeNote").Text);
-            PlaybackUiTests.Click(window, "RecordPoint");
+            PlaybackUiTests.Click(window, "StepRecord_0");
             Assert.Equal(1, clicks.Started);
             Assert.Equal("Click the spot to record it. That click is not sent to the app. Click Cancel recording to stop.", PlaybackUiTests.Find<TextBlock>(window, "RecordStatus").Text);
             clicks.Click();
-            await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<TextBox>(window, "ActionValue").Text == "123, 45");
+            await PlaybackControllerTests.Until(() => macro.Steps[0].Value == "123, 45");
             Assert.Equal(0, clicks.Cancelled); Assert.Equal(catalog.Window.Token, catalog.ReadToken);
-            PlaybackUiTests.Click(window, "ApplyAction"); Assert.Equal("123, 45", macro.Steps[0].Value);
+            Assert.Equal("123", PlaybackUiTests.Find<TextBox>(window, "StepX_0").Text); Assert.Equal("Step 1 recorded at 123, 45.", PlaybackUiTests.Find<TextBlock>(window, "RecordStatus").Text);
             var cookie = macro.AppId; macro.AppId = null;
             PlaybackUiTests.Click(window, "Tab_Profiles"); PlaybackUiTests.Click(window, "Edit_" + macro.Id.ToString("N"));
-            PlaybackUiTests.Click(window, "RecordPoint"); clicks.Click();
-            await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<TextBox>(window, "ActionValue").Text == "-10, 20");
+            PlaybackUiTests.Click(window, "StepRecord_0"); clicks.Click();
+            await PlaybackControllerTests.Until(() => macro.Steps[0].Value == "-10, 20");
             macro.AppId = cookie; catalog.Resolution = new ResolutionResult.Missing();
             PlaybackUiTests.Click(window, "Tab_Profiles"); PlaybackUiTests.Click(window, "Edit_" + macro.Id.ToString("N"));
-            PlaybackUiTests.Click(window, "RecordPoint"); clicks.Click();
+            PlaybackUiTests.Click(window, "StepRecord_0"); clicks.Click();
             await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<TextBlock>(window, "RecordStatus").Text == "No open window matches CookieRun. Open it first.");
         }
         finally { window.Close(); }
@@ -47,14 +47,14 @@ public sealed class RecordPointUiTests
         {
             var macro = state.Profile.Macros.Single(m => m.Name == "Collect rewards");
             PlaybackUiTests.Click(window, "Edit_" + macro.Id.ToString("N"));
-            PlaybackUiTests.Click(window, "RecordPoint");
-            Assert.Equal("Cancel recording", PlaybackUiTests.Find<Button>(window, "RecordPoint").Content);
-            PlaybackUiTests.Click(window, "RecordPoint");
-            Assert.Equal(1, clicks.Cancelled); Assert.Equal("Record point", PlaybackUiTests.Find<Button>(window, "RecordPoint").Content);
-            clicks.Click(); Assert.Equal("600, 420", PlaybackUiTests.Find<TextBox>(window, "ActionValue").Text);
+            PlaybackUiTests.Click(window, "StepRecord_0");
+            Assert.Equal("Cancel recording", PlaybackUiTests.Find<Button>(window, "StepRecord_0").Content);
+            PlaybackUiTests.Click(window, "StepRecord_0");
+            Assert.Equal(1, clicks.Cancelled); Assert.Equal("Record point", PlaybackUiTests.Find<Button>(window, "StepRecord_0").Content);
+            clicks.Click(); Assert.Equal("600, 420", macro.Steps[0].Value);
             macro.Coordinates = "Percentage";
             PlaybackUiTests.Click(window, "Tab_Profiles"); PlaybackUiTests.Click(window, "Edit_" + macro.Id.ToString("N"));
-            Assert.False(PlaybackUiTests.Find<Button>(window, "RecordPoint").IsEnabled);
+            Assert.False(PlaybackUiTests.Find<Button>(window, "StepRecord_0").IsEnabled);
         }
         finally { window.Close(); }
     }

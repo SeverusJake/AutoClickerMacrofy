@@ -42,7 +42,7 @@ public sealed partial class MainWindow
     private bool CanRun(Macro macro, out string reason, bool selectedAction = false)
     {
         if (closing || CompatibilityLocked) { reason = "Wait for the compatibility test to finish."; return false; }
-        if (HasDraft(macro)) { reason = "Apply or discard action edits first."; return false; }
+        if (HasDraft(macro)) { reason = "Fix or undo step edits first (Esc)."; return false; }
         var owner = Workspace.Owner(macro);
         if (owner is null) { reason = "Macro profile is missing."; return false; }
         return playback.CanStart(owner, macro, out reason, selectedAction, selectedAction ? selectedStep : -1);

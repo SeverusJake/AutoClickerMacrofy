@@ -40,8 +40,6 @@ public sealed partial class MainWindow : Window
     private Button runAllButton = new(), pauseAll = new(), stopAll = new();
     private TextBox? shortcutCapture;
     private ComboBox? commonProfile;
-    private Grid? responsiveEditor;
-    private Control? responsiveSequence, responsiveInspector;
     public WorkspaceState Workspace { get; }
 
     public MainWindow() : this(new WorkspaceStore(System.IO.Path.Combine(AppContext.BaseDirectory, "MacrofyData"))) { }
@@ -66,14 +64,13 @@ public sealed partial class MainWindow : Window
         Opened += (_, _) => timer.Start();
         Closing += OnClosing;
         AddHandler(InputElement.KeyDownEvent, HandleShortcutKeyDown, RoutingStrategies.Tunnel);
-        SizeChanged += (_, _) => ReflowEditor();
         Render();
     }
 
     private void Render()
     {
         if (compatibilityProfile != Guid.Empty && compatibilityProfile != Workspace.Profile.Id) ResetCompatibilityContext();
-        refreshPlayback.Clear(); shortcutCapture = null; capturingShortcut = false; responsiveEditor = null; responsiveSequence = responsiveInspector = null;
+        refreshPlayback.Clear(); shortcutCapture = null; capturingShortcut = false;
         palette = new(Workspace.Document.Theme, Workspace.Document.Mode);
         RequestedThemeVariant = palette.Dark ? ThemeVariant.Dark : ThemeVariant.Light;
         Background = palette.Brush("page"); Foreground = palette.Brush("ink");
@@ -145,16 +142,9 @@ public sealed partial class MainWindow : Window
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new Thickness(16, 8) };
         footer.Children.Add(Stack(footerStatus, messageText)); var globalControls = Row(runAllButton, pauseAll, stopAll); Grid.SetColumn(globalControls, 1); footer.Children.Add(globalControls);
         Add(root, new Border { Background = palette.Tint("info", .06), BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 1, 0, 0), Child = footer }, 4);
-        Content = root; RefreshPlayback(); ReflowEditor();
+        Content = root; RefreshPlayback();
     }
 
-    private void ReflowEditor()
-    {
-        if (responsiveEditor is null || responsiveSequence is null || responsiveInspector is null) return;
-        var narrow = Bounds.Width < 1000;
-        responsiveEditor.ColumnDefinitions = new(narrow ? "*" : "*,230"); responsiveEditor.RowDefinitions = new(narrow ? "Auto,Auto" : "Auto");
-        Grid.SetColumn(responsiveInspector, narrow ? 0 : 1); Grid.SetRow(responsiveInspector, narrow ? 1 : 0);
-    }
     private void Save()
     {
         Dispatcher.UIThread.VerifyAccess();
@@ -234,9 +224,9 @@ internal sealed class ActionDraft(MacroStep original)
 {
     public string Kind { get; set; } = original.Kind;
     public string Value { get; set; } = original.Value;
-    public int Delay { get; set; } = original.DelayMs;
+    public string DelayText { get; set; } = original.DelayMs.ToString(CultureInfo.InvariantCulture);
     public string Error { get; set; } = "";
-    public bool Changed => Kind != original.Kind || Value != original.Value || Delay != original.DelayMs;
+    public bool Changed => Kind != original.Kind || Value != original.Value || DelayText != original.DelayMs.ToString(CultureInfo.InvariantCulture);
 }
 
 internal static class PanelChildren

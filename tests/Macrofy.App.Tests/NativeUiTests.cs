@@ -91,7 +91,7 @@ public class NativeUiTests
         try
         {
             Click(window, "Edit_" + draft.Id.ToString("N"));
-            Find<TextBox>(window, "ActionValue").Text = "30, 40";
+            Find<TextBox>(window, "StepX_0").Text = "thirty";
             Click(window, "Tab_Profiles"); Click(window, "RunAllEnabled");
             Assert.Equal("Paused", state.Status(first)); Assert.Same(existing, state.Sessions[first.Id]);
             Assert.Equal("Running", state.Status(second));
@@ -135,15 +135,13 @@ public class NativeUiTests
             Click(window, "Edit_" + macro.Id.ToString("N"));
             Assert.Equal(macro.Id, state.Macro.Id);
             Assert.Contains(Find<ComboBox>(window, "MacroTarget").SelectedItem!.ToString()!, "CookieRun");
-            Find<TextBox>(window, "ActionValue").Text = "invalid point";
-            Click(window, "ApplyAction");
+            Find<TextBox>(window, "StepX_0").Text = "invalid";
             Assert.Equal("600, 420", macro.Steps[0].Value);
-            Assert.Contains("X, Y", Find<TextBlock>(window, "ActionError").Text);
-            Find<TextBox>(window, "ActionValue").Text = "10, 20";
-            Click(window, "ApplyAction");
+            Assert.StartsWith("Step 1:", Find<TextBlock>(window, "ActionError").Text);
+            Find<TextBox>(window, "StepX_0").Text = "10"; Find<TextBox>(window, "StepY_0").Text = "20";
             Assert.Equal("10, 20", macro.Steps[0].Value);
             Click(window, "RunSelected");
-            Assert.False(Find<TextBox>(window, "ActionValue").IsEnabled);
+            Assert.False(Find<TextBox>(window, "StepX_0").IsEnabled);
             Click(window, "Tab_Log");
             Assert.True(Find<Button>(window, "StopAll").IsEnabled);
             Click(window, "StopAll");
@@ -191,7 +189,7 @@ public class NativeUiTests
                 if (capture is not null) { Directory.CreateDirectory(capture); frame.Save(Path.Combine(capture, tab.ToLowerInvariant() + ".png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default); }
             }
             window.Width = 800; Click(window, "Tab_Macros"); AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-            Assert.True(Find<TextBox>(window, "ActionValue").Bounds.Width > 100);
+            Assert.True(Find<TextBox>(window, "StepX_0").Bounds.Width > 40);
         }
         finally { window.Close(); }
     }
@@ -202,15 +200,15 @@ public class NativeUiTests
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault()); var window = HarmlessUi.Create(state); window.Show();
         try
         {
-            Click(window, "Tab_Macros"); Find<TextBox>(window, "ActionValue").Text = "not a point"; Click(window, "ApplyAction");
+            Click(window, "Tab_Macros"); Find<TextBox>(window, "StepX_0").Text = "not";
             Click(window, "Tab_Settings"); Find<ComboBox>(window, "Appearance").SelectedItem = "Dark";
             Click(window, "Tab_Macros");
-            Assert.Equal("not a point", Find<TextBox>(window, "ActionValue").Text);
-            Assert.Contains("X, Y", Find<TextBlock>(window, "ActionError").Text);
+            Assert.Equal("not", Find<TextBox>(window, "StepX_0").Text);
+            Assert.StartsWith("Step 1:", Find<TextBlock>(window, "ActionError").Text);
             Assert.False(Find<Button>(window, "RunSelected").IsEnabled);
             Assert.Equal("480, 640", state.Macro.Steps[0].Value);
-            Click(window, "DiscardDraft");
-            Assert.Equal("480, 640", Find<TextBox>(window, "ActionValue").Text);
+            InlineEditorUiTests.Press(Find<TextBox>(window, "StepX_0"), Avalonia.Input.Key.Escape);
+            Assert.Equal("480", Find<TextBox>(window, "StepX_0").Text);
             Assert.True(Find<Button>(window, "RunSelected").IsEnabled);
         }
         finally { window.Close(); }
@@ -223,8 +221,11 @@ public class NativeUiTests
         var window = HarmlessUi.Create(state); window.Show();
         try
         {
-            Click(window, "Tab_Macros"); Assert.Equal("480, 640", Find<TextBox>(window, "ActionValue").Text);
-            Click(window, "RemoveAction"); Assert.Equal("10, 20", Find<TextBox>(window, "ActionValue").Text);
+            Click(window, "Tab_Macros"); Find<TextBox>(window, "StepX_0").Text = "draft x";
+            Click(window, "StepDelete_0");
+            Assert.Equal("480, 640", state.Macro.Steps[0].Value);
+            InlineEditorUiTests.Press(Find<TextBox>(window, "StepX_0"), Avalonia.Input.Key.Escape);
+            Click(window, "StepDelete_0"); Assert.Equal("10", Find<TextBox>(window, "StepX_0").Text);
             Assert.Single(state.Macro.Steps);
         }
         finally { window.Close(); }

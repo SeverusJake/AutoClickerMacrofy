@@ -143,7 +143,7 @@ public class RealPlaybackUiTests
         await PlaybackControllerTests.Until(() => executor.Requests.Count == 1);
         Assert.False(guard.TryEnterTest(out _));
         PlaybackUiTests.Click(window, "Edit_" + state.Macro.Id.ToString("N"));
-        Assert.False(PlaybackUiTests.Find<TextBox>(window, "ActionValue").IsEnabled);
+        Assert.False(PlaybackUiTests.Find<TextBox>(window, "StepX_0").IsEnabled);
         Assert.False(PlaybackUiTests.Find<Button>(window, "RunSelected").IsEnabled);
         window.Close(); await PlaybackControllerTests.Until(() => !window.IsVisible);
         Assert.Empty(executor.Actions);
@@ -198,11 +198,11 @@ public class RealPlaybackUiTests
         try
         {
             PlaybackUiTests.Click(window, "Tab_Macros");
-            PlaybackUiTests.Find<ComboBox>(window, "CoordinateMode").SelectedItem = "Percentage";
+            PlaybackUiTests.Click(window, "Coord_Percent");
             Assert.Contains("0–100", PlaybackUiTests.Find<TextBlock>(window, "ActionError").Text);
-            PlaybackUiTests.Click(window, "ApplyAction"); Assert.Equal("480, 640", state.Macro.Steps[0].Value);
+            Assert.Equal("480, 640", state.Macro.Steps[0].Value);
             state.Macro.Steps[0] = new("Key", "F10", 0);
-            PlaybackUiTests.Click(window, "DiscardDraft");
+            PlaybackUiTests.Click(window, "Tab_Profiles"); PlaybackUiTests.Click(window, "Tab_Macros");
             Assert.Contains("reserved", PlaybackUiTests.Find<TextBlock>(window, "ActionError").Text);
             Assert.False(PlaybackUiTests.Find<Button>(window, "RunSelected").IsEnabled);
         }
