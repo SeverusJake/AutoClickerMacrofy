@@ -115,7 +115,7 @@ public sealed class FinalReviewUiTests
     [AvaloniaFact]
     public void ActionSpecificHelpFollowsEditorAndCompatibilitySelection()
     {
-        var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
+        var state = new WorkspaceState(WorkspaceDocument.CreateDefault()); state.Document.ShowAdvancedTools = true;
         state.Macro.Steps = [new("Wheel", "120", 0), new("Text", "harmless", 0)];
         var catalog = new ContextCatalog(); var keys = new HarmlessHotkeys();
         var controller = new UiPlayback(state.Document);

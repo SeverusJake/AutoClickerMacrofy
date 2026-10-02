@@ -119,8 +119,17 @@ public sealed partial class MainWindow
         var pause = ShortcutInput("Pause", Workspace.Document.Shortcuts.Pause);
         var stop = ShortcutInput("Stop", Workspace.Document.Shortcuts.Stop);
         Add(shortcuts, Field("Run all enabled macros", run), 0); Add(shortcuts, Field("Pause / resume all", pause), 1); Add(shortcuts, Field("Stop all", stop), 2);
+        var advanced = new CheckBox { Name = "ShowAdvancedTools", Content = "Show advanced tools (Compatibility tab)", IsChecked = Workspace.Document.ShowAdvancedTools, IsEnabled = !CompatibilityLocked };
+        advanced.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != Avalonia.Controls.Primitives.ToggleButton.IsCheckedProperty || CompatibilityLocked || (advanced.IsChecked == true) == Workspace.Document.ShowAdvancedTools) return;
+            Workspace.Document.ShowAdvancedTools = advanced.IsChecked == true;
+            if (!Workspace.Document.ShowAdvancedTools) ResetCompatibilityContext();
+            Save(); Render();
+        };
         var body = Stack(Text("Settings", size: 16), Field("Color theme", theme), chips, Field("Appearance", mode), Text("Shortcuts", size: 15), shortcuts,
-            Text("Global controls · F12 is reserved by Windows", "muted", 12), Text("Run, Pause and Stop work while another app is focused.", "muted", 12));
+            Text("Global controls · F12 is reserved by Windows", "muted", 12), Text("Run, Pause and Stop work while another app is focused.", "muted", 12),
+            Text("Advanced", size: 15), advanced, Text("Compatibility sends one test action and records what you saw. Run does not need it.", "muted", 12));
         return Panel(Scroll(body));
     }
     private Control LogPane()
@@ -135,7 +144,7 @@ public sealed partial class MainWindow
     {
         var folder = store?.Folder ?? "Not saved in this session";
         var body = Stack(Text("Macrofy", size: 18), Text("Windows macro workspace", "muted"), Text("Version " + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0"), "muted", 12),
-            Wrap("Screen playback moves the desktop pointer. Window playback requires confirmed capability tests. Recording is not available.", "muted", 13), Text("Data folder", size: 15), Wrap(folder, "muted", 12),
+            Wrap("Screen playback moves the desktop pointer. Window playback sends input in the background; some games ignore it. Recording is not available.", "muted", 13), Text("Data folder", size: 15), Wrap(folder, "muted", 12),
             Text("Avalonia · MIT license", "muted", 12), Text(".NET · MIT license", "muted", 12));
         if (store is not null) body.Children.Add(TextButton("Open data folder", () =>
         {

@@ -23,6 +23,7 @@ namespace Macrofy.App.Views;
 public sealed partial class MainWindow : Window
 {
     private static readonly string[] Tabs = ["Profiles", "Apps", "Macros", "Compatibility", "Settings", "Log", "About"];
+    private string[] VisibleTabs => Workspace.Document.ShowAdvancedTools ? Tabs : Tabs.Where(t => t != "Compatibility").ToArray();
     private static readonly Lazy<WindowIcon> AppIcon = new(() => new WindowIcon(AssetLoader.Open(new Uri("avares://Macrofy/Assets/macrofy.ico"))));
     private readonly WorkspaceStore? store;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(600) };
@@ -92,23 +93,25 @@ public sealed partial class MainWindow : Window
         Grid.SetColumn(topRight, 1); brand.Children.Add(topRight);
         Add(root, new Border { Background = palette.Brush("title"), Child = brand }, 0);
 
+        var visibleTabs = VisibleTabs;
+        if (!visibleTabs.Contains(selectedTab)) selectedTab = "Settings";
         var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, Margin = new Thickness(6, 4, 6, 0) };
         var roles = new[] { "accent", "info", "tertiary", "secondary", "warning", "success", "danger" };
-        for (var i = 0; i < Tabs.Length; i++)
+        foreach (var tab in visibleTabs)
         {
-            var tab = Tabs[i];
-            var button = IconButton(tab, tab, () => { selectedTab = tab; Render(); }, roles[i]);
+            var role = roles[Array.IndexOf(Tabs, tab)];
+            var button = IconButton(tab, tab, () => { selectedTab = tab; Render(); }, role);
             button.Name = "Tab_" + tab; button.Width = 44; button.Height = 36;
             button.CornerRadius = new CornerRadius(2, 2, 0, 0);
-            button.Background = palette.Tint(roles[i], selectedTab == tab ? .23 : .10);
+            button.Background = palette.Tint(role, selectedTab == tab ? .23 : .10);
             button.BorderThickness = new Thickness(1, 2, 1, selectedTab == tab ? 0 : 1);
             AutomationProperties.SetHelpText(button, selectedTab == tab ? "Selected tab" : "Open " + tab);
             button.KeyDown += (_, e) =>
             {
-                var index = Array.IndexOf(Tabs, tab);
-                var next = e.Key == Key.Right ? (index + 1) % Tabs.Length : e.Key == Key.Left ? (index + Tabs.Length - 1) % Tabs.Length : e.Key == Key.Home ? 0 : e.Key == Key.End ? Tabs.Length - 1 : -1;
+                var index = Array.IndexOf(visibleTabs, tab);
+                var next = e.Key == Key.Right ? (index + 1) % visibleTabs.Length : e.Key == Key.Left ? (index + visibleTabs.Length - 1) % visibleTabs.Length : e.Key == Key.Home ? 0 : e.Key == Key.End ? visibleTabs.Length - 1 : -1;
                 if (next < 0 || e.KeyModifiers != KeyModifiers.None) return;
-                selectedTab = Tabs[next]; Render(); UpdateLayout(); this.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Name == "Tab_" + selectedTab)?.Focus(); e.Handled = true;
+                selectedTab = visibleTabs[next]; Render(); UpdateLayout(); this.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Name == "Tab_" + selectedTab)?.Focus(); e.Handled = true;
             };
             tabs.Children.Add(button);
         }

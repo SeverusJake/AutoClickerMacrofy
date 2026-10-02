@@ -10,6 +10,7 @@ public sealed class WorkspaceDocument
     public Guid ActiveProfileId { get; set; }
     public List<Profile> Profiles { get; set; } = [];
     public List<CompatibilityEvidence> CompatibilityEvidence { get; set; } = [];
+    public bool ShowAdvancedTools { get; set; }
 
     public static WorkspaceDocument CreateDefault()
     {

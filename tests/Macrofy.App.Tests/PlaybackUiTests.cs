@@ -216,7 +216,7 @@ public class CompatibilityUiTests
     public async Task ExplicitTargetSurfaceStateAndActionAreRequiredAndObservationIsNeverAutomatic()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
-        state.Profile.Apps[0].Executable = @"C:\test.exe"; state.Profile.Apps[0].TitleRule = "Test *";
+        state.Profile.Apps[0].Executable = @"C:\test.exe"; state.Profile.Apps[0].TitleRule = "Test *"; state.Document.ShowAdvancedTools = true;
         using var catalog = new Macrofy.Platform.Windows.WindowsWindowCatalog(new UiWindows());
         var guard = new InputActivityGuard(); var keys = new HarmlessHotkeys(); var sends = 0;
         var service = new CompatibilityService(state.Document, catalog, () => guard.TryEnterTest(out var lease) ? lease : null,
@@ -229,6 +229,8 @@ public class CompatibilityUiTests
         try
         {
             PlaybackUiTests.Click(window, "Tab_Compatibility");
+            window.UpdateLayout();
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("Run does not need them") == true);
             Assert.False(PlaybackUiTests.Find<Button>(window, "TestCompatibilityAction").IsEnabled);
             PlaybackUiTests.Find<ComboBox>(window, "CompatibilityApp").SelectedIndex = 0;
             PlaybackUiTests.Find<ComboBox>(window, "CompatibilityWindow").SelectedIndex = 0;
@@ -429,7 +431,7 @@ public class CompatibilityLifetimeUiTests
         private readonly Macrofy.Platform.Windows.WindowsWindowCatalog catalog = new(new UiWindows());
         public CompatibilityFixture(Func<PlaybackBinding, CompiledAction, CancellationToken, ValueTask<GestureResult>>? send = null, CompatibilityPersistence? persist = null)
         {
-            State.Profile.Apps[0].Executable = @"C:\test.exe"; State.Profile.Apps[0].TitleRule = "Test *";
+            State.Profile.Apps[0].Executable = @"C:\test.exe"; State.Profile.Apps[0].TitleRule = "Test *"; State.Document.ShowAdvancedTools = true;
             var keys = new HarmlessHotkeys();
             var service = new CompatibilityService(State.Document, catalog, () => Guard.TryEnterTest(out var lease) ? lease : null,
                 send ?? ((_, _, _) => ValueTask.FromResult(new GestureResult(new(true)))),

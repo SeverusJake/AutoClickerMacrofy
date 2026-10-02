@@ -116,7 +116,7 @@ public class NativeUiTests
         {
             window.Show();
             var controls = window.GetVisualDescendants().ToArray();
-            Assert.Equal(7, controls.OfType<Button>().Count(b => b.Name?.StartsWith("Tab_") == true));
+            Assert.Equal(6, controls.OfType<Button>().Count(b => b.Name?.StartsWith("Tab_") == true));
             Assert.Contains(controls.OfType<TextBlock>(), t => t.Text == "Auto click");
             Assert.Contains(controls.OfType<TextBlock>(), t => t.Text == "Collect rewards");
             Assert.Contains(controls.OfType<TextBlock>(), t => t.Text == "Steps");

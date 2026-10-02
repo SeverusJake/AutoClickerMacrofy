@@ -172,7 +172,7 @@ public sealed partial class MainWindow
         yes.Click += (_, _) => { if (yes.IsEnabled) ConfirmObservation(true); };
         no.Click += (_, _) => { if (no.IsEnabled) ConfirmObservation(false); };
         compatibilityPane = Panel(Scroll(Stack(Text("Window compatibility", size: 16),
-            Wrap("Choose a harmless action. Macrofy does not activate or minimize the target. Arrange the window yourself. Background macros use BackgroundVisible evidence; Minimized macros use Minimized evidence. Other coverage states are recorded separately.", "muted", 13),
+            Wrap("Optional tool. Send one harmless action and note whether the app reacted. Results are notes; Run does not need them. Macrofy does not activate or minimize the target; arrange the window yourself.", "muted", 13),
             Field("Saved app", app), Field("Live window", window), Field("Input surface", surface), Field("Observed window state", state),
             Row(Field("Action capability", action), Field("Client position / value", value)), actionHelp, Row(capture, test), Row(yes, no, discard), status,
             Wrap("Screen actions are tested from the macro editor, with a 3 second countdown. Screen tests never establish window compatibility.", "muted", 12))));
