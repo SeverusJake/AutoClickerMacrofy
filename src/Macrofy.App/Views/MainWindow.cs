@@ -58,7 +58,9 @@ public sealed partial class MainWindow : Window
         if (hotkeys is ISystemEvents systemEvents) systemEvents.Suspended += Suspend;
         ConfigureHotkeys(Workspace.Document.Shortcuts);
         palette = new(workspace.Document.Theme, workspace.Document.Mode);
-        Title = "Macrofy"; Icon = AppIcon.Value; Width = 1100; Height = 760; MinWidth = 780; MinHeight = 580;
+        Title = "Macrofy"; Icon = AppIcon.Value; Width = 1360; Height = 920; MinWidth = 780; MinHeight = 580;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        Opened += (_, _) => FitToScreen();
         FontFamily = new FontFamily("Tahoma"); FontSize = 14;
         timer.Tick += (_, _) => RefreshPlayback();
         Opened += (_, _) => timer.Start();
@@ -145,6 +147,16 @@ public sealed partial class MainWindow : Window
         Content = root; RefreshPlayback();
     }
 
+    /// <summary>Keeps the larger default size inside the screen's work area on small or scaled displays.</summary>
+    private void FitToScreen()
+    {
+        if ((Screens.ScreenFromWindow(this) ?? Screens.Primary) is not { } screen) return;
+        var area = screen.WorkingArea; var scale = screen.Scaling;
+        double maxWidth = area.Width / scale - 40, maxHeight = area.Height / scale - 40;
+        if (Width <= maxWidth && Height <= maxHeight) return;
+        Width = Math.Max(MinWidth, Math.Min(Width, maxWidth)); Height = Math.Max(MinHeight, Math.Min(Height, maxHeight));
+        Position = new PixelPoint(area.X + (int)((area.Width - Width * scale) / 2), area.Y + (int)((area.Height - Height * scale) / 2));
+    }
     private void Save()
     {
         Dispatcher.UIThread.VerifyAccess();

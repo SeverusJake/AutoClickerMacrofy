@@ -177,6 +177,20 @@ public sealed class InlineEditorUiTests
         finally { window.Close(); }
     }
 
+    [AvaloniaFact]
+    public void WindowOpensLargerAndIntervalHasNoSpinner()
+    {
+        var window = HarmlessUi.Create(new WorkspaceState(WorkspaceDocument.CreateDefault()));
+        Assert.Equal((1360d, 920d), (window.Width, window.Height));
+        window.Show();
+        try
+        {
+            PlaybackUiTests.Click(window, "Tab_Macros");
+            Assert.False(PlaybackUiTests.Find<NumericUpDown>(window, "MacroInterval").ShowButtonSpinner);
+        }
+        finally { window.Close(); }
+    }
+
     private static (WorkspaceState State, MainWindow Window) Open()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());

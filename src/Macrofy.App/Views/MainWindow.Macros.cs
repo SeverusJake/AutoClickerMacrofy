@@ -69,7 +69,7 @@ public sealed partial class MainWindow
             if (!valid) return;
             macro.Repeat = repeat; Save();
         };
-        var interval = new NumericUpDown { Name = "MacroInterval", Value = macro.IntervalMs / 1000m, Minimum = 0, Maximum = 600, Increment = 0.5m, FormatString = "0.##", Width = 96, MinHeight = 30 };
+        var interval = new NumericUpDown { Name = "MacroInterval", Value = macro.IntervalMs / 1000m, Minimum = 0, Maximum = 600, Increment = 0.5m, FormatString = "0.##", Width = 72, MinHeight = 30, ShowButtonSpinner = false };
         ToolTip.SetTip(interval, "Seconds between runs");
         interval.ValueChanged += (_, _) => { macro.IntervalMs = (int)Math.Round((interval.Value ?? 0) * 1000); Save(); };
         Button CoordinateButton(string name, string label, string mode)
