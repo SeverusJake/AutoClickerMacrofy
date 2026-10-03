@@ -64,11 +64,10 @@ public sealed partial class MainWindow
         times.PropertyChanged += (_, e) =>
         {
             if (e.Property != TextBox.TextProperty || loop.IsChecked != true) return;
-            var text = times.Text?.Trim() ?? "";
-            var valid = text.Length == 0 || int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var count) && count is >= 2 and <= 1_000_000;
+            var valid = TryParseTimes(times.Text, out var repeat);
             times.BorderBrush = palette.Brush(valid ? "line" : "danger");
             if (!valid) return;
-            macro.Repeat = text.Length == 0 ? 0 : int.Parse(text, CultureInfo.InvariantCulture); Save();
+            macro.Repeat = repeat; Save();
         };
         var interval = new NumericUpDown { Name = "MacroInterval", Value = macro.IntervalMs / 1000m, Minimum = 0, Maximum = 600, Increment = 0.5m, FormatString = "0.##", Width = 96, MinHeight = 30 };
         ToolTip.SetTip(interval, "Seconds between runs");
@@ -280,6 +279,14 @@ public sealed partial class MainWindow
         var grid = new Grid { ColumnDefinitions = new("26,40,174,*,96,80"), ColumnSpacing = 8, Margin = new Thickness(8, 6) };
         for (var i = 0; i < cells.Length; i++) { cells[i].VerticalAlignment = VerticalAlignment.Center; Add(grid, cells[i], 0, i); }
         return new Border { BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 0, 0, 1), Background = Avalonia.Media.Brushes.Transparent, Child = grid };
+    }
+
+    /// <summary>Times box text: empty = until stopped (0); 2–1,000,000 = that many runs.</summary>
+    private static bool TryParseTimes(string? text, out int repeat)
+    {
+        var value = text?.Trim() ?? "";
+        if (value.Length == 0) { repeat = 0; return true; }
+        return int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out repeat) && repeat is >= 2 and <= 1_000_000;
     }
 
     private bool CanReorder(Macro macro) => !Workspace.IsActive(macro) && !CompatibilityLocked && !HasDraft(macro);
