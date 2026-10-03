@@ -308,10 +308,12 @@ public sealed partial class MainWindow
         return int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out repeat) && repeat is >= 2 and <= 1_000_000;
     }
 
-    /// <summary>Places a row's record button at the right edge of the value cell, directly before Wait after.</summary>
-    private static Control RecordAtRight(Control content, Control record)
+    /// <summary>Places a row's record button at the right edge of the value cell, directly before Wait after.
+    /// Every record button shares one width that fits its longest label ("Cancel recording").</summary>
+    private static Control RecordAtRight(Control content, Button record)
     {
         var dock = new DockPanel { LastChildFill = true };
+        record.Width = 136; record.HorizontalContentAlignment = HorizontalAlignment.Center;
         DockPanel.SetDock(record, Dock.Right); record.Margin = new Thickness(8, 0, 0, 0);
         dock.Children.Add(record); dock.Children.Add(content);
         return dock;

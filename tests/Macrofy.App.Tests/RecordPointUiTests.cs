@@ -100,6 +100,23 @@ public sealed class RecordPointUiTests
         finally { window.Close(); }
     }
 
+    [AvaloniaFact]
+    public void AllRecordButtonsHaveTheSameWidth()
+    {
+        var (state, window, _, _) = Open();
+        try
+        {
+            var macro = state.Profile.Macros.Single(m => m.Name == "Collect rewards");
+            macro.Steps = [new("Click", "1, 2", 0), new("Key", "Space", 0), new("Combo key", "Ctrl + C", 0)];
+            PlaybackUiTests.Click(window, "Edit_" + macro.Id.ToString("N"));
+            var widths = new[] { "StepRecord_0", "StepRecordKey_1", "StepRecordCombo_2" }.Select(name => PlaybackUiTests.Find<Button>(window, name).Bounds.Width).ToArray();
+            Assert.All(widths, width => Assert.Equal(widths[0], width));
+            PlaybackUiTests.Click(window, "StepRecord_0");
+            Assert.Equal(widths[0], PlaybackUiTests.Find<Button>(window, "StepRecord_0").Bounds.Width);
+        }
+        finally { window.Close(); }
+    }
+
     private static (WorkspaceState State, MainWindow Window, CaptureCatalog Catalog, FakeClicks Clicks) Open()
     {
         var state = new WorkspaceState(WorkspaceDocument.CreateDefault());
