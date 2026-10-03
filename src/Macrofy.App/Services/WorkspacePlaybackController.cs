@@ -97,7 +97,7 @@ public sealed class WorkspacePlaybackController : IWorkspacePlaybackController
         var reserved = new HashSet<string>([document.Shortcuts.Run, document.Shortcuts.Pause, document.Shortcuts.Stop], StringComparer.OrdinalIgnoreCase);
         foreach (var step in selectedAction ? new[] { macro.Steps[selectedIndex] } : macro.Steps.ToArray())
         {
-            if (!ActionCompiler.TryCompile(new(step.Kind, step.Value, step.DelayMs), macro.Coordinates == "Percentage" ? CoordinateMode.Percentage : CoordinateMode.FixedPixels, reserved, out var action, out reason)) return false;
+            if (!ActionCompiler.TryCompile(new(step.Kind, step.Value, step.DelayMs, step.Button, step.HoldMs), macro.Coordinates == "Percentage" ? CoordinateMode.Percentage : CoordinateMode.FixedPixels, reserved, out var action, out reason)) return false;
             actions.Add(action!);
         }
         PlaybackTarget target;

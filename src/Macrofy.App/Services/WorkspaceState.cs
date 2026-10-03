@@ -32,7 +32,7 @@ public sealed class WorkspaceState(WorkspaceDocument document)
         macro.Steps[index] = draft; return true;
     }
     public bool ValidateStep(Macro macro, MacroStep step, out string error) =>
-        ActionCompiler.TryCompile(new(step.Kind, step.Value, step.DelayMs), macro.Coordinates == "Percentage" ? CoordinateMode.Percentage : CoordinateMode.FixedPixels,
+        ActionCompiler.TryCompile(new(step.Kind, step.Value, step.DelayMs, step.Button, step.HoldMs), macro.Coordinates == "Percentage" ? CoordinateMode.Percentage : CoordinateMode.FixedPixels,
             new HashSet<string>([Document.Shortcuts.Run, Document.Shortcuts.Pause, Document.Shortcuts.Stop], StringComparer.OrdinalIgnoreCase), out _, out error);
-    public static bool ValidateStep(MacroStep step, out string error) => ActionCompiler.TryValidateEditor(new(step.Kind, step.Value, step.DelayMs), out error);
+    public static bool ValidateStep(MacroStep step, out string error) => ActionCompiler.TryValidateEditor(new(step.Kind, step.Value, step.DelayMs, step.Button, step.HoldMs), out error);
 }

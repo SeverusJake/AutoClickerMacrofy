@@ -9,7 +9,8 @@ namespace Macrofy.App.Views;
 
 public sealed partial class MainWindow
 {
-    private static readonly string[] ActionKinds = ["Click", "Key", "Text", "Wait", "Wheel"];
+    private static readonly string[] ActionKinds = ["Click", "Key", "Text", "Wait", "Wheel", "Mouse down", "Mouse up", "Key down", "Key up"];
+    private static readonly string[] MouseButtons = ["Left", "Right", "Middle"];
     private int? dragFrom;
 
     private Control MacrosPane()
@@ -93,6 +94,7 @@ public sealed partial class MainWindow
         var rows = new List<Border>();
         var errors = Wrap("", "danger", 12); errors.Name = "ActionError";
         var help = Wrap("", "muted", 12); help.Name = "ActionHelp";
+        var warning = Wrap("", "warning", 12); warning.Name = "ActionWarning";
         var recordStatus = Wrap(recordMessage, "muted", 12); recordStatus.Name = "RecordStatus";
         var recordApp = macro.AppId is { } recordAppId ? Workspace.Profile.Apps.SingleOrDefault(a => a.Id == recordAppId) : null;
         table.Children.Add(StepRow(Text("", size: 12), Text("#", "muted", 12), Text("Action", "muted", 12), Text("Position / value", "muted", 12), Text("Wait after (ms)", "muted", 12), Text("", size: 12)));
@@ -106,6 +108,7 @@ public sealed partial class MainWindow
                 else if (!Workspace.ValidateStep(macro, macro.Steps[i], out var problem)) lines.Add($"Step {i + 1}: {problem}");
             }
             errors.Text = string.Join(Environment.NewLine, lines.Take(3));
+            warning.Text = string.Join(Environment.NewLine, HeldUntilEnd(macro.Steps).Take(3));
         }
         void Select(int index)
         {
@@ -124,8 +127,10 @@ public sealed partial class MainWindow
         {
             var draft = Draft(index);
             string problem;
+            var holdText = draft.HoldText.Trim();
             if (!int.TryParse(draft.DelayText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var delay)) problem = "Wait after must be whole milliseconds.";
-            else if (Workspace.ApplyStep(macro, index, new(draft.Kind, draft.Value, delay), out problem)) { drafts.Remove((macro.Id, index)); Save(); problem = ""; }
+            else if (!int.TryParse(holdText.Length == 0 ? "0" : holdText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var hold)) problem = "Hold must be whole milliseconds.";
+            else if (Workspace.ApplyStep(macro, index, new(draft.Kind, draft.Value, delay, draft.Button, hold), out problem)) { drafts.Remove((macro.Id, index)); Save(); problem = ""; }
             draft.Error = problem;
             UpdateErrors(); RefreshPlayback();
         }
@@ -157,7 +162,7 @@ public sealed partial class MainWindow
                 if (to >= 0 && to != index) MoveStep(index, to);
             };
             var number = TextButton((i + 1).ToString(CultureInfo.InvariantCulture), () => Select(index)); number.Name = "SelectStep_" + i; number.Padding = new Thickness(6, 2);
-            var kind = new ComboBox { Name = "StepKind_" + i, ItemsSource = ActionKinds, SelectedItem = shown.Kind, MinHeight = 30, Width = 104,
+            var kind = new ComboBox { Name = "StepKind_" + i, ItemsSource = ActionKinds, SelectedItem = shown.Kind, MinHeight = 30, Width = 128,
                 Background = palette.Tint(role, .14), BorderBrush = palette.Brush(role), Foreground = palette.Brush(role) };
             kind.GotFocus += (_, _) => { if (selectedStep != index) Select(index); };
             kind.SelectionChanged += (_, _) =>
@@ -170,7 +175,15 @@ public sealed partial class MainWindow
             };
             var kindCell = ActionKinds.Contains(shown.Kind) ? Row(UiIcons.Create(shown.Kind, palette.Brush(role)), kind) : (Control)kind;
             Control value;
-            if (shown.Kind == "Click")
+            Control HoldBox()
+            {
+                var hold = new TextBox { Name = "StepHold_" + index, Text = shown.HoldText, Width = 64, MinHeight = 30 };
+                ToolTip.SetTip(hold, "Keep it pressed this long; 0 = normal press");
+                Edited(hold, index, (draft, text) => draft.HoldText = text);
+                editable.Add(hold);
+                return Row(Text("Hold", "muted", 12), hold, Text("ms", "muted", 12));
+            }
+            if (shown.Kind is "Click" or "Mouse down" or "Mouse up")
             {
                 var parts = shown.Value.Split(',', 2);
                 var x = new TextBox { Name = "StepX_" + i, Text = parts[0].Trim(), Width = 72, MinHeight = 30 };
@@ -189,14 +202,21 @@ public sealed partial class MainWindow
                     text => { recordMessage = text; recordStatus.Text = text; });
                 record.IsVisible = compatibility is not null;
                 ToolTip.SetTip(record, macro.Coordinates == "Percentage" ? "Recording gives pixels. Switch to Pixels." : "Then left-click the spot; that click is not sent to the app.");
-                value = Row(Text("X", "muted", 12), x, Text("Y", "muted", 12), y, record);
-                editable.AddRange([x, y]);
+                var button = new ComboBox { Name = "StepButton_" + i, ItemsSource = MouseButtons, SelectedItem = shown.Button, Width = 92, MinHeight = 30 };
+                ToolTip.SetTip(button, "Mouse button");
+                button.GotFocus += (_, _) => { if (selectedStep != index) Select(index); };
+                button.SelectionChanged += (_, _) => { if (button.SelectedItem is string chosen && chosen != Draft(index).Button) { Draft(index).Button = chosen; Commit(index); } };
+                var cells = new List<Control> { Text("X", "muted", 12), x, Text("Y", "muted", 12), y, button };
+                if (shown.Kind == "Click") cells.Add(HoldBox());
+                cells.Add(record);
+                value = Row([.. cells]);
+                editable.AddRange([x, y, button]);
             }
             else
             {
                 var box = new TextBox { Name = "StepValue_" + i, Text = shown.Value, MinHeight = 30, Width = shown.Kind is "Wait" or "Wheel" ? 96 : 200 };
                 Edited(box, index, (draft, text) => draft.Value = text);
-                value = shown.Kind == "Wait" ? Row(box, Text("ms", "muted", 12)) : box;
+                value = shown.Kind == "Wait" ? Row(box, Text("ms", "muted", 12)) : shown.Kind == "Key" ? Row(box, HoldBox()) : box;
                 editable.Add(box);
             }
             var delay = new TextBox { Name = "StepDelay_" + i, Text = shown.DelayText, Width = 80, MinHeight = 30 };
@@ -221,7 +241,7 @@ public sealed partial class MainWindow
         foreach (var kind in ActionKinds)
         {
             var role = KindRole(kind);
-            var add = new Button { Name = "Add_" + kind, Padding = new Thickness(10, 6), CornerRadius = new CornerRadius(3), BorderThickness = new Thickness(1),
+            var add = new Button { Name = "Add_" + kind.Replace(" down", "Down").Replace(" up", "Up"), Padding = new Thickness(10, 6), CornerRadius = new CornerRadius(3), BorderThickness = new Thickness(1),
                 Background = palette.Tint(role, .14), BorderBrush = palette.Brush(role), Content = Row(UiIcons.Create(kind, palette.Brush(role)), Text("+ " + kind, role, 13)) };
             Avalonia.Automation.AutomationProperties.SetName(add, "Add " + kind + " step");
             add.Click += (_, _) =>
@@ -231,8 +251,10 @@ public sealed partial class MainWindow
             };
             structural.Add(add); addBar.Children.Add(add);
         }
-        var body = new StackPanel { Spacing = 8, Children = { new Border { BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(1), Background = palette.Brush("surface"), Child = table }, addBar, recordStatus, help, errors } };
-        Add(main, Scroll(new Border { Background = palette.Tint("info", .04), Padding = new Thickness(20, 14), Child = body }), 3);
+        var body = new StackPanel { Spacing = 8, Children = { new Border { BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(1), Background = palette.Brush("surface"), Child = table }, addBar, recordStatus, help, warning, errors } };
+        // Width stays bounded so the add buttons wrap instead of scrolling sideways.
+        Add(main, new ScrollViewer { HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = new Border { Background = palette.Tint("info", .04), Padding = new Thickness(20, 14), Child = body } }, 3);
         Select(selectedStep); UpdateErrors();
 
         refreshPlayback.Add(() =>
@@ -255,7 +277,7 @@ public sealed partial class MainWindow
 
     private Border StepRow(params Control[] cells)
     {
-        var grid = new Grid { ColumnDefinitions = new("26,40,150,*,96,80"), ColumnSpacing = 8, Margin = new Thickness(8, 6) };
+        var grid = new Grid { ColumnDefinitions = new("26,40,174,*,96,80"), ColumnSpacing = 8, Margin = new Thickness(8, 6) };
         for (var i = 0; i < cells.Length; i++) { cells[i].VerticalAlignment = VerticalAlignment.Center; Add(grid, cells[i], 0, i); }
         return new Border { BorderBrush = palette.Brush("line"), BorderThickness = new Thickness(0, 0, 0, 1), Background = Avalonia.Media.Brushes.Transparent, Child = grid };
     }
@@ -270,8 +292,32 @@ public sealed partial class MainWindow
         ClearDrafts(macro); selectedStep = to; Save(); Render();
     }
 
-    private static string KindRole(string kind) => kind switch { "Click" => "secondary", "Key" => "tertiary", "Text" => "success", "Wait" => "warning", "Wheel" => "info", _ => "muted" };
-    private static string DefaultValue(string kind) => kind switch { "Click" => "480, 640", "Key" => "Space", "Text" => "Hello", "Wheel" => "120", _ => "1000" };
+    private static string KindRole(string kind) => kind switch
+    {
+        "Click" or "Mouse down" or "Mouse up" => "secondary", "Key" or "Key down" or "Key up" => "tertiary",
+        "Text" => "success", "Wait" => "warning", "Wheel" => "info", _ => "muted"
+    };
+    private static string DefaultValue(string kind) => kind switch
+    {
+        "Click" or "Mouse down" or "Mouse up" => "480, 640", "Key" => "Space", "Key down" or "Key up" => "W", "Text" => "Hello", "Wheel" => "120", _ => "1000"
+    };
+
+    /// <summary>Downs with no later matching up: still valid, but held until the macro ends.</summary>
+    private static IEnumerable<string> HeldUntilEnd(IReadOnlyList<MacroStep> steps)
+    {
+        static string[] Keys(string value) => Macrofy.Core.Actions.KeyParser.TryParse(value, out var keys, out _) ? keys.Select(k => k.LogicalKey).ToArray() : [];
+        for (var i = 0; i < steps.Count; i++)
+        {
+            var later = steps.Skip(i + 1);
+            if (steps[i].Kind == "Mouse down" && !later.Any(s => s.Kind == "Mouse up" && s.Button == steps[i].Button))
+                yield return $"Step {i + 1} holds the {steps[i].Button} button until the macro ends.";
+            else if (steps[i].Kind == "Key down")
+            {
+                var released = later.Where(s => s.Kind == "Key up").SelectMany(s => Keys(s.Value)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (Keys(steps[i].Value).Any(k => !released.Contains(k))) yield return $"Step {i + 1} holds {steps[i].Value} until the macro ends.";
+            }
+        }
+    }
     private sealed record TargetChoice(Guid? Id, string Name) { public override string ToString() => Name; }
     private static string ActionHelp(string? kind) => kind switch
     {

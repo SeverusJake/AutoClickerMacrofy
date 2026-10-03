@@ -69,4 +69,5 @@ public sealed class Macro
     public override string ToString() => Name;
 }
 
-public sealed record MacroStep(string Kind, string Value, int DelayMs);
+/// <summary>Button applies to Click and Mouse down/up; HoldMs to Click and Key.</summary>
+public sealed record MacroStep(string Kind, string Value, int DelayMs, string Button = "Left", int HoldMs = 0);

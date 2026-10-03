@@ -225,8 +225,11 @@ internal sealed class ActionDraft(MacroStep original)
     public string Kind { get; set; } = original.Kind;
     public string Value { get; set; } = original.Value;
     public string DelayText { get; set; } = original.DelayMs.ToString(CultureInfo.InvariantCulture);
+    public string Button { get; set; } = original.Button;
+    public string HoldText { get; set; } = original.HoldMs.ToString(CultureInfo.InvariantCulture);
     public string Error { get; set; } = "";
-    public bool Changed => Kind != original.Kind || Value != original.Value || DelayText != original.DelayMs.ToString(CultureInfo.InvariantCulture);
+    public bool Changed => Kind != original.Kind || Value != original.Value || DelayText != original.DelayMs.ToString(CultureInfo.InvariantCulture) ||
+        Button != original.Button || HoldText != original.HoldMs.ToString(CultureInfo.InvariantCulture);
 }
 
 internal static class PanelChildren

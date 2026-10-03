@@ -4,6 +4,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using Macrofy.App.Models;
 using Macrofy.App.Services;
 using Macrofy.App.Views;
@@ -123,6 +124,55 @@ public sealed class InlineEditorUiTests
             window.MouseUp(to, MouseButton.Left);
             Assert.Equal(new[] { "Wait", "Key", "Click" }, macro.Steps.Select(s => s.Kind));
             Assert.Equal("1000", PlaybackUiTests.Find<TextBox>(window, "StepValue_0").Text);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void ClickButtonAndHoldAndKeyHoldSave()
+    {
+        var (state, window) = Open();
+        try
+        {
+            var macro = state.Macro;
+            PlaybackUiTests.Find<ComboBox>(window, "StepButton_0").SelectedItem = "Right";
+            Assert.Equal("Right", macro.Steps[0].Button);
+            PlaybackUiTests.Find<TextBox>(window, "StepHold_0").Text = "250";
+            Assert.Equal(250, macro.Steps[0].HoldMs);
+            PlaybackUiTests.Find<TextBox>(window, "StepHold_0").Text = "x";
+            Assert.Equal(250, macro.Steps[0].HoldMs);
+            Assert.Contains("Hold", PlaybackUiTests.Find<TextBlock>(window, "ActionError").Text);
+            Press(PlaybackUiTests.Find<TextBox>(window, "StepHold_0"), Key.Escape);
+            Assert.Equal("250", PlaybackUiTests.Find<TextBox>(window, "StepHold_0").Text);
+            PlaybackUiTests.Click(window, "Add_Key");
+            PlaybackUiTests.Find<TextBox>(window, "StepHold_1").Text = "1500";
+            Assert.Equal(new MacroStep("Key", "Space", 100, "Left", 1500), macro.Steps[1]);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void PressReleaseKindsAddAndWarnAboutUnmatchedDowns()
+    {
+        var (state, window) = Open();
+        try
+        {
+            var macro = state.Macro;
+            var warning = () => PlaybackUiTests.Find<TextBlock>(window, "ActionWarning").Text;
+            Assert.Equal("", warning());
+            PlaybackUiTests.Click(window, "Add_KeyDown");
+            Assert.Equal(new MacroStep("Key down", "W", 100), macro.Steps[1]);
+            Assert.Equal("Step 2 holds W until the macro ends.", warning());
+            PlaybackUiTests.Click(window, "Add_KeyUp");
+            Assert.Equal("", warning());
+            PlaybackUiTests.Click(window, "Add_MouseDown");
+            Assert.Equal("480", PlaybackUiTests.Find<TextBox>(window, "StepX_3").Text);
+            PlaybackUiTests.Find<ComboBox>(window, "StepButton_3").SelectedItem = "Middle";
+            Assert.Equal("Step 4 holds the Middle button until the macro ends.", warning());
+            PlaybackUiTests.Click(window, "Add_MouseUp");
+            PlaybackUiTests.Find<ComboBox>(window, "StepButton_4").SelectedItem = "Middle";
+            Assert.Equal("", warning());
+            window.UpdateLayout(); Assert.DoesNotContain(window.GetVisualDescendants().OfType<Control>(), c => c.Name == "StepHold_3");
         }
         finally { window.Close(); }
     }
