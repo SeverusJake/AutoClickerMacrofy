@@ -23,13 +23,15 @@ public static class ActionCompiler
                     _ => new CompiledAction.MouseUp(point, coordinates, button, source.DelayMs)
                 };
                 break;
-            case "Key" or "Key down" or "Key up":
+            case "Key" or "Combo key" or "Key down" or "Key up":
                 if (!KeyParser.TryParse(source.Value, out var keys, out error)) break;
                 if (keys.Any(key => reservedKeys.Any(reserved => string.Equals(reserved, key.LogicalKey, StringComparison.OrdinalIgnoreCase)))) { error = "Key chord contains a reserved control hotkey."; break; }
-                if (source.Kind == "Key" && !TryHold(source.HoldMs, out error)) break;
+                if (source.Kind == "Combo key" ? keys.Count < 2 : keys.Count > 1)
+                { error = source.Kind == "Combo key" ? "Combo key needs at least one modifier plus one key." : $"{source.Kind} takes one key. Use Combo key for combinations."; break; }
+                if (source.Kind is "Key" or "Combo key" && !TryHold(source.HoldMs, out error)) break;
                 action = source.Kind switch
                 {
-                    "Key" => new CompiledAction.Key(keys, source.DelayMs, source.HoldMs),
+                    "Key" or "Combo key" => new CompiledAction.Key(keys, source.DelayMs, source.HoldMs),
                     "Key down" => new CompiledAction.KeyDown(keys, source.DelayMs),
                     _ => new CompiledAction.KeyUp(keys, source.DelayMs)
                 };

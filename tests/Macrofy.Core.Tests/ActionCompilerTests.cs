@@ -16,19 +16,19 @@ public class ActionCompilerTests
         Assert.True(ActionCompiler.TryCompile(new(kind, value, delay), CoordinateMode.FixedPixels, Reserved, out _, out _));
     [Fact] public void ChordPreservesCanonicalDeclaredOrder()
     {
-        Assert.True(ActionCompiler.TryCompile(new("Key", "ctrl + shift + a", 25), CoordinateMode.FixedPixels, Reserved, out var action, out var error), error);
+        Assert.True(ActionCompiler.TryCompile(new("Combo key", "ctrl + shift + a", 25), CoordinateMode.FixedPixels, Reserved, out var action, out var error), error);
         var key = Assert.IsType<CompiledAction.Key>(action);
         Assert.Equal(new[] { "Control", "Shift", "A" }, key.Keys.Select(k => k.LogicalKey));
         Assert.Equal(25, key.DelayMs);
     }
     [Theory]
     [InlineData("Key", "Unknown", "Unsupported")]
-    [InlineData("Key", "Ctrl + Control + A", "Duplicate")]
-    [InlineData("Key", "Ctrl +", "empty")]
-    [InlineData("Key", "Ctrl + Shift", "nonmodifier")]
-    [InlineData("Key", "A + Ctrl", "last")]
-    [InlineData("Key", "A + B", "last")]
-    [InlineData("Key", "Ctrl + F10", "reserved")]
+    [InlineData("Combo key", "Ctrl + Control + A", "Duplicate")]
+    [InlineData("Combo key", "Ctrl +", "empty")]
+    [InlineData("Combo key", "Ctrl + Shift", "nonmodifier")]
+    [InlineData("Combo key", "A + Ctrl", "last")]
+    [InlineData("Combo key", "A + B", "last")]
+    [InlineData("Combo key", "Ctrl + F10", "reserved")]
     [InlineData("Click", "NaN, 0", "finite")]
     [InlineData("Wheel", "0", "nonzero")]
     [InlineData("Wheel", "32768", "16-bit")]

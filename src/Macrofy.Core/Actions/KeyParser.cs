@@ -17,7 +17,8 @@ public static class KeyParser
             if (family is not null)
             {
                 if (!modifiers.Add(family)) { error = $"Duplicate modifier: {canonical}."; return false; }
-                if (i == tokens.Length - 1) { error = "Key chord requires a final nonmodifier key."; return false; }
+                // A modifier alone is one valid key (e.g. Key down Shift); in a chord it needs a final key.
+                if (i == tokens.Length - 1 && tokens.Length > 1) { error = "Key chord requires a final nonmodifier key."; return false; }
             }
             else if (i != tokens.Length - 1) { error = "Nonmodifier key must be last in the chord."; return false; }
             parsed.Add(new(canonical));

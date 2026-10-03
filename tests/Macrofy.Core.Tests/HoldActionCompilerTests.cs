@@ -25,7 +25,7 @@ public sealed class HoldActionCompilerTests
     [Fact]
     public void KeyCarriesHold()
     {
-        var key = Assert.IsType<CompiledAction.Key>(Compile(new("Key", "Shift + W", 0, HoldMs: 1500)));
+        var key = Assert.IsType<CompiledAction.Key>(Compile(new("Combo key", "Shift + W", 0, HoldMs: 1500)));
         Assert.Equal(1500, key.HoldMs);
         Assert.Equal(new[] { "Shift", "W" }, key.Keys.Select(k => k.LogicalKey));
     }
@@ -38,7 +38,7 @@ public sealed class HoldActionCompilerTests
         var up = Assert.IsType<CompiledAction.MouseUp>(Compile(new("Mouse up", "50, 60", 7)));
         Assert.Equal((new PointerPoint(50, 60), MouseButton.Left, 7), (up.Point, up.Button, up.DelayMs));
         Assert.Equal(new[] { "W" }, Assert.IsType<CompiledAction.KeyDown>(Compile(new("Key down", "W", 0))).Keys.Select(k => k.LogicalKey));
-        Assert.Equal(new[] { "Control", "A" }, Assert.IsType<CompiledAction.KeyUp>(Compile(new("Key up", "Ctrl + A", 0))).Keys.Select(k => k.LogicalKey));
+        Assert.Equal(new[] { "Control" }, Assert.IsType<CompiledAction.KeyUp>(Compile(new("Key up", "Ctrl", 0))).Keys.Select(k => k.LogicalKey));
     }
 
     [Theory]
