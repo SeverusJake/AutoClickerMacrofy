@@ -84,9 +84,8 @@ public sealed class FinalReviewUiTests
         var window = new MainWindow(state, controller, keys, compatibility: ui); window.Show();
         try
         {
+            // The macro editor shows no action descriptions; Compatibility keeps the Wheel note.
             PlaybackUiTests.Click(window, "Tab_Macros");
-            AssertWheelHelp(VisibleText(window));
-            PlaybackUiTests.Find<ComboBox>(window, "StepKind_0").SelectedItem = "Text";
             Assert.DoesNotContain("signed vertical", VisibleText(window), StringComparison.OrdinalIgnoreCase);
             PlaybackUiTests.Click(window, "Tab_Compatibility");
             PlaybackUiTests.Find<ComboBox>(window, "CompatibilityAction").SelectedItem = "Wheel";

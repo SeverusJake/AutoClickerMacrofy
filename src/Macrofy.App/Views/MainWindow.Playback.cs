@@ -93,13 +93,20 @@ public sealed partial class MainWindow
             Dispatcher.UIThread.Post(() => { if (key is not null && shortcutCapture is not null) CaptureShortcut(key); });
             return;
         }
+        // While a key is being recorded, Run/Pause hotkeys are reported instead of acting; Stop still stops.
+        if (keyRecording is not null && command != HotkeyCommand.Stop)
+        {
+            var reserved = command == HotkeyCommand.Run ? registeredKeys?.Run.Key : registeredKeys?.Pause.Key;
+            Dispatcher.UIThread.Post(() => keyRecording?.Report($"{reserved} is reserved for Macrofy."));
+            return;
+        }
         if (command == HotkeyCommand.Stop) { playback.StopAll(); CancelCompatibilityTest(); }
         Dispatcher.UIThread.Post(() =>
         {
             if (closing) return;
             if (command == HotkeyCommand.Run) RunAllEnabled();
             else if (command == HotkeyCommand.Pause) TogglePauseAll();
-            else { EndRecording(); RefreshPlayback(); }
+            else { EndRecording(); keyRecording = null; RefreshPlayback(); }
         });
     }
     private bool ConfigureHotkeys(ShortcutSettings candidate)
@@ -113,6 +120,7 @@ public sealed partial class MainWindow
     }
     private void HandleShortcutKeyDown(object? sender, KeyEventArgs e)
     {
+        if (keyRecording is not null) { if (HandleKeyRecording(e.Key, e.KeyModifiers)) e.Handled = true; return; }
         var key = e.Key.ToString();
         if (!key.StartsWith('F') || !int.TryParse(key.AsSpan(1), out var number) || number is < 1 or > 12) return;
         if (shortcutCapture is null) return; // Global service alone dispatches playback commands.

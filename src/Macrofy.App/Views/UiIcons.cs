@@ -38,7 +38,8 @@ internal static class UiIcons
         ["Mouse down"] = "M12 3v12 M7 10l5 5 5-5 M6 20h12",
         ["Mouse up"] = "M12 21V9 M7 14l5-5 5 5 M6 4h12",
         ["Key down"] = "M3 15h18v6H3z M12 3v8 M9 8l3 3 3-3",
-        ["Key up"] = "M3 15h18v6H3z M12 11V3 M9 6l3-3 3 3"
+        ["Key up"] = "M3 15h18v6H3z M12 11V3 M9 6l3-3 3 3",
+        ["Combo key"] = "M2 9h14v10H2z M6 13h.01 M10 13h.01 M7 16h5 M20 3v6 M17 6h6"
     };
     public static Control Create(string name, IBrush color) => new Viewbox
     {

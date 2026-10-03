@@ -21,7 +21,6 @@ public sealed class RecordPointUiTests
         {
             var macro = state.Profile.Macros.Single(m => m.Name == "Collect rewards");
             PlaybackUiTests.Click(window, "Edit_" + macro.Id.ToString("N"));
-            Assert.Equal("Background clicks don't work in every game. Watch the first run.", PlaybackUiTests.Find<TextBlock>(window, "MacroModeNote").Text);
             PlaybackUiTests.Click(window, "StepRecord_0");
             Assert.Equal(1, clicks.Started);
             Assert.Equal("Click the spot to record it. That click is not sent to the app. Click Cancel recording to stop.", PlaybackUiTests.Find<TextBlock>(window, "RecordStatus").Text);

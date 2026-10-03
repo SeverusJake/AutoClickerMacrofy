@@ -152,26 +152,22 @@ public sealed class InlineEditorUiTests
     }
 
     [AvaloniaFact]
-    public void PressReleaseKindsAddAndWarnAboutUnmatchedDowns()
+    public void PressReleaseKindsAdd()
     {
         var (state, window) = Open();
         try
         {
             var macro = state.Macro;
-            var warning = () => PlaybackUiTests.Find<TextBlock>(window, "ActionWarning").Text;
-            Assert.Equal("", warning());
             PlaybackUiTests.Click(window, "Add_KeyDown");
             Assert.Equal(new MacroStep("Key down", "W", 100), macro.Steps[1]);
-            Assert.Equal("Step 2 holds W until the macro ends.", warning());
             PlaybackUiTests.Click(window, "Add_KeyUp");
-            Assert.Equal("", warning());
             PlaybackUiTests.Click(window, "Add_MouseDown");
             Assert.Equal("480", PlaybackUiTests.Find<TextBox>(window, "StepX_3").Text);
             PlaybackUiTests.Find<ComboBox>(window, "StepButton_3").SelectedItem = "Middle";
-            Assert.Equal("Step 4 holds the Middle button until the macro ends.", warning());
             PlaybackUiTests.Click(window, "Add_MouseUp");
             PlaybackUiTests.Find<ComboBox>(window, "StepButton_4").SelectedItem = "Middle";
-            Assert.Equal("", warning());
+            Assert.Equal("Middle", macro.Steps[4].Button);
+            Assert.Equal("W", PlaybackUiTests.Find<ComboBox>(window, "StepKey_1").SelectedItem);
             window.UpdateLayout(); Assert.DoesNotContain(window.GetVisualDescendants().OfType<Control>(), c => c.Name == "StepHold_3");
         }
         finally { window.Close(); }
