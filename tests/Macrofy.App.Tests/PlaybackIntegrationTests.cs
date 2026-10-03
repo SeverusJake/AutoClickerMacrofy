@@ -50,6 +50,30 @@ public class PlaybackIntegrationTests
     }
 
     [Fact]
+    public async Task BackgroundWindowReceivesHeldRightClickAndKeyHeldAcrossSteps()
+    {
+        using var target = await TargetFixture.StartAsync(TestContext.Current.CancellationToken);
+        await target.RequestAsync("place-background");
+        await using var f = await Composition.CreateAsync(target, false);
+        var request = f.Request([
+            new CompiledAction.Click(new(30, 40), CoordinateMode.FixedPixels, 0, MouseButton.Right, 60),
+            new CompiledAction.KeyDown([new("A")], 0), new CompiledAction.Wait(60, 0), new CompiledAction.KeyUp([new("A")], 0)]);
+        await f.RunAsync(request);
+        JsonElement[] delivered = [];
+        await WaitAsync(async () =>
+        {
+            delivered = (await target.RequestAsync("snapshot")).GetProperty("Events").EnumerateArray().Where(e => Message(e) is 0x204 or 0x205 or 0x100 or 0x101).ToArray();
+            return delivered.Length >= 4;
+        });
+        Assert.Equal(new uint[] { 0x204, 0x205, 0x100, 0x101 }, delivered.Select(Message));
+        static long At(JsonElement e) => e.GetProperty("Timestamp").GetInt64();
+        Assert.True(Stopwatch.GetElapsedTime(At(delivered[0]), At(delivered[1])) >= TimeSpan.FromMilliseconds(50), "Right button must stay down for the hold.");
+        Assert.True(Stopwatch.GetElapsedTime(At(delivered[2]), At(delivered[3])) >= TimeSpan.FromMilliseconds(50), "Key must stay down across the wait step.");
+        Assert.Equal(30, unchecked((short)delivered[0].GetProperty("LParam").GetInt64()));
+        f.Native.AssertUnchangedDesktop();
+    }
+
+    [Fact]
     public async Task MinimizedWheelRejectsCurrentPointerOutsideClientWithoutFallback()
     {
         using var target = await TargetFixture.StartAsync(TestContext.Current.CancellationToken);

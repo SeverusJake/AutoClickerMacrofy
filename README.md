@@ -16,11 +16,15 @@ Select a macro on the Macros tab. Each step is a row you edit in place: pick the
 
 | Action | Value | Behavior |
 | --- | --- | --- |
-| Click | `X, Y` | Left click at fixed desktop pixels or window client pixels; Percentage mode uses `0–100, 0–100`. |
-| Key | `Space`, `Enter`, `Ctrl + K` | One supported key or modifier chord. Control shortcut keys are reserved. |
+| Click | `X, Y` + Button + Hold | Left, Right or Middle click at fixed desktop pixels or window client pixels; Percentage mode uses `0–100, 0–100`. **Hold** (ms) keeps the button down that long; 0 = normal click. |
+| Key | `Space`, `Enter`, `Ctrl + K` + Hold | One supported key or modifier chord. Control shortcut keys are reserved. **Hold** (ms) keeps it down that long. |
 | Text | Text up to 4096 UTF-16 units | Sends Unicode text. |
 | Wait | Integer `0–600000` ms | Delays without native input. |
 | Wheel | Nonzero signed 16-bit integer, such as `120` or `-120` | Vertical scroll at current pointer; window mode requires pointer inside current client area. |
+| Mouse down / Mouse up | `X, Y` + Button | Press a button and keep it held / release it there (down at A, up at B makes a simple drag). |
+| Key down / Key up | `W`, `Shift + W` | Press keys and keep them held / release them. |
+
+Held input belongs to its macro: it stays down across steps and loops until the matching up step, and Macrofy releases it automatically when the macro pauses, finishes, stops, errors or loses its target (resuming does not press it again). A down with no later matching up shows a warning such as "Step 2 holds W until the macro ends." In window (background) mode some games read the physical key state and ignore held keys; Screen mode uses real input.
 
 Each step has **Wait after** (`0–600000` ms). Repeat can be Once, 100 times, or Until stopped; each Profiles row also has a **Loop** toggle (on = until stopped, off = once) and an **Interval (s)** field. **Interval between runs** (`0–600000` ms) starts after the last action and its Wait after finish; the next run starts after that interval. The first run starts immediately apart from the Screen countdown. Waits use a monotonic clock; pause preserves remaining wait time. The UI shows current/total step, completed loops, active elapsed time, remaining wait/countdown, and delivery or cleanup errors. Sent/queued input is not an observed game response.
 
@@ -30,7 +34,7 @@ Percentage `0` maps to the first pixel and `100` to the last pixel. Screen perce
 
 Window playback targets a saved executable/title rule and the one matching live window; several matches fail until the rule is narrowed. It uses the window's main input surface unless the optional Compatibility tab selected another for the session. It never brings the target forward, minimizes it, or falls back to Screen on failure. No compatibility confirmation is required: background clicks don't work in every game, so watch the first run. For a Click step, press **Record point**, then left-click the spot: that one click is blocked from reaching the app, and Macrofy reads its position (window client pixels for window macros, desktop pixels for Screen macros). Clicks on Macrofy itself pass through, so **Cancel recording** still works. The Compatibility tab labels input surfaces as `Main · W×H (default)` or `Child · W×H · id` and preselects the main one. Changed executable/title/surface/state or geometry can invalidate playback or require coordinates to be checked again. Window Wheel uses the current pointer in the target client area; this can be unavailable for minimized windows.
 
-Stop cancels future actions and waits promptly. Native input already sent cannot be withdrawn. Cleanup releases input owned by the current gesture using an independent 500 ms budget; errors are reported separately. Native synchronous delivery can delay a Stop boundary. Recording and independent hold/drag editing are unavailable.
+Stop cancels future actions and waits promptly. Native input already sent cannot be withdrawn. Cleanup releases input owned by the current gesture using an independent 500 ms budget; errors are reported separately. Native synchronous delivery can delay a Stop boundary. Macro recording is unavailable.
 
 Closing the original window stops its sessions even while paused or waiting, with a target-loss diagnostic. Other targets keep running; input ownership remains held until cleanup finishes. Wheel help in the editor and Compatibility explains the current-pointer requirement and possible minimized `OutsideClient` rejection. Key/Shortcut help explains that received messages alone do not establish working keyboard-state-based shortcuts; each needs an observed response.
 
@@ -47,6 +51,6 @@ powershell -NoProfile -File scripts/publish-ui.ps1
 
 `verify-probe.ps1` runs test projects one at a time (`-m:1`) because native tests share the real cursor. Native tests move the mouse and type into dedicated test windows, so the script shows a popup before tests start (OK starts now, Cancel aborts, auto-start after 10 seconds) and another with the result; do not touch the mouse or keyboard in between. Pass `-NoPopup` for unattended runs.
 
-The 2026-10-03 locked Release verification passed **260 tests** (Core 51, App 123, Windows 86), with zero failures, skips, build warnings, or build errors. Controlled receiver tests covered real background/minimized window messages and a bounded Screen sequence on a dedicated harmless surface. See [native playback verification](docs/verification/native-ui-preview.md) and [Windows input compatibility](docs/verification/windows-input-compatibility.md). Physical global-key behavior outside Macrofy, suspend behavior, clean Windows 10/11 launch, and actual game response remain manual checks.
+The 2026-10-03 locked Release verification passed **284 tests** (Core 66, App 130, Windows 88), with zero failures, skips, build warnings, or build errors. Controlled receiver tests covered real background/minimized window messages and a bounded Screen sequence on a dedicated harmless surface. See [native playback verification](docs/verification/native-ui-preview.md) and [Windows input compatibility](docs/verification/windows-input-compatibility.md). Physical global-key behavior outside Macrofy, suspend behavior, clean Windows 10/11 launch, and actual game response remain manual checks.
 
 The standalone compatibility probe can also be built and run with `powershell -NoProfile -File scripts/publish-probe.ps1` and `dotnet run --project tools/Macrofy.CompatibilityProbe -- --interactive`. Its separate results file is `MacrofyData/compatibility-probe-results.json` beside the probe EXE. Probe observations do not replace the native app's per-capability confirmation workflow.
