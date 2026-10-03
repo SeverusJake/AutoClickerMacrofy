@@ -36,7 +36,7 @@ Window playback targets a saved executable/title rule and the one matching live 
 
 Stop cancels future actions and waits promptly. Native input already sent cannot be withdrawn. Cleanup releases input owned by the current gesture using an independent 500 ms budget; errors are reported separately. Native synchronous delivery can delay a Stop boundary. Macro recording is unavailable.
 
-Closing the original window stops its sessions even while paused or waiting, with a target-loss diagnostic. Other targets keep running; input ownership remains held until cleanup finishes. Wheel help in the editor and Compatibility explains the current-pointer requirement and possible minimized `OutsideClient` rejection. Key/Shortcut help explains that received messages alone do not establish working keyboard-state-based shortcuts; each needs an observed response.
+Closing the original window stops its sessions even while paused or waiting, with a target-loss diagnostic. Other targets keep running; input ownership remains held until cleanup finishes. Wheel help in the editor and Compatibility explains the current-pointer requirement and possible minimized `OutsideClient` rejection.
 
 ## Data and build
 
@@ -51,6 +51,6 @@ powershell -NoProfile -File scripts/publish-ui.ps1
 
 `verify-probe.ps1` runs test projects one at a time (`-m:1`) because native tests share the real cursor. Native tests move the mouse and type into dedicated test windows, so the script shows a popup before tests start (OK starts now, Cancel aborts, auto-start after 10 seconds) and another with the result; do not touch the mouse or keyboard in between. Pass `-NoPopup` for unattended runs.
 
-The 2026-10-03 locked Release verification passed **286 tests** (Core 66, App 132, Windows 88), with zero failures, skips, build warnings, or build errors. Controlled receiver tests covered real background/minimized window messages and a bounded Screen sequence on a dedicated harmless surface. See [native playback verification](docs/verification/native-ui-preview.md) and [Windows input compatibility](docs/verification/windows-input-compatibility.md). Physical global-key behavior outside Macrofy, suspend behavior, clean Windows 10/11 launch, and actual game response remain manual checks.
+The 2026-10-03 locked Release verification passed **287 tests** (Core 66, App 133, Windows 88), with zero failures, skips, build warnings, or build errors. Controlled receiver tests covered real background/minimized window messages and a bounded Screen sequence on a dedicated harmless surface. See [native playback verification](docs/verification/native-ui-preview.md) and [Windows input compatibility](docs/verification/windows-input-compatibility.md). Physical global-key behavior outside Macrofy, suspend behavior, clean Windows 10/11 launch, and actual game response remain manual checks.
 
 The standalone compatibility probe can also be built and run with `powershell -NoProfile -File scripts/publish-probe.ps1` and `dotnet run --project tools/Macrofy.CompatibilityProbe -- --interactive`. Its separate results file is `MacrofyData/compatibility-probe-results.json` beside the probe EXE. Probe observations do not replace the native app's per-capability confirmation workflow.

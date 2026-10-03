@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 using Avalonia.Headless.XUnit;
 using Macrofy.App.Models;
 using Macrofy.App.Services;
@@ -78,6 +80,23 @@ public sealed class RecordPointUiTests
             clicks.Click();
             await PlaybackControllerTests.Until(() => PlaybackUiTests.Find<TextBox>(window, "CompatibilityValue").Text == "123, 45");
             Assert.Equal(catalog.Window.Token, catalog.ReadToken);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void RecordButtonSitsRightBeforeWaitAfter()
+    {
+        var (state, window, _, _) = Open();
+        try
+        {
+            var macro = state.Profile.Macros.Single(m => m.Name == "Collect rewards");
+            PlaybackUiTests.Click(window, "Edit_" + macro.Id.ToString("N"));
+            var record = PlaybackUiTests.Find<Button>(window, "StepRecord_0");
+            var delay = PlaybackUiTests.Find<TextBox>(window, "StepDelay_0");
+            var recordRight = record.TranslatePoint(new Avalonia.Point(record.Bounds.Width, 0), window)!.Value.X;
+            var delayLeft = delay.TranslatePoint(new Avalonia.Point(0, 0), window)!.Value.X;
+            Assert.InRange(delayLeft - recordRight, 0, 24);
         }
         finally { window.Close(); }
     }

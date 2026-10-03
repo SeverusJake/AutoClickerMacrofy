@@ -207,8 +207,11 @@ public sealed partial class MainWindow
                 button.SelectionChanged += (_, _) => { if (button.SelectedItem is string chosen && chosen != Draft(index).Button) { Draft(index).Button = chosen; Commit(index); } };
                 var cells = new List<Control> { Text("X", "muted", 12), x, Text("Y", "muted", 12), y, button };
                 if (shown.Kind == "Click") cells.Add(HoldBox());
-                cells.Add(record);
-                value = Row([.. cells]);
+                // Record point sits at the right edge, directly before the Wait after box.
+                var dock = new DockPanel { LastChildFill = true };
+                DockPanel.SetDock(record, Dock.Right); record.Margin = new Thickness(8, 0, 0, 0);
+                dock.Children.Add(record); dock.Children.Add(Row([.. cells]));
+                value = dock;
                 editable.AddRange([x, y, button]);
             }
             else
@@ -329,7 +332,6 @@ public sealed partial class MainWindow
     private static string ActionHelp(string? kind) => kind switch
     {
         "Wheel" => "Wheel value is a signed vertical delta (+ up, − down), sent at the current pointer. Window mode requires the pointer inside current client bounds; minimized targets may reject it with OutsideClient.",
-        "Key" or "Shortcut" => "Received key messages do not establish working keyboard-state-based shortcuts. Key and Shortcut each need their own observed response in Compatibility.",
         _ => ""
     };
 }

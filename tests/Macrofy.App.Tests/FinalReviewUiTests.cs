@@ -95,8 +95,8 @@ public sealed class FinalReviewUiTests
             {
                 PlaybackUiTests.Find<ComboBox>(window, "CompatibilityAction").SelectedItem = kind;
                 var text = VisibleText(window);
-                Assert.Contains("keyboard-state", text, StringComparison.OrdinalIgnoreCase);
-                Assert.Contains("observed response", text, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("keyboard-state", text, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("observed response", text, StringComparison.OrdinalIgnoreCase);
                 Assert.DoesNotContain("signed vertical", text, StringComparison.OrdinalIgnoreCase);
             }
         }
