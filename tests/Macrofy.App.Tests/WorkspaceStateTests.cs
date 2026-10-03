@@ -36,6 +36,27 @@ public class WorkspaceStateTests
         }
         finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
     }
+    [Fact]
+    public void OldStepJsonLoadsLeftButtonAndNoHold()
+    {
+        var step = System.Text.Json.JsonSerializer.Deserialize<MacroStep>("{\"Kind\":\"Click\",\"Value\":\"1, 2\",\"DelayMs\":5}")!;
+        Assert.Equal(new MacroStep("Click", "1, 2", 5, "Left", 0), step);
+    }
+    [Fact]
+    public void ChordKeyStepsLoadAsComboKeyAndDefaultUsesComboKey()
+    {
+        Assert.Contains(WorkspaceDocument.CreateDefault().Profiles.SelectMany(p => p.Macros).SelectMany(m => m.Steps), s => s == new MacroStep("Combo key", "Ctrl + K", 100));
+        var folder = Path.Combine(Path.GetTempPath(), "macrofy-combo-" + Guid.NewGuid());
+        try
+        {
+            var store = new WorkspaceStore(folder); var document = WorkspaceDocument.CreateDefault();
+            document.Profiles[0].Macros[0].Steps = [new("Key", "Ctrl + C", 10, HoldMs: 50), new("Key", "Space", 0), new("Key", "broken", 0)];
+            store.Save(document);
+            var loaded = new WorkspaceStore(folder).Load();
+            Assert.Equal(new MacroStep[] { new("Combo key", "Ctrl + C", 10, HoldMs: 50), new("Key", "Space", 0), new("Key", "broken", 0) }, loaded.Profiles[0].Macros[0].Steps);
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
     [Theory]
     [InlineData("Key", "Unknown")]
     [InlineData("Key", "Ctrl +")]

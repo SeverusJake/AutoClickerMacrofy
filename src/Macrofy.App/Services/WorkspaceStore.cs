@@ -33,6 +33,11 @@ public sealed class WorkspaceStore(string folder)
                 throw new InvalidDataException("Invalid workspace data.");
             var ids = result.Profiles.SelectMany(p => p.Macros.Select(m => m.Id).Concat(p.Apps.Select(a => a.Id)).Append(p.Id)).ToArray();
             if (ids.Any(id => id == Guid.Empty) || ids.Distinct().Count() != ids.Length) throw new InvalidDataException("Invalid workspace identities.");
+            // Key now takes one key; older combination Key steps become Combo key.
+            foreach (var macro in result.Profiles.SelectMany(p => p.Macros))
+                for (var i = 0; i < macro.Steps.Count; i++)
+                    if (macro.Steps[i].Kind == "Key" && Macrofy.Core.Actions.KeyParser.TryParse(macro.Steps[i].Value, out var keys, out _) && keys.Count > 1)
+                        macro.Steps[i] = macro.Steps[i] with { Kind = "Combo key" };
             loadedHash = Convert.ToHexString(SHA256.HashData(bytes));
             return result;
         }

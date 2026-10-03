@@ -21,7 +21,7 @@ public sealed class WorkspaceDocument
         ] };
         var notepad = new SavedApp { Name = "Notepad", Executable = @"C:\Windows\System32\notepad.exe", TitleRule = "*Notepad*" };
         var desktop = new Profile { Name = "Desktop tasks", Apps = [notepad], Macros = [
-            new Macro { Name = "Open search", Steps = [new("Key", "Ctrl + K", 100)] },
+            new Macro { Name = "Open search", Steps = [new("Combo key", "Ctrl + K", 100)] },
             new Macro { Name = "Type note", AppId = notepad.Id, Steps = [new("Text", "Hello", 100), new("Key", "Enter", 100)] }
         ] };
         daily.SelectedMacroId = daily.Macros[0].Id; desktop.SelectedMacroId = desktop.Macros[0].Id;

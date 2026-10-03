@@ -49,7 +49,7 @@ public sealed partial class MainWindow
         {
             compiled = null; error = "Choose an action and enter its value.";
             if (action.SelectedItem is not string kind || string.IsNullOrEmpty(value.Text)) return false;
-            if (!ActionCompiler.TryCompile(new(kind == "Shortcut" ? "Key" : kind, value.Text, 0), CoordinateMode.FixedPixels,
+            if (!ActionCompiler.TryCompile(new(kind == "Shortcut" ? "Combo key" : kind, value.Text, 0), CoordinateMode.FixedPixels,
                 new HashSet<string>([Workspace.Document.Shortcuts.Run, Workspace.Document.Shortcuts.Pause, Workspace.Document.Shortcuts.Stop]), out compiled, out error)) return false;
             if (compiled is CompiledAction.Key key && ((kind == "Shortcut") != (key.Keys.Count > 1)))
             { error = kind == "Shortcut" ? "Enter a chord with more than one key." : "Choose Shortcut for a multi-key chord."; return false; }
