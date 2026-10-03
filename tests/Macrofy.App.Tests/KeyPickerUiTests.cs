@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -93,6 +94,24 @@ public sealed class KeyPickerUiTests
             Assert.Equal(new MacroStep("Combo key", "Ctrl + C", 100), state.Macro.Steps[^1]);
             window.UpdateLayout();
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<Control>(), c => c.Name is "ActionWarning" or "ActionHelp" or "MacroModeNote");
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void RecordButtonsSitRightBeforeWaitAfter()
+    {
+        var (_, window, _) = Open();
+        try
+        {
+            foreach (var (button, row) in new[] { ("StepRecordKey_0", 0), ("StepRecordCombo_1", 1) })
+            {
+                var record = PlaybackUiTests.Find<Button>(window, button);
+                var delay = PlaybackUiTests.Find<TextBox>(window, "StepDelay_" + row);
+                var recordRight = record.TranslatePoint(new Avalonia.Point(record.Bounds.Width, 0), window)!.Value.X;
+                var delayLeft = delay.TranslatePoint(new Avalonia.Point(0, 0), window)!.Value.X;
+                Assert.InRange(delayLeft - recordRight, 0, 24);
+            }
         }
         finally { window.Close(); }
     }

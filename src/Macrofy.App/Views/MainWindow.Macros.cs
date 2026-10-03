@@ -202,11 +202,7 @@ public sealed partial class MainWindow
                 button.SelectionChanged += (_, _) => { if (button.SelectedItem is string chosen && chosen != Draft(index).Button) { Draft(index).Button = chosen; Commit(index); } };
                 var cells = new List<Control> { Text("X", "muted", 12), x, Text("Y", "muted", 12), y, button };
                 if (shown.Kind == "Click") cells.Add(HoldBox());
-                // Record point sits at the right edge, directly before the Wait after box.
-                var dock = new DockPanel { LastChildFill = true };
-                DockPanel.SetDock(record, Dock.Right); record.Margin = new Thickness(8, 0, 0, 0);
-                dock.Children.Add(record); dock.Children.Add(Row([.. cells]));
-                value = dock;
+                value = RecordAtRight(Row([.. cells]), record);
                 editable.AddRange([x, y, button]);
             }
             else if (shown.Kind is "Key" or "Key down" or "Key up")
@@ -220,9 +216,9 @@ public sealed partial class MainWindow
                 picker.SelectionChanged += (_, _) => { if (picker.SelectedItem is string chosen && chosen != (current ?? shown.Value)) SetKey(chosen); };
                 var record = RecordKeyButton("StepRecordKey_" + i, "Record key", combo: false, () => !Workspace.IsActive(macro) && !CompatibilityLocked, SetKey,
                     text => { recordMessage = text; recordStatus.Text = text; });
-                var cells = new List<Control> { picker, record };
+                var cells = new List<Control> { picker };
                 if (shown.Kind == "Key") cells.Add(HoldBox());
-                value = Row([.. cells]);
+                value = RecordAtRight(Row([.. cells]), record);
                 editable.Add(picker);
             }
             else if (shown.Kind == "Combo key")
@@ -232,7 +228,7 @@ public sealed partial class MainWindow
                 var record = RecordKeyButton("StepRecordCombo_" + i, "Record combo", combo: true, () => !Workspace.IsActive(macro) && !CompatibilityLocked,
                     combo => { Draft(index).Value = combo; Commit(index); recordMessage = ""; Render(); },
                     text => { recordMessage = text; recordStatus.Text = text; });
-                value = Row(comboBox, record, HoldBox());
+                value = RecordAtRight(Row(comboBox, HoldBox()), record);
             }
             else
             {
@@ -310,6 +306,15 @@ public sealed partial class MainWindow
         var value = text?.Trim() ?? "";
         if (value.Length == 0) { repeat = 0; return true; }
         return int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out repeat) && repeat is >= 2 and <= 1_000_000;
+    }
+
+    /// <summary>Places a row's record button at the right edge of the value cell, directly before Wait after.</summary>
+    private static Control RecordAtRight(Control content, Control record)
+    {
+        var dock = new DockPanel { LastChildFill = true };
+        DockPanel.SetDock(record, Dock.Right); record.Margin = new Thickness(8, 0, 0, 0);
+        dock.Children.Add(record); dock.Children.Add(content);
+        return dock;
     }
 
     private bool CanReorder(Macro macro) => !Workspace.IsActive(macro) && !CompatibilityLocked && !HasDraft(macro);
